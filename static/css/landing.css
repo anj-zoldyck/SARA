@@ -1,0 +1,259 @@
+/* Global styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #F5FAFE;
+    height: 100%; /* Ensure the body takes full height */
+}
+
+/* Navbar container (Sticky navbar) */
+
+.navbar-custom {
+  background-color: #0d2d6b;
+  border-bottom: 5px solid #134ed5;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar-brand img {
+  height: 50px;
+  width: auto;
+  border-radius: 50%;
+  margin-right: 10px;
+}
+
+.navbar-title {
+  color: white;
+  font-size: 20px;
+  margin: 0;
+  flex: 1;
+  text-align: left;
+  white-space: nowrap; /* prevents wrapping */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: bold;
+}
+
+@media (max-width: 768px) {
+  .navbar-title {
+    font-size: 16px;
+    white-space: normal; /* allow wrapping only on very small screens */
+  }
+}
+
+@media (max-width: 768px) {
+  nav h3 {
+    font-size: 16px !important;
+    margin-top: 8px;
+  }
+}
+
+/* Content Section */
+.content {
+    padding: 10px;
+    text-align: center;
+}
+
+.content h1 {
+    font-size: 35px;
+}
+
+.message {
+    margin: 20px auto; /* centers horizontally */
+    width: 60%;
+    max-width: 600px; /* optional: limits width on large screens */
+    background-color: aliceblue;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-top: 4px solid #0d2d6b;
+    padding: 20px;
+}
+
+.message .welcome {
+    font-size: 18px;
+}
+.message .notice {
+    font-size: 18px;
+    color: #b22222;
+    font-weight: bold;
+    text-align: left;
+}
+.message .noticeM {
+    font-size: 16px;
+    line-height: 1.5;
+    text-align: left;
+}
+.message .data {
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 15px;
+    margin-bottom: 10px;
+    text-align: left;
+}
+.message .dataM {
+    font-size: 16px;
+    text-align: left;
+    line-height: 1.5;
+    text-align: left;
+}
+
+
+/*Main Content*/
+.main-content {
+    padding: 20px;
+    /* min-height: 70h; /* Ensures full height */
+     background-image: url("../images/bgp.jpg"); /* Background only in the main content */
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+}
+
+/* Button Container - Centered Button */
+.button-container {
+    display: flex;
+    justify-content: center; /* Center button horizontally */
+    align-items: center;     /* Center button vertically */
+    height: calc(100vh - 100px); /* Container takes remaining space below the navbar */
+}
+
+button {
+    background-color: white;           /* White background */
+    color: #134ED5;                    /* Text color */
+    border: 2px solid #134ED5;         /* Border same as text color */
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Segoe UI';
+    font-weight: bold;
+    transition: background-color 0.3s ease, color 0.3s ease, transform 0.3s ease;
+}
+
+/* Hover effect */
+button:hover {
+    background-color: #134ED5;  /* Fill with color on hover */
+    color: white;               /* Invert text color */
+    transform: scale(1.05);
+}
+
+/* Focus effect */
+button:focus {
+    outline: none;
+    box-shadow: 0 0 5px #0c3a9f;
+}
+
+/* Footer styles */
+.footer {
+    background-color: #134ED5;  /* Footer background color */
+    color: white;
+    text-align: center;
+    padding: 20px 0;
+    /*position: fixed;*/
+    bottom: 0;
+    width: 100%;
+}
+
+/* Footer styles */
+.footer {
+    background-color: #134ED5;  /* Footer background color */
+    color: white;
+    text-align: center;
+    padding: 20px 0;
+    /*position: fixed;*/
+    bottom: 0;
+    width: 100%;
+}
+
+.footer-content p {
+    margin: 0;
+    font-size: 16px;
+}
+
+/* Media Query for Smaller Screens */
+@media (max-width: 768px) {
+    /* Navbar adjustments */
+    .navbar {
+        flex-direction: column; /* Stack logo and heading vertically */
+        padding: 15px 10px;
+        text-align: center;
+        height: auto;  /* Allow navbar to adjust its height when stacked */
+    }
+
+    /* Logo adjustments for smaller screens */
+    .logo a {
+        flex-direction: column; /* Stack logos vertically */
+        margin-bottom: 10px;  /* Space between logos and heading */
+    }
+
+    .srp {
+        height: 40px; /* Adjust logo size for smaller screens */
+        margin-right: 0;
+        margin-bottom: 5px;
+    }
+
+    /* Heading (h3) adjustments */
+    h3 {
+        font-size: 16px;  /* Smaller font size for h3 */
+        margin-left: 0;
+        text-align: center;
+    }
+
+    /* Button adjustments */
+    button {
+        padding: 10px 20px;
+        font-size: 14px;  /* Smaller font size for button */
+    }
+
+    .message {
+        width: 90%;
+        margin: 15px auto;
+        padding: 16px;
+    }
+
+    .message p {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .message {
+        width: 95%;
+        margin: 10px auto;
+        padding: 14px;
+    }
+
+    .message p {
+        font-size: 15px;
+    }
+}
+
+/* Make <a> look like your previous button */
+.custom-button {
+    display: inline-block;
+    background-color: white;           /* White background */
+    color: #134ED5;                    /* Text color */
+    border: 2px solid #134ED5;         /* Border same as text color */
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Segoe UI';
+    font-weight: bold;
+    text-decoration: none;             /* Remove underline */
+    text-align: center;
+    transition: background-color 0.3s ease, color 0.3s ease, transform 0.3s ease;
+}
+
+/* Hover effect */
+.custom-button:hover {
+    background-color: #134ED5;  /* Fill with color on hover */
+    color: white;               /* Invert text color */
+    transform: scale(1.05);
+}
+
+/* Focus effect */
+.custom-button:focus {
+    outline: none;
+    box-shadow: 0 0 5px #0c3a9f;
+}

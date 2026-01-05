@@ -1,0 +1,82 @@
+/* =========================
+   GLOBAL BASE STYLES
+   ========================= */
+
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f5fafe;
+}
+
+/* =========================
+   NAVBAR STYLES
+   ========================= */
+
+.navbar-custom {
+  background-color: #0d2d6b;
+  border-bottom: 5px solid #134ed5;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+}
+
+/* FIX LOGO SIZE HERE */
+.navbar-brand img {
+  height: 48px;          /* Consistent height */
+  width: auto;           /* Maintain aspect ratio */
+  object-fit: contain;   /* Prevent stretching */
+  margin-right: 10px;
+  border-radius: 50%;
+}
+
+
+
+/* Navbar title */
+.navbar-title {
+  color: white;
+  font-size: 20px;
+  margin: 0;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Responsive title */
+@media (max-width: 768px) {
+  .navbar-title {
+    font-size: 16px;
+    white-space: normal;
+  }
+}
+
+/* =========================
+   FOOTER STYLES
+   ========================= */
+
+.footer {
+  background-color: #134ed5;
+  color: white;
+  text-align: center;
+  padding: 20px 0;
+  width: 100%;
+}
+
+.footer-content p {
+  margin: 0;
+  font-size: 16px;
+}
+
+.zone-card {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+.zone-card:hover {
+    transform: scale(1.03);
+}

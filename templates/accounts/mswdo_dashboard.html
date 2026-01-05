@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}MSWDO Dashboard{% endblock %}
+
+{% block navbar_title %}
+MSWDO ADMIN DASHBOARD
+{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Barangay Accounts</h2>
+    <a href="{% url 'create_barangay' %}" class="btn btn-primary">
+      + Add Barangay
+    </a>
+  </div>
+
+  <table class="table table-bordered table-striped">
+    <thead class="table-dark">
+      <tr>
+        <th>Barangay</th>
+        <th>Username</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for barangay in barangays %}
+      <tr>
+        <td>{{ barangay.barangay }}</td>
+        <td>{{ barangay.username }}</td>
+        <td>
+          {% if barangay.is_active %}
+            <span class="badge bg-success">Active</span>
+          {% else %}
+            <span class="badge bg-danger">Deactivated</span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="#" class="btn btn-sm btn-warning">Edit</a>
+          {% if barangay.is_active %}
+            <a href="{% url 'deactivate_barangay' barangay.id %}" class="btn btn-sm btn-danger">
+              Deactivate
+            </a>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4" class="text-center">No barangay accounts found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <a href="{% url 'logout' %}" class="btn btn-outline-secondary mt-3">
+    Logout
+  </a>
+</div>
+{% endblock %}

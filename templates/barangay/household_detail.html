@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}House {{ household.house_number }}{% endblock %}
+
+{% block content %}
+<a href="{% url 'zone_detail' household.zone.id %}" class="btn btn-secondary mb-3">
+  ← Back to Zone
+</a>
+
+<div class="container mt-4">
+  <h2>House {{ household.house_number }}</h2>
+
+  <a href="{% url 'add_family' household.id %}" class="btn btn-success mb-3">
+    + Add Family
+  </a>
+
+  <div class="row">
+    {% for family in families %}
+      <div class="col-md-4 mb-3">
+        <div class="card">
+          <div class="card-body text-center">
+                <a href="{% url 'family_detail' family.id %}" class="btn btn-primary btn-sm">
+                View Members
+                </a>
+            <h5 class="card-title">{{ family.family_name }}</h5>
+            <p>Status:
+              {% if family.is_active %}
+                <span class="text-success">Active</span>
+              {% else %}
+                <span class="text-danger">Inactive</span>
+              {% endif %}
+            </p>
+            <!-- Members & RFID later -->
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <p>No families added yet.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

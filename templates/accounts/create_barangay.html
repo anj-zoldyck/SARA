@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block navbar_title %}
+CREATE BARANGAY ACCOUNT
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <h3>Create Barangay Account</h3>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="mb-3">
+      <label class="form-label">Barangay Name</label>
+      <select name="barangay" class="form-control" required>
+        <option value="Becuran">Becuran</option>
+        <option value="Dila-Dila">Dila-Dila</option>
+        <option value="San Matias">San Matias</option>
+        <option value="San Vicente">San Vicente</option>
+        <option value="Santa Monica">Santa Monica</option>
+        <option value="San Agustin">San Agustin</option>
+        <option value="San Jose">San Jose</option>
+        <option value="San Juan - Macaba">San Juan - Macaba</option>
+        <option value="San Juan - Cacutud">San Juan - Cacutud</option>
+        <option value="San Isidro">San Isidro</option>
+        <option value="San Basilio">San Basilio</option>
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Username</label>
+      <input type="text" name="username" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Password</label>
+      <input type="password" name="password" class="form-control" required>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Create Account</button>
+    <a href="{% url 'mswdo_dashboard' %}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+{% endblock %}

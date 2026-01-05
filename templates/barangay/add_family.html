@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Family{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Add Family – House {{ household.house_number }}</h2>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="mb-3">
+      <label class="form-label">Family Name</label>
+      {{ form.family_name }}
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a href="{% url 'household_detail' household.id %}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+{% endblock %}

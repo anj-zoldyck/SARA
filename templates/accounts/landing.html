@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Welcome | SARA{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/landing.css' %}">
+{% endblock %}
+
+{% block navbar_title %}
+SARA: SANTA RITA AUTOMATED RELIEF AID SYSTEM
+{% endblock %}
+
+{% block content %}
+<main>
+  <div class="main-content">
+    <div class="button-container">
+      <a href="{% url 'login' %}" class="custom-button">
+        ADMIN LOGIN
+      </a>
+    </div>
+  </div>
+</main>
+{% endblock %}

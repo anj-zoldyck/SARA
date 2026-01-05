@@ -1,0 +1,17 @@
+<!-- barangay/dashboard.html -->
+{% extends 'base.html' %}
+{% block content %}
+<h2>{{ barangay }} - Zones</h2>
+<div class="row">
+    {% for zone in zones %}
+    <div class="col-md-4 mb-3">
+        <div class="card zone-card">
+            <div class="card-body text-center">
+                <h5 class="card-title">{{ zone.name }}</h5>
+                <a href="{% url 'zone_detail' zone.id %}" class="btn btn-primary">View Households</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,252 @@
+ body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f5fafe;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.navbar-custom {
+  background-color: #0d2d6b;
+  border-bottom: 5px solid #134ed5;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar-brand img {
+  height: 50px;
+  width: auto;
+  border-radius: 50%;
+  margin-right: 10px;
+}
+
+.navbar-title {
+  color: white;
+  font-size: 20px;
+  margin: 0;
+  flex: 1;
+  text-align: left;
+  white-space: nowrap; /* prevents wrapping */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: bold;
+}
+
+@media (max-width: 768px) {
+  .navbar-title {
+    font-size: 16px;
+    white-space: normal; /* allow wrapping only on very small screens */
+  }
+}
+
+@media (max-width: 768px) {
+  nav h3 {
+    font-size: 16px !important;
+    margin-top: 8px;
+  }
+}
+
+/* ---------------- LOGIN FORM SECTION ---------------- */
+.logform {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 80vh; /* Leaves space for footer */
+  background: linear-gradient(to bottom right, #e9f0ff, #f5fafe);
+  padding: 20px;
+}
+
+.form-container {
+  background-color: white;
+  padding: 40px 50px;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  border-top: 6px solid #134ed5;
+}
+
+.form-container h2 {
+  color: #0d2d6b;
+  font-weight: bold;
+  margin-bottom: 25px;
+  font-size: 26px;
+}
+
+/* Input and labels */
+.form-label {
+  font-weight: 600;
+  color: #0d2d6b;
+  text-align: left;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.form-control {
+  border: 2px solid #dbe3ff;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.form-control:focus {
+  border-color: #134ed5;
+  box-shadow: 0 0 5px rgba(19, 78, 213, 0.4);
+  outline: none;
+}
+
+.form-container p {
+  text-align: center;
+  margin-top: 15px;
+  font-size: 14px;
+  color: #333;
+}
+
+.form-container p a {
+  color: #134ED5;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.form-container p a:hover {
+  text-decoration: underline;
+}
+
+/* Submit button */
+.btn-primary {
+  background-color: white;
+  color: #134ed5;
+  border: 2px solid #134ed5;
+  font-weight: bold;
+  border-radius: 8px;
+  padding: 10px 20px;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  background-color: #134ed5;
+  color: white;
+  transform: scale(1.03);
+}
+
+/* ---------------- RESPONSIVENESS ---------------- */
+@media (max-width: 992px) {
+  .form-container {
+    max-width: 500px;
+    padding: 35px;
+  }
+}
+
+@media (max-width: 768px) {
+  .logform {
+    min-height: 75vh;
+    padding: 10px;
+  }
+
+  .form-container {
+    padding: 30px 25px;
+    max-width: 90%;
+  }
+
+  .form-container h2 {
+    font-size: 22px;
+  }
+
+  .form-control {
+    font-size: 15px;
+    padding: 8px;
+  }
+
+  .btn-primary {
+    padding: 9px;
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .form-container {
+    padding: 25px 20px;
+  }
+
+  .form-container h2 {
+    font-size: 20px;
+  }
+
+  .btn-primary {
+    font-size: 14px;
+  }
+}
+
+
+/* ---------------- FOOTER ---------------- */
+.footer {
+    background-color: #134ed5;
+    color: white;
+    text-align: center;
+    padding: 20px 0;
+    bottom: 0;
+    width: 100%;
+}
+
+.footer-content p {
+    margin: 0;
+    font-size: 16px;
+}
+
+/* ---------------- REGISTRATION FORM ADDITIONS ---------------- */
+.form-container select.form-control {
+  border: 2px solid #dbe3ff;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  background-color: white;
+}
+
+.form-container select.form-control:focus {
+  border-color: #134ed5;
+  box-shadow: 0 0 5px rgba(19, 78, 213, 0.4);
+  outline: none;
+}
+
+/* Adjust spacing between fields */
+.form-container .mb-3 {
+  text-align: left;
+}
+
+/* Adjust the bottom paragraph */
+.form-container p {
+  text-align: center;
+  margin-top: 15px;
+  font-size: 14px;
+  color: #333;
+}
+
+.form-container p a {
+  color: #134ED5;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.form-container p a:hover {
+  text-decoration: underline;
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+  .form-container {
+    padding: 25px;
+  }
+  .form-container h2 {
+    font-size: 22px;
+  }
+  .form-control, .form-container select.form-control {
+    font-size: 15px;
+    padding: 8px;
+  }
+}
