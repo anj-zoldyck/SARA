@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Households{% endblock %}
+
+{% block navbar_title %}
+Household Management
+{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<style>
+.table-responsive {
+    overflow-x: auto;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Households</h3>
+    <a href="{% url 'mswdo_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body p-0 table-responsive">
+      <table class="table table-striped table-bordered mb-0">
+        <thead class="table-dark">
+          <tr>
+            <th>Household Name</th>
+            <th>Address</th>
+            <th>Registered Families</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for household in households %}
+          <tr>
+            <td>{{ household.family_name }}</td>
+            <td>{{ household.address }}</td>
+            <td>{{ household.families.count }}</td>
+            <td>
+              <a href="#" class="btn btn-sm btn-warning">Edit</a>
+              <a href="#" class="btn btn-sm btn-danger">Delete</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="text-center">No households found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

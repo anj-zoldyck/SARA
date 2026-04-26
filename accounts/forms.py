@@ -1,5 +1,5 @@
 from django import forms
-from .models import Household, Family, FamilyMember
+from .models import Household, Family, FamilyMember, User, Barangay
 
 # ----------------- Household Form -----------------
 class HouseholdForm(forms.ModelForm):
@@ -44,3 +44,20 @@ class FamilyMemberForm(forms.ModelForm):
             'age': forms.NumberInput(attrs={'class': 'form-control'}),
         }
 
+# ----------------- Barangay User Creation Form -----------------
+class BarangayAdminForm(forms.ModelForm):
+    password = forms.CharField(widget=forms.PasswordInput)
+
+    class Meta:
+        model = User
+        fields = ['username', 'password', 'barangay']
+
+    # Show barangay as dropdown
+    barangay = forms.ModelChoiceField(
+        queryset=Barangay.objects.all(),
+        empty_label="Select Barangay",
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+
+    username = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control'}))
+    password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'form-control'}))

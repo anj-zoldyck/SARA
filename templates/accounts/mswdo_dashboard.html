@@ -9,58 +9,171 @@ MSWDO ADMIN DASHBOARD
 
 {% block css %}
 <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<style>
+.dashboard-card {
+    border-radius: 8px;
+    padding: 20px;
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+}
+.dashboard-card:hover {
+    transform: scale(1.03);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.card-relief { background-color: #0d2d6b; }
+.card-household { background-color: #134ED5; }
+.card-family { background-color: #007bff; }
+.card-rfid { background-color: #1a75ff; }
+.card-scholar { background-color: #28a745; }
+.card-senior { background-color: #fd7e14; }
+
+.card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.aid-day-box {
+    border: 2px dashed #0d6efd;
+    border-radius: 8px;
+    padding: 15px;
+    background: #f8f9fa;
+}
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-5">
+<div class="container mt-4">
 
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Barangay Accounts</h2>
-    <a href="{% url 'create_barangay' %}" class="btn btn-primary">
-      + Add Barangay
-    </a>
+  <!-- ================= SUMMARY CARDS ================= -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+      <a href="{% url 'barangay_accounts' %}" class="card-link">
+        <div class="dashboard-card card-relief">
+          <h6>Barangay Accounts</h6>
+          <p class="fs-4">{{ barangayAcc_count }}</p>
+        </div>
+      </a>
+    </div>
+<!--
+    <div class="col-md-3 col-6">
+      <a href="{% url 'household_list' %}" class="card-link">
+        <div class="dashboard-card card-household">
+          <h6>Households</h6>
+          <p class="fs-4">{{ household_count }}</p>
+        </div>
+      </a>
+    </div>
+-->
+    <div class="col-md-3 col-6">
+      <a href="{% url 'barangay_list' %}" class="card-link">
+        <div class="dashboard-card card-household">
+          <h6>Barangays</h6>
+          <p class="fs-4">{{ barangay_count }}</p>
+        </div>
+      </a>
+    </div>
+
+<!--  <div class="col-md-3 col-6">
+      <a href="{% url 'family_list' %}" class="card-link">
+        <div class="dashboard-card card-family">
+          <h6>Families</h6>
+          <p class="fs-4">{{ family_count }}</p>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-md-3 col-6">
+      <a href="{% url 'scan_rfid' %}" class="card-link">
+        <div class="dashboard-card card-rfid">
+          <h6>RFID Claims</h6>
+          <p class="fs-6">
+            Claimed: {{ rfid_claimed }} <br>
+            Unclaimed: {{ rfid_unclaimed }}
+          </p>
+        </div>
+      </a>
+    </div>
+-->
   </div>
 
-  <table class="table table-bordered table-striped">
-    <thead class="table-dark">
-      <tr>
-        <th>Barangay</th>
-        <th>Username</th>
-        <th>Status</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for barangay in barangays %}
-      <tr>
-        <td>{{ barangay.barangay }}</td>
-        <td>{{ barangay.username }}</td>
-        <td>
-          {% if barangay.is_active %}
-            <span class="badge bg-success">Active</span>
-          {% else %}
-            <span class="badge bg-danger">Deactivated</span>
-          {% endif %}
-        </td>
-        <td>
-          <a href="#" class="btn btn-sm btn-warning">Edit</a>
-          {% if barangay.is_active %}
-            <a href="{% url 'deactivate_barangay' barangay.id %}" class="btn btn-sm btn-danger">
-              Deactivate
-            </a>
-          {% endif %}
-        </td>
-      </tr>
-      {% empty %}
-      <tr>
-        <td colspan="4" class="text-center">No barangay accounts found.</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <!-- ================= AID OF THE DAY ================= -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="aid-day-box">
+        <h5 class="mb-2">📅 Aid of the Day</h5>
 
-  <a href="{% url 'logout' %}" class="btn btn-outline-secondary mt-3">
-    Logout
-  </a>
+        {% if aid_of_the_day %}
+          <p>
+            <strong>Date:</strong> {{ aid_of_the_day.date }} <br>
+            <strong>Current Aid:</strong>
+            <span class="badge bg-success">{{ aid_of_the_day.aid_type }}</span>
+          </p>
+        {% else %}
+          <p class="text-danger">No aid set for today.</p>
+        {% endif %}
+
+        <form method="post" action="{% url 'set_aid_of_the_day' %}" class="row g-2">
+          {% csrf_token %}
+          <div class="col-md-4">
+            <select name="aid_type" class="form-select" required>
+              <option value="">-- Select Aid --</option>
+              <option value="RELIEF">Relief</option>
+              <option value="SCHOLAR">Scholar</option>
+              <option value="SENIOR">Senior</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <button class="btn btn-primary w-100">
+              Set / Update
+            </button>
+          </div>
+          <div class="col-md-5 text-muted small">
+            * Setting this will control what can be claimed today.
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= AID DISTRIBUTION SHORTCUTS ================= -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <a href="{% url 'aid_list' 'RELIEF' %}" class="card-link">
+        <div class="dashboard-card card-relief">
+          Relief Distribution
+        </div>
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a href="{% url 'aid_list' 'SCHOLAR' %}" class="card-link">
+        <div class="dashboard-card card-scholar">
+          Scholar Distribution
+        </div>
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a href="{% url 'aid_list' 'SENIOR' %}" class="card-link">
+        <div class="dashboard-card card-senior">
+          Senior Distribution
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ================= ACTION BUTTONS ================= -->
+  <div class="d-flex flex-wrap gap-2 mb-4">
+    <a href="{% url 'register_rfid' %}" class="btn btn-success">Register RFID</a>
+    <a href="{% url 'scan_rfid' %}" class="btn btn-primary">RFID Scan</a>
+    <a href="{% url 'aid_type_list' %}" class="btn btn-warning">Aid Monitoring</a>
+    <a href="#" class="btn btn-info text-white">Resident Profiling</a>
+  </div>
+
+  <a href="{% url 'logout' %}" class="btn btn-outline-secondary">Logout</a>
+
 </div>
 {% endblock %}

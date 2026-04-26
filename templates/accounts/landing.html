@@ -8,17 +8,25 @@
 {% endblock %}
 
 {% block navbar_title %}
-SARA: SANTA RITA AUTOMATED RELIEF AID SYSTEM
+SARA: SANTA RITA AUTOMATED RELIEF ASSISTANCE SYSTEM
 {% endblock %}
 
 {% block content %}
-<main>
-  <div class="main-content">
-    <div class="button-container">
-      <a href="{% url 'login' %}" class="custom-button">
-        ADMIN LOGIN
-      </a>
-    </div>
+<main class="main-content">
+
+  <div class="container text-center">
+    <h1 class="fw-bold mb-3">
+      Santa Rita Automated Relief Assistance System
+    </h1>
+
+    <p class="lead mb-4">
+      RFID-Based Household Profiling and Aid Distribution System
+    </p>
+
+    <a href="{% url 'login' %}" class="custom-button">
+      ADMIN LOGIN
+    </a>
   </div>
+
 </main>
 {% endblock %}

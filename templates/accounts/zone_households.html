@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{{ barangay.name }} – {{ zone.name }} Households
+{% endblock %}
+
+{% block navbar_title %}
+{{ barangay.name }} / {{ zone.name }}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>Households in {{ zone.name }}</h4>
+
+    <a href="{% url 'barangay_zones' barangay.id %}"
+       class="btn btn-secondary btn-sm">
+      ← Back to Zones
+    </a>
+  </div>
+
+  <!-- Household Cards -->
+  <div class="row g-3">
+    {% for household in households %}
+      <div class="col-md-4 col-sm-6 col-12">
+        <div class="card shadow-sm h-100">
+          <div class="card-body text-center">
+
+            <h5 class="card-title">
+              House {{ household.house_number }}
+            </h5>
+
+            <p class="text-muted mb-2">
+              {{ household.barangay.name }} – {{ household.zone.name }}
+            </p>
+
+            <a href="{% url 'household_info' household.id %}"
+               class="btn btn-primary btn-sm">
+              View Families
+            </a>
+
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <div class="col-12">
+        <div class="alert alert-info text-center">
+          No households found in this zone.
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}

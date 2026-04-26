@@ -1,8 +1,8 @@
 from django.core.management.base import BaseCommand
-from accounts.models import Zone
+from accounts.models import Barangay, Zone
 
 class Command(BaseCommand):
-    help = 'Load default zones per barangay'
+    help = 'Load Barangays and their Zones'
 
     def handle(self, *args, **kwargs):
         zones_data = {
@@ -19,11 +19,12 @@ class Command(BaseCommand):
             "San Basilio": 8
         }
 
-        for barangay, count in zones_data.items():
+        for barangay_name, count in zones_data.items():
+            barangay, _ = Barangay.objects.get_or_create(name=barangay_name)
             for i in range(1, count + 1):
                 Zone.objects.get_or_create(
                     barangay=barangay,
                     name=f"Zone {i}"
                 )
 
-        self.stdout.write(self.style.SUCCESS("Zones loaded successfully"))
+        self.stdout.write(self.style.SUCCESS("Barangays and Zones loaded successfully"))

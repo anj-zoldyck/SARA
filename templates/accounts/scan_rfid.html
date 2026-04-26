@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}RFID Scan & Monitoring{% endblock %}
+{% block navbar_title %}RFID AID CLAIM SCAN{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="row">
+    
+    <!-- ---------------- Scan RFID Form ---------------- -->
+    <div class="col-md-5 mb-4">
+      <div class="card shadow h-100">
+        <div class="card-body">
+          <h4 class="text-center mb-4">Scan RFID</h4>
+
+          {% if success %}
+            <div class="alert alert-success text-center">{{ success }}</div>
+          {% endif %}
+          {% if error %}
+            <div class="alert alert-danger text-center">{{ error }}</div>
+          {% endif %}
+
+          <form method="post" id="rfidForm">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label class="form-label">RFID UID</label>
+              <input type="text" name="rfid_uid" class="form-control"
+                     placeholder="Tap card / Enter UID"
+                     value="{{ rfid_uid_value }}" required autofocus>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">
+                Aid Type (Today's Aid: 
+                {% if aid_of_the_day %}
+                  {{ aid_of_the_day.aid_type }}
+                {% else %}
+                  Not set
+                {% endif %})
+              </label>
+              <select name="aid_type" class="form-select" {% if aid_of_the_day %}disabled{% endif %} required>
+                {% if aid_of_the_day %}
+                  <option value="{{ aid_of_the_day.aid_type }}" selected>{{ aid_of_the_day.aid_type }}</option>
+                {% else %}
+                  <option value="">-- Select Aid Type --</option>
+                  <option value="RELIEF">Relief</option>
+                  <option value="SCHOLAR">Scholar</option>
+                  <option value="SENIOR">Senior</option>
+                {% endif %}
+              </select>
+              {% if aid_of_the_day %}
+                <input type="hidden" name="aid_type" value="{{ aid_of_the_day.aid_type }}">
+              {% endif %}
+            </div>
+
+            <!-- Family member dropdown injected dynamically by JS -->
+            <div id="memberDropdownContainer">
+              {% if family_members %}
+                <div class="mb-3">
+                  <label class="form-label">Select Claiming Family Member</label>
+                  <select name="family_member" class="form-select" required>
+                    <option value="">-- Select Member --</option>
+                    {% for member in family_members %}
+                      <option value="{{ member.id }}">{{ member.first_name }} {{ member.last_name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Confirm Claim</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------------- Live Claims Monitoring ---------------- -->
+    <div class="col-md-7 mb-4">
+      <div class="card shadow h-100">
+        <div class="card-body">
+          <h5 class="mb-3">Live Claims Monitoring</h5>
+
+          <!-- Barangay Filter -->
+          <div class="mb-3">
+            <label>Filter by Barangay</label>
+            <select id="barangayFilter" class="form-select">
+              <option value="">All Barangays</option>
+              {% for brgy in barangays %}
+                <option value="{{ brgy.id }}" {% if selected_barangay == brgy.id|stringformat:"s" %}selected{% endif %}>
+                  {{ brgy.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Scrollable Table -->
+          <div style="max-height: 450px; overflow-y: auto;">
+            <table class="table table-bordered table-striped table-sm" id="claimsTable">
+              <thead class="table-dark position-sticky top-0">
+                <tr>
+                  <th>RFID UID</th>
+                  <th>Family Name</th>
+                  <th>Member</th>
+                  <th>Address</th>
+                  <th>Aid Type</th>
+                  <th>Claimed At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for claim in recent_claims %}
+                  <tr data-claim-id="{{ claim.id }}">
+                    <td>{{ claim.family.rfid_uid }}</td>
+                    <td>{{ claim.family.family_name }}</td>
+                    <td>
+                      {% if claim.family_member %}
+                        {{ claim.family_member.first_name }} {{ claim.family_member.last_name }}
+                      {% else %}
+                        All Members
+                      {% endif %}
+                    </td>
+                    <td>{{ claim.family.household.address }}</td>
+                    <td>{{ claim.aid_type }}</td>
+                    <td>{{ claim.claimed_at|date:"Y-m-d H:i:s" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ---------------- Auto-refresh every 5s ----------------
+  function refreshTable() {
+    const brgy = document.getElementById('barangayFilter').value;
+    fetch("{% url 'scan_rfid' %}?barangay=" + brgy)
+      .then(response => response.text())
+      .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newTbody = doc.querySelector('#claimsTable tbody');
+        const table = document.querySelector('#claimsTable tbody');
+
+        newTbody.querySelectorAll('tr').forEach(row => {
+          if (!table.querySelector(`tr[data-claim-id="${row.dataset.claimId}"]`)) {
+            row.style.backgroundColor = '#d4edda'; // green highlight for new claim
+            setTimeout(() => row.style.backgroundColor = '', 4000);
+          }
+        });
+
+        table.innerHTML = newTbody.innerHTML;
+      });
+  }
+  setInterval(refreshTable, 5000);
+
+  // ---------------- Barangay Filter ----------------
+  document.getElementById('barangayFilter').addEventListener('change', refreshTable);
+
+  // ---------------- Dynamic Family Members ----------------
+  const rfidInput = document.querySelector('input[name="rfid_uid"]');
+  const aidSelect = document.querySelector('select[name="aid_type"]');
+  const memberDropdownContainer = document.getElementById('memberDropdownContainer');
+
+  function isIndividualAid(aidType) {
+    return aidType === 'SCHOLAR' || aidType === 'SENIOR';
+  }
+
+  function fetchMembers() {
+    const uid = rfidInput.value.trim();
+    const aid_type = aidSelect.value;
+
+    if (!uid || !isIndividualAid(aid_type)) {
+      memberDropdownContainer.innerHTML = '';
+      return;
+    }
+
+    fetch("{% url 'get_family_members' %}?rfid_uid=" + encodeURIComponent(uid) + "&aid_type=" + encodeURIComponent(aid_type))
+      .then(res => res.json())
+      .then(data => {
+        if (!data.members.length) {
+          memberDropdownContainer.innerHTML = '';
+          return;
+        }
+
+        let html = `<div class="mb-3">
+                      <label class="form-label">Select Claiming Family Member</label>
+                      <select name="family_member" class="form-select" required>
+                        <option value="">-- Select Member --</option>`;
+        data.members.forEach(m => {
+          html += `<option value="${m.id}">${m.name}</option>`;
+        });
+        html += '</select></div>';
+        memberDropdownContainer.innerHTML = html;
+      });
+  }
+
+  rfidInput.addEventListener('input', fetchMembers);
+  aidSelect.addEventListener('change', fetchMembers);
+
+  // ---------------- Clear RFID UID after submission ----------------
+  const rfidForm = document.getElementById('rfidForm');
+  rfidForm.addEventListener('submit', () => {
+    setTimeout(() => {
+      rfidInput.value = '';
+      rfidInput.focus();
+      memberDropdownContainer.innerHTML = '';
+    }, 100);
+  });
+</script>
+
+<style>
+  @media (max-width: 767px) {
+    .row > .col-md-5, .row > .col-md-7 {
+      flex: 0 0 100%;
+      max-width: 100%;
+    }
+    #claimsTable {
+      font-size: 0.9rem;
+    }
+  }
+</style>
+{% endblock %}

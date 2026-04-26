@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Barangays{% endblock %}
+{% block navbar_title %}Barangays{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>Barangays</h4>
+    <a href="{% url 'mswdo_dashboard' %}" class="btn btn-secondary btn-sm">
+      ← Back to Dashboard
+    </a>
+  </div>
+
+  <div class="row g-3">
+    {% for barangay in barangays %}
+      <div class="col-md-4 col-sm-6 col-12">
+        <a href="{% url 'barangay_zones' barangay.id %}"
+           class="text-decoration-none">
+          <div class="card shadow-sm h-100">
+            <div class="card-body text-center">
+              <h5 class="card-title mb-0">{{ barangay.name }}</h5>
+              <small class="text-muted">View zones & households</small>
+            </div>
+          </div>
+        </a>
+      </div>
+    {% empty %}
+      <div class="col-12">
+        <div class="alert alert-info text-center">
+          No barangays found.
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}

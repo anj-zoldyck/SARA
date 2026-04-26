@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ aid_type }} Claims - {{ barangay.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+
+  <h3 class="mb-3">
+    {{ aid_type }} Distribution – Barangay {{ barangay.name }}
+  </h3>
+
+  <a href="{% url 'mswdo_dashboard' %}" class="btn btn-secondary mb-4">
+    ← Back to Dashboard
+  </a>
+
+  <!-- ================= SUMMARY CARDS ================= -->
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card text-center shadow-sm">
+        <div class="card-body">
+          <h6>Total Families</h6>
+          <h4>{{ total_families }}</h4>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card text-center shadow-sm border-success">
+        <div class="card-body text-success">
+          <h6>Claimed</h6>
+          <h4>{{ claimed_count }}</h4>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card text-center shadow-sm border-danger">
+        <div class="card-body text-danger">
+          <h6>Not Claimed</h6>
+          <h4>{{ unclaimed_count }}</h4>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<!-- ================= PER-ZONE PROGRESS BARS ================= -->
+<h5 class="mt-4">Per-Zone Distribution Progress</h5>
+
+{% for z in zone_stats %}
+<div class="mb-3">
+    <strong>{{ z.zone }}</strong>
+    <div class="progress">
+        <div class="progress-bar bg-success"
+             role="progressbar"
+             style="width: {{ z.percent }}%;">
+            {{ z.claimed }} / {{ z.total }} ({{ z.percent }}%)
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+
+  <!-- ================= PROGRESS BAR ================= -->
+  <div class="mb-4">
+    <label class="form-label fw-bold">Distribution Progress</label>
+    <div class="progress" style="height: 25px;">
+      <div
+        class="progress-bar bg-success"
+        role="progressbar"
+        style="width: {{ progress_percent }}%;"
+      >
+        {{ progress_percent }}%
+      </div>
+    </div>
+  </div>
+
+
+
+<!-- ================= DATE FILTER ================= -->
+  <form method="get" class="row g-2 mb-3">
+    <div class="col-md-4">
+        <label>Filter by Zone</label>
+        <select name="zone" class="form-select" onchange="this.form.submit()">
+            <option value="">All Zones</option>
+            {% for zone in zones %}
+                <option value="{{ zone.id }}"
+                    {% if selected_zone == zone.id|stringformat:"s" %}selected{% endif %}>
+                    {{ zone.name }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="col-md-4">
+        <label>Filter by Date</label>
+        <input type="date" name="date" value="{{ selected_date }}"
+               class="form-control" onchange="this.form.submit()">
+    </div>
+</form>
+
+
+  <!-- ================= TABLE ================= -->
+  <div class="table-responsive">
+    <table class="table table-bordered table-striped align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>Household Address</th>
+          <th>Family Name</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for data in families_data %}
+          <tr class="{% if 'CLAIMED' in data.status %}table-success{% else %}table-danger{% endif %}">
+            <td>{{ data.household_address }}</td>
+            <td>{{ data.family_name }}</td>
+            <td>{{ data.status }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}

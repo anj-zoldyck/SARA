@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ aid_type }} - Barangays{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h3>{{ aid_type }} Distribution - All Barangays</h3>
+    <ul class="list-group mt-3">
+        {% for barangay in barangays %}
+            <li class="list-group-item">
+                <a href="{% url 'aid_barangay_detail' barangay.id aid_type %}">
+                    {{ barangay.name }}
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

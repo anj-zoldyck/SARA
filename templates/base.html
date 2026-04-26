@@ -17,87 +17,88 @@
 </head>
 
 <body>
-<div class="page-wrapper">
-  <!-- NAVBAR -->
-  <nav class="navbar navbar-expand-lg navbar-custom">
-    <div class="container-fluid">
+<div class="page-wrapper d-flex flex-column min-vh-100">
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg navbar-custom">
+  <div class="container-fluid d-flex align-items-center w-100">
 
-      <a class="navbar-brand d-flex align-items-center" href="#">
+    <!-- Brand + Title Container -->
+    <div class="d-flex align-items-center flex-nowrap">
+      <a class="navbar-brand d-flex align-items-center me-2" href="#">
         <img src="{% static 'images/logo.jpg' %}" alt="Logo">
         <img src="{% static 'images/SRP.png' %}" alt="SRP Logo">
       </a>
-
-      <span class="navbar-title ms-3">
+      <span class="navbar-title">
         {% block navbar_title %}SARA SYSTEM{% endblock %}
       </span>
-
-      {% if user.is_authenticated %}
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-
-        <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
-
-          <ul class="navbar-nav">
-
-            <!-- MSWDO NAVBAR -->
-            {% if user.role == 'MSWDO' %}
-              <li class="nav-item">
-                <a class="nav-link text-white" href="{% url 'mswdo_dashboard' %}">Dashboard</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link text-white" href="#">Barangays</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link text-white" href="#">Aid Distribution</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link text-white" href="#">Reports</a>
-              </li>
-            {% endif %}
-
-            <!-- BARANGAY NAVBAR -->
-            {% if user.role == 'BARANGAY' %}
-              <li class="nav-item">
-                <a class="nav-link text-white" href="{% url 'barangay_dashboard' %}">
-                  {{ user.barangay }} Dashboard
-                </a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link text-white" href="#">Zones</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link text-white" href="#">Households</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link text-white" href="#">Families</a>
-              </li>
-            {% endif %}
-
-            <!-- COMMON -->
-            <li class="nav-item">
-              <a class="nav-link text-warning" href="{% url 'logout' %}">Logout</a>
-            </li>
-
-          </ul>
-
-        </div>
-      {% endif %}
-
     </div>
-  </nav>
 
+    <!-- Navbar toggler and links (authenticated only) -->
+    {% if user.is_authenticated %}
+      <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+        <ul class="navbar-nav">
+
+          <!-- MSWDO NAVBAR -->
+          {% if user.role == 'MSWDO' %}
+            <li class="nav-item">
+              <a class="nav-link text-white" href="{% url 'mswdo_dashboard' %}">Dashboard</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-white" href="#">Barangays</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-white" href="#">Aid Distribution</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-white" href="#">Reports</a>
+            </li>
+          {% endif %}
+
+          <!-- BARANGAY NAVBAR -->
+          {% if user.role == 'BARANGAY' %}
+            <li class="nav-item">
+              <a class="nav-link text-white" href="{% url 'barangay_dashboard' %}">
+                {{ user.barangay }} Dashboard
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-white" href="#">Zones</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-white" href="#">Households</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-white" href="#">Families</a>
+            </li>
+          {% endif %}
+
+          <!-- COMMON -->
+          <li class="nav-item">
+            <a class="nav-link text-warning" href="{% url 'logout' %}">Logout</a>
+          </li>
+
+        </ul>
+      </div>
+    {% endif %}
+
+  </div>
+</nav>
 
   <!-- PAGE CONTENT -->
   {% block content %}{% endblock %}
 
   <!-- FOOTER -->
-  <footer class="footer">
+  <footer class="footer mt-auto">
     <div class="footer-content">
       <p>&copy; 2025 SARA | All Rights Reserved.</p>
     </div>
   </footer>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Register RFID{% endblock %}
+
+{% block navbar_title %}
+RFID REGISTRATION (MSWDO)
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="row justify-content-center">
+    <div class="col-md-7">
+
+      <div class="card shadow">
+        <div class="card-body">
+
+          <h4 class="text-center mb-4">
+            {% if selected_family %}
+              {% if selected_family.rfid_uid %}Update{% else %}Register{% endif %} RFID for {{ selected_family.family_name }}
+            {% else %}
+              Register RFID to Family
+            {% endif %}
+          </h4>
+
+          {% if success %}
+            <div class="alert alert-success text-center">
+              {{ success }}
+            </div>
+          {% endif %}
+
+          {% if error %}
+            <div class="alert alert-danger text-center">
+              {{ error }}
+            </div>
+          {% endif %}
+
+          <form method="post">
+            {% csrf_token %}
+
+            {% if not selected_family %}
+              <!-- FAMILY SELECT -->
+              <div class="mb-3">
+                <label class="form-label">Select Family</label>
+                <select name="family" class="form-select" required>
+                  <option value="">-- Select Family --</option>
+                  {% for family in families %}
+                    <option value="{{ family.id }}">
+                      {{ family.family_name }} —
+                      {{ family.household.house_number }},
+                      {{ family.household.zone.name }},
+                      {{ family.household.barangay.name }}
+                      {% if family.rfid_uid %}
+                        (RFID: {{ family.rfid_uid }})
+                      {% endif %}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+            {% else %}
+              <!-- Hidden input to submit the selected family -->
+              <input type="hidden" name="family" value="{{ selected_family.id }}">
+            {% endif %}
+
+            <!-- RFID UID -->
+            <div class="mb-3">
+              <label class="form-label">RFID UID</label>
+              <input
+                type="text"
+                name="rfid_uid"
+                class="form-control"
+                placeholder="Tap RFID card here"
+                autofocus
+                value="{% if selected_family %}{{ selected_family.rfid_uid }}{% endif %}"
+                required
+              >
+              <small class="text-muted">
+                Tap the RFID card — UID will appear automatically.
+              </small>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">
+              {% if selected_family %}
+                {% if selected_family.rfid_uid %}Update RFID{% else %}Register RFID{% endif %}
+              {% else %}
+                Register RFID
+              {% endif %}
+            </button>
+          </form>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}
+House {{ household.house_number }} – Families
+{% endblock %}
+
+{% block navbar_title %}
+House {{ household.house_number }} – {{ household.barangay.name }}/{{ household.zone.name }}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>Families in House {{ household.house_number }}</h4>
+    <a href="{% url 'zone_households' household.zone.id %}" class="btn btn-secondary btn-sm">
+      ← Back to Households
+    </a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>Family Name</th>
+          <th>RFID UID</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for family in families %}
+          <tr>
+            <td>
+              <a href="{% url 'family_members' family.id %}">
+                {{ family.family_name }}
+              </a>
+            </td>
+            <td>
+              {% if family.rfid_uid %}
+                {{ family.rfid_uid }}
+              {% else %}
+                <span class="text-muted">Not registered</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if family.rfid_uid %}
+                <a href="{% url 'register_rfid' family.id %}" class="btn btn-sm btn-warning">
+                  Update RFID
+                </a>
+                <a href="{% url 'deactivate_rfid' family.id %}" class="btn btn-sm btn-danger"
+                   onclick="return confirm('Are you sure you want to deactivate this RFID?');">
+                  Deactivate RFID
+                </a>
+              {% else %}
+                <a href="{% url 'register_rfid' family.id %}" class="btn btn-sm btn-primary">
+                  Register RFID
+                </a>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="3" class="text-center">No families found in this household.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}
