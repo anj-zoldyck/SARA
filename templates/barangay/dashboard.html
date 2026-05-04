@@ -1,17 +1,79 @@
-<!-- barangay/dashboard.html -->
 {% extends 'base.html' %}
 {% block content %}
+
+<h5 class="mb-3 fw-bold text-primary">📢 Upcoming Distribution</h5>
+
+<div class="notification-container mb-4">
+
+    {% for sched in schedules %}
+        <div class="notification-card d-flex align-items-start mb-3">
+
+            <!-- LEFT: ICON -->
+            <div class="notif-icon me-3">
+                {% if sched.aid_type == "RELIEF" %}
+                    🧺
+                {% else %}
+                    👴
+                {% endif %}
+            </div>
+
+            <!-- CENTER: CONTENT -->
+            <div class="flex-grow-1">
+                <div class="notif-title">
+                    {{ sched.aid_type }} Distribution
+                </div>
+
+                <div class="notif-meta">
+                    📅 {{ sched.schedule_datetime }}
+                </div>
+
+                <div class="notif-meta">
+                    📍 {{ sched.location }}
+                </div>
+
+                {% if sched.barangay %}
+                    <span class="badge bg-primary mt-1">
+                        {{ sched.barangay }}
+                    </span>
+                {% else %}
+                    <span class="badge bg-secondary mt-1">
+                        All Barangays
+                    </span>
+                {% endif %}
+            </div>
+
+            <!-- RIGHT: STATUS -->
+            <div class="text-end">
+                <span class="notif-status upcoming">
+                    Upcoming
+                </span>
+            </div>
+
+        </div>
+
+    {% empty %}
+        <div class="notification-empty">
+            No upcoming schedules.
+        </div>
+    {% endfor %}
+
+</div>
+
 <h2>{{ barangay }} - Zones</h2>
+
 <div class="row">
     {% for zone in zones %}
     <div class="col-md-4 mb-3">
         <div class="card zone-card">
             <div class="card-body text-center">
                 <h5 class="card-title">{{ zone.name }}</h5>
-                <a href="{% url 'zone_detail' zone.id %}" class="btn btn-primary">View Households</a>
+                <a href="{% url 'zone_detail' zone.id %}" class="btn btn-primary">
+                    View Households
+                </a>
             </div>
         </div>
     </div>
     {% endfor %}
 </div>
+
 {% endblock %}

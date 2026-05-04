@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h2>📊 Aid Analytics</h2>
+
+<canvas id="aidChart"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+const ctx = document.getElementById('aidChart');
+
+new Chart(ctx, {
+    type: 'pie',
+    data: {
+        labels: {{ labels|safe }},
+        datasets: [{
+            data: {{ data|safe }},
+            backgroundColor: ['#0d2d6b', '#fd7e14']
+        }]
+    }
+});
+</script>
+
+{% endblock %}

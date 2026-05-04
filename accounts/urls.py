@@ -17,7 +17,8 @@ urlpatterns = [
     path('mswdo/rfid-overview/', views.rfid_overview, name='rfid_overview'),
 
     path('mswdo/barangay-accounts/', views.barangay_accounts, name='barangay_accounts'),
-    path('mswdo/set-aid-of-the-day/', views.set_aid_of_the_day, name='set_aid_of_the_day'),
+    #path('mswdo/set-aid-of-the-day/', views.set_aid_of_the_day, name='set_aid_of_the_day'),
+    path('mswdo/set-aid-schedule/', views.set_aid_schedule, name='set_aid_schedule'),
 
 
     # MSWDO Aid Monitoring
@@ -48,6 +49,12 @@ urlpatterns = [
     path('mswdo/zones/<int:zone_id>/households/', views.zone_households, name='zone_households'),
     path('mswdo/households/<int:household_id>/families/', views.household_info, name='household_info'),
     path('mswdo/families/<int:family_id>/members/', views.family_members, name='family_members'),
+
+    # Analytics
+    path('mswdo/analytics/', views.analytics, name='analytics'),
+
+    # Aid Reports
+   path('mswdo/reports/', views.aid_reports, name='aid_reports'),
 
 
 

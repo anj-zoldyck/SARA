@@ -10,3 +10,99 @@ h2 {
 .badge {
   font-size: 14px;
 }
+
+/* =========================
+   UPCOMING DISTRIBUTION UI
+   ========================= */
+
+.schedule-container {
+    max-width: 800px;
+}
+
+.schedule-card {
+    background: #ffffff;
+    border-left: 6px solid #134ed5;
+    transition: all 0.2s ease;
+}
+
+.schedule-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+    border-left-color: #0d2d6b;
+}
+
+/* Make RELIEF more urgent-looking */
+.schedule-card .badge.bg-danger {
+    font-size: 11px;
+}
+
+/* Time emphasis */
+.schedule-card .text-muted {
+    font-size: 13px;
+}
+
+/* =========================
+   NOTIFICATION CARDS
+   ========================= */
+
+.notification-container {
+    max-width: 850px;
+}
+
+/* Card */
+.notification-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 15px;
+    border-left: 5px solid #134ed5;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.notification-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+}
+
+/* Icon */
+.notif-icon {
+    font-size: 26px;
+    width: 40px;
+    text-align: center;
+}
+
+/* Title */
+.notif-title {
+    font-weight: bold;
+    font-size: 15px;
+    color: #0d2d6b;
+}
+
+/* Meta (date/location) */
+.notif-meta {
+    font-size: 13px;
+    color: #6c757d;
+}
+
+/* Status badge */
+.notif-status {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-weight: bold;
+}
+
+.notif-status.upcoming {
+    background-color: #e7f1ff;
+    color: #134ed5;
+}
+
+/* Empty state */
+.notification-empty {
+    background: #eef5ff;
+    padding: 12px;
+    border-radius: 8px;
+    color: #134ed5;
+    text-align: center;
+}

@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block content %}
+<header>
+    {% if sched.end_datetime < now %}
+        <span class="badge bg-danger">Expired</span>
+    {% else %}
+        <span class="badge bg-success">Active</span>
+    {% endif %}
+</header>
+<div class="container mt-4">
+
+    <h4 class="fw-bold text-primary mb-3">📊 Aid Distribution Reports</h4>
+
+    <!-- FILTER -->
+    <form method="get" class="row mb-4">
+        <div class="col-md-4">
+            <select name="barangay" class="form-select">
+                <option value="">All Barangays</option>
+                {% for b in barangays %}
+                    <option value="{{ b.id }}" {% if selected_barangay == b.id|stringformat:"s" %}selected{% endif %}>
+                        {{ b.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <button class="btn btn-primary w-100">Filter</button>
+        </div>
+    </form>
+
+    <!-- SCHEDULE CARDS -->
+    {% for sched in schedules %}
+        <div class="card shadow-sm mb-4">
+
+            <!-- HEADER -->
+            <div class="card-header d-flex justify-content-between align-items-center">
+
+                <div>
+                    <strong>{{ sched.aid_type }}</strong><br>
+                    <small class="text-muted">
+                        📅 {{ sched.schedule_datetime }} → {{ sched.end_datetime }}
+                    </small><br>
+                    <small class="text-muted">
+                        📍 {{ sched.location }}
+                    </small>
+                </div>
+
+                <div class="text-end">
+                    {% if sched.barangay %}
+                        <span class="badge bg-primary">{{ sched.barangay }}</span>
+                    {% else %}
+                        <span class="badge bg-secondary">All Barangays</span>
+                    {% endif %}
+                </div>
+
+            </div>
+
+            <!-- BODY -->
+            <div class="card-body">
+
+                {% if sched.claims %}
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle">
+
+                            <thead class="table-light">
+                                <tr>
+                                    <th>RFID</th>
+                                    <th>Family</th>
+                                    <th>Member</th>
+                                    <th>Address</th>
+                                    <th>Claimed At</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {% for c in sched.claims %}
+                                <tr>
+                                    <td>{{ c.family.rfid_uid }}</td>
+                                    <td>{{ c.family.family_name }}</td>
+                                    <td>
+                                        {% if c.family_member %}
+                                            {{ c.family_member.first_name }} {{ c.family_member.last_name }}
+                                        {% else %}
+                                            ALL MEMBERS
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ c.family.household.address }}</td>
+                                    <td>{{ c.claimed_at }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+
+                        </table>
+                    </div>
+
+                {% else %}
+                    <div class="text-muted">
+                        No claims recorded for this schedule.
+                    </div>
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    {% empty %}
+        <div class="alert alert-info">
+            No schedules found.
+        </div>
+    {% endfor %}
+
+</div>
+
+{% endblock %}

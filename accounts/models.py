@@ -79,7 +79,6 @@ class FamilyMember(models.Model):
 # ----------------- AidClaim Model -----------------
 class AidType(models.TextChoices):
     RELIEF = 'RELIEF', 'Relief'
-    SCHOLAR = 'SCHOLAR', 'Scholar'
     SENIOR = 'SENIOR', 'Senior Citizen'
     # add more as needed
 
@@ -91,9 +90,10 @@ class AidClaim(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        help_text="For individual aids like Scholar/Senior"
+        help_text="For individual aids like Senior"
     )
     aid_type = models.CharField(max_length=20, choices=AidType.choices)
+    schedule = models.ForeignKey('AidSchedule', on_delete=models.CASCADE, null=True)
     claimed_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -101,20 +101,27 @@ class AidClaim(models.Model):
             return f"{self.family_member} ({self.family}) - {self.aid_type} - {self.claimed_at}"
         return f"{self.family} - {self.aid_type} - {self.claimed_at}"
 
-# ----------------- AidOfTheDay Model -----------------
-class AidOfTheDay(models.Model):
-    aid_type = models.CharField(
-        max_length=20,
-        choices=[
-            ('RELIEF', 'Relief'),
-            ('SCHOLAR', 'Scholar'),
-            ('SENIOR', 'Senior'),
-            # add more in the future
-        ]
+# ----------------- AidSchedule Model -----------------
+class AidSchedule(models.Model):
+    aid_type = models.CharField(max_length=20, choices=AidType.choices)
+
+    schedule_datetime = models.DateTimeField()
+    end_datetime = models.DateTimeField()
+
+    location = models.CharField(max_length=255)
+
+    barangay = models.ForeignKey(
+        Barangay,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
     )
-    date = models.DateField(unique=True, auto_now_add=True)
+
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.date} → {self.aid_type}"
+        return f"{self.aid_type} @ {self.schedule_datetime}"
 
 

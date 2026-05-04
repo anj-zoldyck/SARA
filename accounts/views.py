@@ -6,9 +6,11 @@ from django.http import HttpResponseForbidden, JsonResponse
 from django.contrib import messages
 from django.utils import timezone
 from datetime import date
-from .models import User, Household, Zone, Family, FamilyMember, Barangay, AidClaim, AidType, AidOfTheDay
+from django.db.models import Count, Q
+from .models import AidSchedule, User, Household, Zone, Family, FamilyMember, Barangay, AidClaim, AidType
 from .forms import HouseholdForm, FamilyForm, FamilyMemberForm, BarangayAdminForm
-
+from django.utils.safestring import mark_safe
+import json
 def landing_page(request):
     return render(request, 'accounts/landing.html', {
         'hide_navbar': True
@@ -51,6 +53,7 @@ def mswdo_dashboard(request):
     barangay_accounts = User.objects.filter(role='BARANGAY')
     barangayAcc_count = barangay_accounts.count()
     barangay_count = Barangay.objects.count()
+    barangays = Barangay.objects.all()
 
 
     household_count = Household.objects.count()  # Total households
@@ -61,22 +64,50 @@ def mswdo_dashboard(request):
     rfid_unclaimed = AidClaim.objects.filter(claimed_at__isnull=True).count()
 
     # Add this for template iteration
-    aid_types = ['RELIEF', 'SCHOLAR', 'SENIOR']
+    aid_types = [choice[0] for choice in AidType.choices]
 
-    today = date.today()
-    aid_of_the_day = AidOfTheDay.objects.filter(date=today).first()
+    
+    schedules = AidSchedule.objects.order_by('-schedule_datetime')[:5]
+    #today = date.today()
+    #aid_of_the_day = AidOfTheDay.objects.filter(date=today).first()
+
+    now = timezone.now()
+
+    # ACTIVE (ongoing)
+    active_schedules = AidSchedule.objects.filter(
+        schedule_datetime__lte=now,
+        end_datetime__gte=now,
+        is_active=True
+    )
+
+    # UPCOMING
+    upcoming_schedules = AidSchedule.objects.filter(
+        schedule_datetime__gt=now,
+        is_active=True
+    )
+
+    # EXPIRED
+    expired_schedules = AidSchedule.objects.filter(
+        end_datetime__lt=now
+    )
 
 
     context = {
-        'barangays': barangay_accounts,  # For table
+        'barangays': barangays,
+        'barangay_accounts': barangay_accounts,  # For table
         'barangay_count': barangay_count,
         'household_count': household_count,
         'family_count': family_count,
         'rfid_claimed': rfid_claimed,
         'rfid_unclaimed': rfid_unclaimed,
         'aid_types': aid_types,  # <-- added this
-        'aid_of_the_day': aid_of_the_day,
+       
         'barangayAcc_count': barangayAcc_count,
+        'schedules': schedules,
+
+        'active_schedules': active_schedules,
+        'upcoming_schedules': upcoming_schedules,
+        'expired_schedules': expired_schedules,
     }
 
     return render(request, 'accounts/mswdo_dashboard.html', context)
@@ -125,10 +156,21 @@ def barangay_dashboard(request):
     barangay_name = request.user.barangay
     zones = Zone.objects.filter(barangay=barangay_name)  # <-- Here
 
+    now = timezone.now()
+    schedules = AidSchedule.objects.filter(
+        is_active=True,
+        schedule_datetime__gte=now
+    ).filter(
+        Q(barangay=request.user.barangay) |
+        Q(barangay__isnull=True)
+    )
+
     return render(request, 'barangay/dashboard.html', {
         'barangay': barangay_name,
-        'zones': zones
+        'zones': zones,
+        'schedules': schedules
     })
+
 
 @login_required
 def barangay_accounts(request):
@@ -308,12 +350,17 @@ def scan_rfid(request):
     family_members = None
     aid_type = None
 
-    # Get today's aid
-    today = date.today()
-    try:
-        aid_of_the_day = AidOfTheDay.objects.get(date=today)
-    except AidOfTheDay.DoesNotExist:
-        aid_of_the_day = None
+    # Get today's aid schedule (if any)
+    now = timezone.now()
+
+    aid_schedule = AidSchedule.objects.filter(
+        schedule_datetime__lte=now,
+        end_datetime__gte=now,
+        is_active=True
+    ).order_by('-schedule_datetime').first()
+
+    if not aid_schedule:
+        error = "No active aid schedule."
 
     # ----------------- Handle RFID SCAN -----------------
     if request.method == 'POST':
@@ -321,8 +368,8 @@ def scan_rfid(request):
         member_id = request.POST.get('family_member')
 
         # If AidOfTheDay exists, force aid_type
-        if aid_of_the_day:
-            aid_type = aid_of_the_day.aid_type
+        if aid_schedule:
+            aid_type = aid_schedule.aid_type
         else:
             error = "Today's aid type has not been set. Please contact admin."
             return render(request, 'accounts/scan_rfid.html', {
@@ -345,23 +392,22 @@ def scan_rfid(request):
             else:
                 AidClaim.objects.create(
                     family=family,
-                    aid_type=aid_type
+                    aid_type=aid_type,
+                    schedule=aid_schedule,
                 )
                 success = f"{family.family_name} successfully claimed RELIEF."
 
-        # -------- SCHOLAR / SENIOR (individual-based) --------
-        else:
-            # Only populate family_members for individual-based aids
+        # -------- SENIOR (individual-based) --------
+        elif aid_type == 'SENIOR':
             claimed_member_ids = AidClaim.objects.filter(
                 family=family,
                 aid_type=aid_type,
                 family_member__isnull=False
             ).values_list('family_member_id', flat=True)
 
-            if aid_type == 'SENIOR':
-                family_members = family.members.filter(age__gte=60).exclude(id__in=claimed_member_ids)
-            else:  # SCHOLAR
-                family_members = family.members.exclude(id__in=claimed_member_ids)
+            family_members = family.members.filter(
+                age__gte=60
+            ).exclude(id__in=claimed_member_ids)
 
             # If member_id is submitted, create claim
             if member_id:
@@ -395,7 +441,7 @@ def scan_rfid(request):
                         'family': family,
                         'family_members': family_members,
                         'aid_type': aid_type,
-                        'aid_of_the_day': aid_of_the_day,
+                        'aid_schedule': aid_schedule,
                         'rfid_uid_value': ''  # clear RFID input
                     })
 
@@ -427,7 +473,7 @@ def scan_rfid(request):
         'recent_claims': recent_claims,
         'barangays': barangays,
         'selected_barangay': selected_barangay,
-        'aid_of_the_day': aid_of_the_day,
+        'aid_schedule': aid_schedule,
         'rfid_uid_value': rfid_uid_value,
     })
 
@@ -691,7 +737,13 @@ def rfid_claim_monitoring(request):
 #---------------- RFID Live Claims JSON View -----------------
 @login_required
 def rfid_live_claims(request):
-    today_aid = AidOfTheDay.objects.filter(date=timezone.now().date()).first()
+    now = timezone.now()
+
+    today_aid = AidSchedule.objects.filter(
+        schedule_datetime__lte=now,
+        is_active=True
+    ).order_by('-schedule_datetime').first()
+
     aid_type = today_aid.aid_type if today_aid else None
 
     claims = AidClaim.objects.filter(
@@ -737,19 +789,32 @@ def get_family_members(request):
     members_data = [{'id': m.id, 'name': f'{m.first_name} {m.last_name}'} for m in members]
     return JsonResponse({'members': members_data})
 
-#----------------- Set Aid of the Day View -----------------
+#----------------- Set Aid Schedule View -----------------
 @login_required
-def set_aid_of_the_day(request):
+def set_aid_schedule(request):
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+
     if request.method == 'POST':
         aid_type = request.POST.get('aid_type')
-        today = date.today()
+        datetime = request.POST.get('schedule_datetime')
+        end_datetime = request.POST.get('end_datetime')
+        location = request.POST.get('location')
+        barangay_id = request.POST.get('barangay')
 
-        AidOfTheDay.objects.update_or_create(
-            date=today,
-            defaults={'aid_type': aid_type}
+        barangay = Barangay.objects.get(id=barangay_id) if barangay_id else None
+
+        AidSchedule.objects.create(
+            aid_type=aid_type,
+            schedule_datetime=datetime,
+            end_datetime=end_datetime,
+            location=location,
+            barangay=barangay
         )
-    return redirect('mswdo_dashboard')
 
+        messages.success(request, "Distribution scheduled successfully.")
+
+    return redirect('mswdo_dashboard')
 #------------------ For MSWDO Household List and RFID -----------------
 @login_required
 def barangay_list(request):
@@ -847,3 +912,53 @@ def deactivate_rfid(request, family_id):
 
     return redirect('household_info', household_id=family.household.id)
 
+
+#----------------- Analytics View -----------------
+@login_required
+def analytics(request):
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+
+    aid_data = AidClaim.objects.values('aid_type').annotate(count=Count('id'))
+
+    labels = [item['aid_type'] for item in aid_data]
+    data = [item['count'] for item in aid_data]
+
+    return render(request, 'accounts/analytics.html', {
+        'labels': mark_safe(json.dumps(labels)),
+        'data': mark_safe(json.dumps(data)),
+    })
+
+#----------------- Aid Schedule Reports View -----------------
+@login_required
+def aid_reports(request):
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+
+    selected_barangay = request.GET.get('barangay')
+
+    schedules = AidSchedule.objects.all().order_by('-schedule_datetime')
+
+    if selected_barangay:
+        schedules = schedules.filter(barangay_id=selected_barangay)
+
+    # Attach claims per schedule
+    for sched in schedules:
+        sched.claims = AidClaim.objects.filter(
+            aid_type=sched.aid_type,
+            claimed_at__gte=sched.schedule_datetime,
+            claimed_at__lte=sched.end_datetime
+        ).select_related(
+            'family',
+            'family_member',
+            'family__household',
+            'family__household__barangay'
+        )
+
+    barangays = Barangay.objects.all()
+
+    return render(request, 'accounts/aid_reports.html', {
+        'schedules': schedules,
+        'barangays': barangays,
+        'selected_barangay': selected_barangay,
+    })
