@@ -10,6 +10,8 @@ from django.db.models import Count, Q
 from .models import AidSchedule, User, Household, Zone, Family, FamilyMember, Barangay, AidClaim, AidType
 from .forms import HouseholdForm, FamilyForm, FamilyMemberForm, BarangayAdminForm
 from django.utils.safestring import mark_safe
+from .services import get_active_aid_schedule, get_active_schedule
+from django.utils.dateparse import parse_datetime
 import json
 def landing_page(request):
     return render(request, 'accounts/landing.html', {
@@ -66,13 +68,12 @@ def mswdo_dashboard(request):
     # Add this for template iteration
     aid_types = [choice[0] for choice in AidType.choices]
 
-    
-    schedules = AidSchedule.objects.order_by('-schedule_datetime')[:5]
     #today = date.today()
     #aid_of_the_day = AidOfTheDay.objects.filter(date=today).first()
 
-    now = timezone.now()
+    #schedules = AidSchedule.objects.all().order_by('-schedule_datetime')
 
+    now = timezone.localtime(timezone.now())
     # ACTIVE (ongoing)
     active_schedules = AidSchedule.objects.filter(
         schedule_datetime__lte=now,
@@ -103,7 +104,7 @@ def mswdo_dashboard(request):
         'aid_types': aid_types,  # <-- added this
        
         'barangayAcc_count': barangayAcc_count,
-        'schedules': schedules,
+        #'schedules': schedules,
 
         'active_schedules': active_schedules,
         'upcoming_schedules': upcoming_schedules,
@@ -354,13 +355,11 @@ def scan_rfid(request):
     now = timezone.now()
 
     aid_schedule = AidSchedule.objects.filter(
-        schedule_datetime__lte=now,
-        end_datetime__gte=now,
         is_active=True
     ).order_by('-schedule_datetime').first()
 
     if not aid_schedule:
-        error = "No active aid schedule."
+        error = "No active aid schedule right now."
 
     # ----------------- Handle RFID SCAN -----------------
     if request.method == 'POST':
@@ -441,7 +440,7 @@ def scan_rfid(request):
                         'family': family,
                         'family_members': family_members,
                         'aid_type': aid_type,
-                        'aid_schedule': aid_schedule,
+                        'aid_of_the_day': aid_schedule,
                         'rfid_uid_value': ''  # clear RFID input
                     })
 
@@ -797,17 +796,30 @@ def set_aid_schedule(request):
 
     if request.method == 'POST':
         aid_type = request.POST.get('aid_type')
-        datetime = request.POST.get('schedule_datetime')
-        end_datetime = request.POST.get('end_datetime')
-        location = request.POST.get('location')
-        barangay_id = request.POST.get('barangay')
 
-        barangay = Barangay.objects.get(id=barangay_id) if barangay_id else None
+        start = parse_datetime(request.POST.get('schedule_datetime'))
+        end = parse_datetime(request.POST.get('end_datetime'))
+
+        # Make timezone-aware
+        if timezone.is_naive(start):
+            start = timezone.make_aware(start)
+
+        if timezone.is_naive(end):
+            end = timezone.make_aware(end)
+
+
+        location = request.POST.get('location')
+
+        barangay_id = request.POST.get('barangay')
+        if barangay_id:
+            barangay = Barangay.objects.get(id=barangay_id)
+        else:
+            barangay = None
 
         AidSchedule.objects.create(
             aid_type=aid_type,
-            schedule_datetime=datetime,
-            end_datetime=end_datetime,
+            schedule_datetime=start,
+            end_datetime=end,
             location=location,
             barangay=barangay
         )

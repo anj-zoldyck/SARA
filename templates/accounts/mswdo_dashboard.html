@@ -107,8 +107,8 @@ MSWDO ADMIN DASHBOARD
       <div class="aid-day-box">
         <h5 class="mb-2">📅 Scheduled Distribution</h5>
 
-          {% if schedules %}
-            {% for sched in schedules %}
+          {% if active_schedules or upcoming_schedules %}
+            {% for sched in active_schedules %}
               <div class="mb-2 p-2 border rounded">
                 <strong>Aid:</strong> {{ sched.aid_type }} <br>
                 <strong>Date & Time:</strong> {{ sched.schedule_datetime }} <br>

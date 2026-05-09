@@ -33,8 +33,8 @@
             <div class="mb-3">
               <label class="form-label">
                 Aid Type (Today's Aid: 
-                {% if aid_of_the_day %}
-                  {{ aid_of_the_day.aid_type }}
+                {% if aid_schedule %}
+                  {{ aid_schedule.aid_type }}
                 {% else %}
                   Not set
                 {% endif %})
