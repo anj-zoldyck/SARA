@@ -20,6 +20,7 @@ def landing_page(request):
 
 def logout_view(request):
     logout(request)
+    request.session.flush()
     return redirect('login')
 
 def login_view(request):
@@ -45,7 +46,7 @@ def login_view(request):
 
 User = get_user_model()
 
-@login_required
+@login_required(login_url='login')
 def mswdo_dashboard(request):
     # Only MSWDO can access
     if request.user.role != 'MSWDO':
@@ -115,7 +116,7 @@ def mswdo_dashboard(request):
 
 
 
-@login_required
+@login_required(login_url='login')
 def create_barangay(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -138,7 +139,7 @@ def create_barangay(request):
     barangays = Barangay.objects.all()  # send all Barangay instances to the template
     return render(request, 'accounts/create_barangay.html', {'barangays': barangays})
 
-@login_required
+@login_required(login_url='login')
 def deactivate_barangay(request, user_id):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -149,7 +150,7 @@ def deactivate_barangay(request, user_id):
 
     return redirect('mswdo_dashboard')
 
-@login_required
+@login_required(login_url='login')
 def barangay_dashboard(request):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
@@ -173,7 +174,7 @@ def barangay_dashboard(request):
     })
 
 
-@login_required
+@login_required(login_url='login')
 def barangay_accounts(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -182,7 +183,7 @@ def barangay_accounts(request):
     return render(request, 'accounts/barangay_accounts.html', {'barangays': barangays})
 
 
-@login_required
+@login_required(login_url='login')
 def zone_detail(request, zone_id):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
@@ -196,7 +197,7 @@ def zone_detail(request, zone_id):
     })
 
 #household detail
-@login_required
+@login_required(login_url='login')
 def household_detail(request, household_id):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
@@ -216,7 +217,7 @@ def household_detail(request, household_id):
 
 
 #add household
-@login_required
+@login_required(login_url='login')
 def add_household(request, zone_id):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")

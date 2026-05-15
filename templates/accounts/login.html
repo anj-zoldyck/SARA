@@ -1,42 +1,136 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Login | SARA{% endblock %}
+{% block title %}Login | S.A.R.A{% endblock %}
 
 {% block css %}
 <link rel="stylesheet" href="{% static 'css/login.css' %}">
+
+<!-- Bootstrap Icons -->
+<link rel="stylesheet"
+href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 {% endblock %}
 
 {% block navbar_title %}
-SARA: SANTA RITA AUTOMATED RELIEF ASSISTANCE LOGIN
+S.A.R.A: SANTA RITA AUTOMATED RELIEF ASSISTANCE SYSTEM
 {% endblock %}
 
 {% block content %}
-<section class="logform">
-  <div class="form-container">
-    <h2>User Login</h2>
 
+<section class="logform">
+
+  <div class="form-container">
+
+    <!-- Header -->
+    <div class="login-header">
+
+      <!-- Optional Logo -->
+      <!--
+      <img src="{% static 'images/sara-logo.png' %}" class="login-logo">
+      -->
+
+      <i class="bi bi-shield-lock-fill login-icon"></i>
+
+      <h2>User Login</h2>
+
+      <p>
+        Access the S.A.R.A System
+      </p>
+
+      <small class="security-note">
+        Authorized MSWDO and Barangay Personnel Only
+      </small>
+
+    </div>
+
+    <!-- Django Messages -->
     {% if messages %}
       {% for message in messages %}
-        <div class="alert alert-danger">{{ message }}</div>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
       {% endfor %}
     {% endif %}
 
-    <form method="post">
+    <!-- Login Form -->
+    <form method="post" id="loginForm">
+
       {% csrf_token %}
 
+      <!-- Username -->
       <div class="mb-3">
-        <label class="form-label">Username</label>
-        <input type="text" name="username" class="form-control" required>
+
+        <label class="form-label">
+          Username
+        </label>
+
+        <div class="input-group custom-input-group">
+
+          <span class="input-group-text">
+            <i class="bi bi-person-fill"></i>
+          </span>
+
+          <input
+            type="text"
+            name="username"
+            class="form-control"
+            placeholder="Enter your username"
+            required
+          >
+
+        </div>
       </div>
 
-      <div class="mb-3">
-        <label class="form-label">Password</label>
-        <input type="password" name="password" class="form-control" required>
+      <!-- Password -->
+      <div class="mb-4">
+
+        <label class="form-label">
+          Password
+        </label>
+
+        <div class="input-group custom-input-group">
+
+          <span class="input-group-text">
+            <i class="bi bi-lock-fill"></i>
+          </span>
+
+          <input
+            type="password"
+            name="password"
+            id="password"
+            class="form-control"
+            placeholder="Enter your password"
+            required
+          >
+
+          <!-- Toggle Password -->
+          <button
+            class="btn password-toggle"
+            type="button"
+            id="togglePassword"
+          >
+            <i class="bi bi-eye-fill"></i>
+          </button>
+
+        </div>
+
       </div>
 
-      <button type="submit" class="btn btn-primary">Login</button>
+      <!-- Login Button -->
+      <button type="submit" class="btn btn-primary" id="loginBtn">
+
+        <span class="btn-text">
+          <i class="bi bi-box-arrow-in-right"></i>
+          Login
+        </span>
+
+      </button>
+
     </form>
+
   </div>
+
 </section>
+<script src="{% static 'js/login.js' %}"></script>
 {% endblock %}

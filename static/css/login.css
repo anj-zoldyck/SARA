@@ -1,11 +1,15 @@
- body {
+/* ---------------- GENERAL ---------------- */
+
+body {
   font-family: Arial, sans-serif;
   margin: 0;
   padding: 0;
   background-color: #f5fafe;
-  height: 100%;
+  min-height: 100vh;
   box-sizing: border-box;
 }
+
+/* ---------------- NAVBAR ---------------- */
 
 .navbar-custom {
   background-color: #0d2d6b;
@@ -28,225 +32,274 @@
   margin: 0;
   flex: 1;
   text-align: left;
-  white-space: nowrap; /* prevents wrapping */
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: bold;
 }
 
 @media (max-width: 768px) {
+
   .navbar-title {
-    font-size: 16px;
-    white-space: normal; /* allow wrapping only on very small screens */
+    font-size: 15px;
+    white-space: normal;
   }
+
 }
 
-@media (max-width: 768px) {
-  nav h3 {
-    font-size: 16px !important;
-    margin-top: 8px;
-  }
-}
+/* ---------------- LOGIN SECTION ---------------- */
 
-/* ---------------- LOGIN FORM SECTION ---------------- */
 .logform {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 80vh; /* Leaves space for footer */
-  background: linear-gradient(to bottom right, #e9f0ff, #f5fafe);
+  min-height: 85vh;
+
+  background:
+    linear-gradient(
+      to bottom right,
+      #e9f0ff,
+      #f5fafe
+    );
+
   padding: 20px;
 }
 
+/* ---------------- FORM CONTAINER ---------------- */
+
 .form-container {
+
   background-color: white;
-  padding: 40px 50px;
-  border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-  max-width: 420px;
-  width: 100%;
-  text-align: center;
+
+  padding: 40px 45px;
+
+  border-radius: 15px;
+
+  box-shadow:
+    0 10px 25px rgba(0, 0, 0, 0.12);
+
   border-top: 6px solid #134ed5;
+
+  max-width: 430px;
+  width: 100%;
+
 }
 
-.form-container h2 {
+/* ---------------- LOGIN HEADER ---------------- */
+
+.login-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.login-logo {
+  width: 90px;
+  margin-bottom: 15px;
+}
+
+.login-icon {
+  font-size: 55px;
+  color: #134ed5;
+  margin-bottom: 12px;
+}
+
+.login-header h2 {
   color: #0d2d6b;
   font-weight: bold;
-  margin-bottom: 25px;
-  font-size: 26px;
+  margin-bottom: 10px;
 }
 
-/* Input and labels */
+.login-header p {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.security-note {
+  color: #999;
+  font-size: 12px;
+}
+
+/* ---------------- LABELS ---------------- */
+
 .form-label {
   font-weight: 600;
   color: #0d2d6b;
-  text-align: left;
-  display: block;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
-.form-control {
+/* ---------------- INPUT GROUP ---------------- */
+
+.custom-input-group {
+
   border: 2px solid #dbe3ff;
-  border-radius: 8px;
-  padding: 10px;
-  font-size: 16px;
+
+  border-radius: 10px;
+
+  overflow: hidden;
+
   transition: all 0.3s ease;
+
 }
 
-.form-control:focus {
+.custom-input-group:focus-within {
+
   border-color: #134ed5;
-  box-shadow: 0 0 5px rgba(19, 78, 213, 0.4);
-  outline: none;
+
+  box-shadow:
+    0 0 8px rgba(19, 78, 213, 0.25);
+
 }
 
-.form-container p {
-  text-align: center;
-  margin-top: 15px;
-  font-size: 14px;
-  color: #333;
-}
+/* ---------------- ICON SIDE ---------------- */
 
-.form-container p a {
-  color: #134ED5;
-  text-decoration: none;
-  font-weight: bold;
-}
+.input-group-text {
 
-.form-container p a:hover {
-  text-decoration: underline;
-}
+  background-color: #f5f8ff;
 
-/* Submit button */
-.btn-primary {
-  background-color: white;
+  border: none;
+
   color: #134ed5;
-  border: 2px solid #134ed5;
+
+  width: 50px;
+
+  justify-content: center;
+
+  font-size: 16px;
+
+}
+
+/* ---------------- INPUT FIELD ---------------- */
+
+.custom-input-group .form-control {
+
+  border: none;
+
+  box-shadow: none;
+
+  padding: 12px;
+
+  font-size: 15px;
+
+}
+
+.custom-input-group .form-control:focus {
+  box-shadow: none;
+}
+
+/* ---------------- PASSWORD TOGGLE ---------------- */
+
+.password-toggle {
+
+  background-color: #f5f8ff;
+
+  border: none;
+
+  color: #134ed5;
+
+  width: 50px;
+
+}
+
+.password-toggle:hover {
+
+  background-color: #e8f0ff;
+
+  color: #0d2d6b;
+
+}
+
+/* ---------------- LOGIN BUTTON ---------------- */
+
+.btn-primary {
+
+  background-color: #134ed5;
+
+  border: none;
+
+  color: white;
+
   font-weight: bold;
-  border-radius: 8px;
-  padding: 10px 20px;
+
+  border-radius: 10px;
+
+  padding: 12px;
+
   width: 100%;
+
   transition: all 0.3s ease;
+
 }
 
 .btn-primary:hover {
-  background-color: #134ed5;
-  color: white;
-  transform: scale(1.03);
+
+  background-color: #0d2d6b;
+
+  transform: translateY(-2px);
+
 }
 
-/* ---------------- RESPONSIVENESS ---------------- */
-@media (max-width: 992px) {
-  .form-container {
-    max-width: 500px;
-    padding: 35px;
-  }
+/* ---------------- ALERT ---------------- */
+
+.alert {
+
+  border-radius: 10px;
+
+  font-size: 14px;
+
 }
+
+/* ---------------- FOOTER ---------------- */
+
+.footer {
+
+  background-color: #134ed5;
+
+  color: white;
+
+  text-align: center;
+
+  padding: 20px 0;
+
+  width: 100%;
+
+}
+
+.footer-content p {
+  margin: 0;
+  font-size: 15px;
+}
+
+/* ---------------- RESPONSIVE ---------------- */
 
 @media (max-width: 768px) {
-  .logform {
-    min-height: 75vh;
-    padding: 10px;
-  }
 
   .form-container {
     padding: 30px 25px;
-    max-width: 90%;
   }
 
-  .form-container h2 {
-    font-size: 22px;
+  .login-header h2 {
+    font-size: 24px;
   }
 
-  .form-control {
-    font-size: 15px;
-    padding: 8px;
+  .login-icon {
+    font-size: 45px;
   }
 
-  .btn-primary {
-    padding: 9px;
-    font-size: 15px;
-  }
 }
 
 @media (max-width: 480px) {
+
   .form-container {
     padding: 25px 20px;
   }
 
-  .form-container h2 {
-    font-size: 20px;
+  .login-header h2 {
+    font-size: 21px;
   }
 
-  .btn-primary {
-    font-size: 14px;
+  .login-header p {
+    font-size: 13px;
   }
-}
 
-
-/* ---------------- FOOTER ---------------- */
-.footer {
-    background-color: #134ed5;
-    color: white;
-    text-align: center;
-    padding: 20px 0;
-    bottom: 0;
-    width: 100%;
-}
-
-.footer-content p {
-    margin: 0;
-    font-size: 16px;
-}
-
-/* ---------------- REGISTRATION FORM ADDITIONS ---------------- */
-.form-container select.form-control {
-  border: 2px solid #dbe3ff;
-  border-radius: 8px;
-  padding: 10px;
-  font-size: 16px;
-  transition: all 0.3s ease;
-  background-color: white;
-}
-
-.form-container select.form-control:focus {
-  border-color: #134ed5;
-  box-shadow: 0 0 5px rgba(19, 78, 213, 0.4);
-  outline: none;
-}
-
-/* Adjust spacing between fields */
-.form-container .mb-3 {
-  text-align: left;
-}
-
-/* Adjust the bottom paragraph */
-.form-container p {
-  text-align: center;
-  margin-top: 15px;
-  font-size: 14px;
-  color: #333;
-}
-
-.form-container p a {
-  color: #134ED5;
-  text-decoration: none;
-  font-weight: bold;
-}
-
-.form-container p a:hover {
-  text-decoration: underline;
-}
-
-/* Responsiveness */
-@media (max-width: 768px) {
-  .form-container {
-    padding: 25px;
-  }
-  .form-container h2 {
-    font-size: 22px;
-  }
-  .form-control, .form-container select.form-control {
-    font-size: 15px;
-    padding: 8px;
-  }
 }

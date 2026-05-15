@@ -8,98 +8,390 @@
 
   <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <!-- GLOBAL STYLES -->
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
-<link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+
   <!-- PAGE STYLES -->
   {% block css %}{% endblock %}
 </head>
 
 <body>
-<div class="page-wrapper d-flex flex-column min-vh-100">
-<!-- NAVBAR -->
-<nav class="navbar navbar-expand-lg navbar-custom">
-  <div class="container-fluid d-flex align-items-center w-100">
 
-    <!-- Brand + Title Container -->
-    <div class="d-flex align-items-center flex-nowrap">
-      <a class="navbar-brand d-flex align-items-center me-2" href="#">
-        <img src="{% static 'images/logo.jpg' %}" alt="Logo">
-        <img src="{% static 'images/SRP.png' %}" alt="SRP Logo">
+<div class="page-wrapper">
+
+  <!-- ==================== TOPBAR ==================== -->
+  <nav class="topbar" id="topbar">
+
+    <!-- LEFT: Burger (mobile, authenticated only) + Brand -->
+    <div class="topbar-left">
+
+      {% if user.is_authenticated %}
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <i class="bi bi-list"></i>
+      </button>
+      {% endif %}
+
+      <a class="topbar-brand" href="#">
+        <img src="{% static 'images/logo.jpg' %}" alt="SARA Logo" class="topbar-logo">
+        <img src="{% static 'images/SRP.png' %}" alt="SRP Logo" class="topbar-logo topbar-logo--srp">
+        <div class="topbar-title-group">
+          <span class="topbar-title">{% block navbar_title %}SARA SYSTEM{% endblock %}</span>
+          <span class="topbar-subtitle">Santa Rita Automated Relief Assistance</span>
+        </div>
       </a>
-      <span class="navbar-title">
-        {% block navbar_title %}SARA SYSTEM{% endblock %}
-      </span>
+
     </div>
 
-    <!-- Navbar toggler and links (authenticated only) -->
+    <!-- RIGHT: User profile (authenticated only) -->
     {% if user.is_authenticated %}
-      <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-
-      <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
-        <ul class="navbar-nav">
-
-          <!-- MSWDO NAVBAR -->
-          {% if user.role == 'MSWDO' %}
-            <li class="nav-item">
-              <a class="nav-link text-white" href="{% url 'mswdo_dashboard' %}">Dashboard</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link text-white" href="#">Barangays</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link text-white" href="{% url 'analytics' %}">Analytics</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link text-white" href="{% url 'aid_reports' %}">Reports</a>
-            </li>
+    <div class="topbar-right">
+      <div class="topbar-user" id="userDropdownToggle">
+        <div class="topbar-avatar">
+          {% if user.profile_image %}
+            <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name }}">
+          {% else %}
+            <span class="avatar-initials">
+              {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+            </span>
           {% endif %}
-
-          <!-- BARANGAY NAVBAR -->
-          {% if user.role == 'BARANGAY' %}
-            <li class="nav-item">
-              <a class="nav-link text-white" href="{% url 'barangay_dashboard' %}">
-                {{ user.barangay }} Dashboard
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link text-white" href="#">Zones</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link text-white" href="#">Households</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link text-white" href="#">Families</a>
-            </li>
-          {% endif %}
-
-          <!-- COMMON -->
-          <li class="nav-item">
-            <a class="nav-link text-warning" href="{% url 'logout' %}">Logout</a>
-          </li>
-
-        </ul>
+        </div>
+        <div class="topbar-user-info">
+          <span class="topbar-username">{{ user.get_full_name|default:user.username }}</span>
+          <span class="topbar-role">{{ user.role|default:"User" }}</span>
+        </div>
+        <i class="bi bi-chevron-down topbar-chevron" id="userChevron"></i>
       </div>
+
+      <!-- User Dropdown -->
+      <div class="user-dropdown" id="userDropdown">
+        <a href="#" class="user-dropdown-item">
+          <i class="bi bi-person"></i> My Profile
+        </a>
+        <a href="#" class="user-dropdown-item">
+          <i class="bi bi-gear"></i> Settings
+        </a>
+        <div class="user-dropdown-divider"></div>
+        <a href="{% url 'logout' %}" class="user-dropdown-item user-dropdown-item--danger">
+          <i class="bi bi-box-arrow-right"></i> Logout
+        </a>
+      </div>
+    </div>
     {% endif %}
 
-  </div>
-</nav>
+  </nav>
 
-  <!-- PAGE CONTENT -->
-  {% block content %}{% endblock %}
+  <!-- ==================== SIDEBAR OVERLAY (mobile) ==================== -->
+  {% if user.is_authenticated %}
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-  <!-- FOOTER -->
-  <footer class="footer mt-auto">
+  <!-- ==================== SIDEBAR ==================== -->
+  <aside class="sidebar" id="sidebar">
+
+    <!-- Sidebar Header -->
+    <div class="sidebar-header">
+      <div class="sidebar-user-card">
+        <div class="sidebar-avatar">
+          {% if user.profile_image %}
+            <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name }}">
+          {% else %}
+            <span class="avatar-initials avatar-initials--lg">
+              {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+            </span>
+          {% endif %}
+        </div>
+        <div class="sidebar-user-info">
+          <span class="sidebar-username">{{ user.get_full_name|default:user.username }}</span>
+          <span class="sidebar-role-badge">{{ user.role|default:"User" }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar-body">
+      <ul class="sidebar-nav">
+
+        <!-- ========== MSWDO NAVIGATION ========== -->
+        {% if user.role == 'MSWDO' %}
+
+        <li class="sidebar-section-label">Main</li>
+
+        <!-- Dashboard -->
+        <li class="sidebar-item">
+          <a href="{% url 'mswdo_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'mswdo_dashboard' %}active{% endif %}">
+            <i class="bi bi-speedometer2"></i>
+            <span>Dashboard</span>
+          </a>
+        </li>
+
+        <li class="sidebar-section-label">Management</li>
+
+        <!-- Household Profiling (accordion) -->
+        <li class="sidebar-item sidebar-item--accordion">
+          <button class="sidebar-link sidebar-accordion-btn" data-target="householdSubmenu"
+            aria-expanded="false">
+            <i class="bi bi-house-door"></i>
+            <span>Household Profiling</span>
+            <i class="bi bi-chevron-down sidebar-arrow"></i>
+          </button>
+          <ul class="sidebar-submenu" id="householdSubmenu">
+            <li>
+              <a href="#" class="sidebar-sublink">
+                <i class="bi bi-person-lines-fill"></i>
+                <span>Residents</span>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="sidebar-sublink">
+                <i class="bi bi-credit-card-2-front"></i>
+                <span>RFID Registration</span>
+              </a>
+            </li>
+          </ul>
+        </li>
+
+        <!-- Aid Programs (accordion) -->
+        <li class="sidebar-item sidebar-item--accordion">
+          <button class="sidebar-link sidebar-accordion-btn" data-target="aidSubmenu"
+            aria-expanded="false">
+            <i class="bi bi-gift"></i>
+            <span>Aid Programs</span>
+            <i class="bi bi-chevron-down sidebar-arrow"></i>
+          </button>
+          <ul class="sidebar-submenu" id="aidSubmenu">
+            <li>
+              <a href="#" class="sidebar-sublink">
+                <i class="bi bi-person-check"></i>
+                <span>Beneficiary Selection</span>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="sidebar-sublink">
+                <i class="bi bi-truck"></i>
+                <span>Distribution Monitoring</span>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="sidebar-sublink">
+                <i class="bi bi-clock-history"></i>
+                <span>Aid History</span>
+              </a>
+            </li>
+          </ul>
+        </li>
+
+        <li class="sidebar-section-label">Data & Insights</li>
+
+        <!-- Reports -->
+        <li class="sidebar-item">
+          <a href="{% url 'aid_reports' %}" class="sidebar-link {% if request.resolver_match.url_name == 'aid_reports' %}active{% endif %}">
+            <i class="bi bi-file-earmark-bar-graph"></i>
+            <span>Reports</span>
+          </a>
+        </li>
+
+        <!-- Barangays -->
+        <li class="sidebar-item">
+          <a href="#" class="sidebar-link">
+            <i class="bi bi-geo-alt"></i>
+            <span>Barangays</span>
+          </a>
+        </li>
+
+        <li class="sidebar-section-label">System</li>
+
+        <!-- User Management -->
+        <li class="sidebar-item">
+          <a href="#" class="sidebar-link">
+            <i class="bi bi-people"></i>
+            <span>User Management</span>
+          </a>
+        </li>
+
+        <!-- Settings -->
+        <li class="sidebar-item">
+          <a href="#" class="sidebar-link">
+            <i class="bi bi-gear"></i>
+            <span>Settings</span>
+          </a>
+        </li>
+
+        {% endif %}
+
+        <!-- ========== BARANGAY NAVIGATION ========== -->
+        {% if user.role == 'BARANGAY' %}
+
+        <li class="sidebar-section-label">Main</li>
+
+        <li class="sidebar-item">
+          <a href="{% url 'barangay_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'barangay_dashboard' %}active{% endif %}">
+            <i class="bi bi-speedometer2"></i>
+            <span>{{ user.barangay }} Dashboard</span>
+          </a>
+        </li>
+
+        <li class="sidebar-section-label">Management</li>
+
+        <li class="sidebar-item">
+          <a href="#" class="sidebar-link">
+            <i class="bi bi-map"></i>
+            <span>Zones</span>
+          </a>
+        </li>
+
+        <li class="sidebar-item">
+          <a href="#" class="sidebar-link">
+            <i class="bi bi-house-door"></i>
+            <span>Households</span>
+          </a>
+        </li>
+
+        <li class="sidebar-item">
+          <a href="#" class="sidebar-link">
+            <i class="bi bi-people"></i>
+            <span>Families</span>
+          </a>
+        </li>
+
+        {% endif %}
+
+      </ul>
+    </nav>
+
+    <!-- Sidebar Footer: Logout -->
+    <div class="sidebar-footer">
+      <a href="{% url 'logout' %}" class="sidebar-link sidebar-logout">
+        <i class="bi bi-box-arrow-right"></i>
+        <span>Logout</span>
+      </a>
+    </div>
+
+  </aside>
+  {% endif %}
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="{% if user.is_authenticated %}main-content{% endif %}">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="{% if user.is_authenticated %}footer footer--dashboard{% else %}footer{% endif %}">
     <div class="footer-content">
-      <p>&copy; 2025 SARA | All Rights Reserved.</p>
+      <p>&copy; 2025 SARA &mdash; Santa Rita Automated Relief Assistance System. All Rights Reserved.</p>
     </div>
   </footer>
-</div>
 
+</div><!-- /.page-wrapper -->
+
+<!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  // ── Elements ──────────────────────────────────────────────────────────────
+  const sidebar        = document.getElementById('sidebar');
+  const sidebarToggle  = document.getElementById('sidebarToggle');
+  const sidebarOverlay = document.getElementById('sidebarOverlay');
+  const userDropdown   = document.getElementById('userDropdown');
+  const userDropToggle = document.getElementById('userDropdownToggle');
+  const userChevron    = document.getElementById('userChevron');
+
+  // ── Mobile Sidebar Toggle ─────────────────────────────────────────────────
+  function openSidebar() {
+    sidebar?.classList.add('sidebar--open');
+    sidebarOverlay?.classList.add('sidebar-overlay--visible');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeSidebar() {
+    sidebar?.classList.remove('sidebar--open');
+    sidebarOverlay?.classList.remove('sidebar-overlay--visible');
+    document.body.style.overflow = '';
+  }
+
+  sidebarToggle?.addEventListener('click', () => {
+    sidebar?.classList.contains('sidebar--open') ? closeSidebar() : openSidebar();
+  });
+
+  sidebarOverlay?.addEventListener('click', closeSidebar);
+
+  // ── User Dropdown ─────────────────────────────────────────────────────────
+  userDropToggle?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = userDropdown?.classList.toggle('user-dropdown--open');
+    if (userChevron) {
+      userChevron.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+  });
+
+  document.addEventListener('click', () => {
+    userDropdown?.classList.remove('user-dropdown--open');
+    if (userChevron) userChevron.style.transform = 'rotate(0deg)';
+  });
+
+  // ── Sidebar Accordion Submenus ────────────────────────────────────────────
+  document.querySelectorAll('.sidebar-accordion-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId  = btn.dataset.target;
+      const submenu   = document.getElementById(targetId);
+      const arrow     = btn.querySelector('.sidebar-arrow');
+      const isOpen    = submenu?.classList.contains('submenu--open');
+
+      // Close all open submenus first
+      document.querySelectorAll('.sidebar-submenu.submenu--open').forEach(sm => {
+        sm.classList.remove('submenu--open');
+        sm.style.maxHeight = null;
+      });
+      document.querySelectorAll('.sidebar-accordion-btn').forEach(b => {
+        b.classList.remove('accordion-active');
+        const arr = b.querySelector('.sidebar-arrow');
+        if (arr) arr.style.transform = 'rotate(0deg)';
+      });
+
+      // Toggle clicked one
+      if (!isOpen && submenu) {
+        submenu.classList.add('submenu--open');
+        submenu.style.maxHeight = submenu.scrollHeight + 'px';
+        btn.classList.add('accordion-active');
+        if (arrow) arrow.style.transform = 'rotate(180deg)';
+      }
+    });
+  });
+
+  // Auto-open submenu if a sub-link is active on page load
+  document.querySelectorAll('.sidebar-sublink.active').forEach(link => {
+    const submenu = link.closest('.sidebar-submenu');
+    if (submenu) {
+      const btn = document.querySelector(`[data-target="${submenu.id}"]`);
+      submenu.classList.add('submenu--open');
+      submenu.style.maxHeight = submenu.scrollHeight + 'px';
+      if (btn) {
+        btn.classList.add('accordion-active');
+        const arrow = btn.querySelector('.sidebar-arrow');
+        if (arrow) arrow.style.transform = 'rotate(180deg)';
+      }
+    }
+  });
+
+  // Close sidebar on nav link click (mobile)
+  document.querySelectorAll('.sidebar-link:not(.sidebar-accordion-btn), .sidebar-sublink').forEach(link => {
+    link.addEventListener('click', () => {
+      if (window.innerWidth < 992) closeSidebar();
+    });
+  });
+
+// ── Handle Page Show (e.g. back navigation) ─────────────────────────────────
+  window.addEventListener("pageshow", function (event) {
+    if (event.persisted) {
+      window.location.reload();
+    }
+  });
+</script>
+
+{% block js %}{% endblock %}
+
 </body>
 </html>
