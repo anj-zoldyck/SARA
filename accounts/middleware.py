@@ -7,7 +7,11 @@ class DisableCacheMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
 
-        if request.user.is_authenticated:
-            add_never_cache_headers(response)
+        # Apply to ALL pages, not just authenticated ones
+        response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0, private'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
 
-        return response
+        # ✅ This specifically opts out of Chrome/Edge bfcache
+        response['Clear-Site-Data'] = '"cache"'
+        return 

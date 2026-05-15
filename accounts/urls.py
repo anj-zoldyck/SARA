@@ -74,4 +74,7 @@ urlpatterns = [
 
     path('member/<int:member_id>/edit/', views.edit_family_member, name='edit_family_member'),
 
+    # check session URL for AJAX
+    path('check-session/', views.check_session, name='check_session'),
+
 ]

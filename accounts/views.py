@@ -2,17 +2,26 @@ from urllib import request
 from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponseForbidden, JsonResponse
+from django.http import HttpResponseForbidden, JsonResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.utils import timezone
 from datetime import date
 from django.db.models import Count, Q
+
+from accounts.decorators import session_protected
 from .models import AidSchedule, User, Household, Zone, Family, FamilyMember, Barangay, AidClaim, AidType
 from .forms import HouseholdForm, FamilyForm, FamilyMemberForm, BarangayAdminForm
 from django.utils.safestring import mark_safe
 from .services import get_active_aid_schedule, get_active_schedule
 from django.utils.dateparse import parse_datetime
+from django.urls import reverse
 import json
+
+def check_session(request):
+    if request.user.is_authenticated:
+        return JsonResponse({'authenticated': True})
+    return JsonResponse({'authenticated': False}, status=401)
+
 def landing_page(request):
     return render(request, 'accounts/landing.html', {
         'hide_navbar': True
@@ -21,7 +30,16 @@ def landing_page(request):
 def logout_view(request):
     logout(request)
     request.session.flush()
-    return redirect('login')
+
+    response = HttpResponseRedirect(reverse('landing'))
+    #Aggressively kill the cache on the redirect itself
+    response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0, private'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+
+    #Clears the browser's back-forward cache for this origin
+    response['Clear-Site-Data'] = '"cache", "cookies", "storage"'
+    return response
 
 def login_view(request):
     if request.method == "POST":
@@ -47,6 +65,7 @@ def login_view(request):
 User = get_user_model()
 
 @login_required(login_url='login')
+@session_protected
 def mswdo_dashboard(request):
     # Only MSWDO can access
     if request.user.role != 'MSWDO':
@@ -117,6 +136,7 @@ def mswdo_dashboard(request):
 
 
 @login_required(login_url='login')
+@session_protected
 def create_barangay(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -133,6 +153,7 @@ def create_barangay(request):
         form = BarangayAdminForm()
         print(form.errors)
 
+
     return render(request, 'accounts/create_barangay.html', {'form': form})
 
     # If GET request, show the form
@@ -140,6 +161,7 @@ def create_barangay(request):
     return render(request, 'accounts/create_barangay.html', {'barangays': barangays})
 
 @login_required(login_url='login')
+@session_protected
 def deactivate_barangay(request, user_id):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -147,10 +169,11 @@ def deactivate_barangay(request, user_id):
     barangay = User.objects.get(id=user_id)
     barangay.is_active = False
     barangay.save()
-
+    
     return redirect('mswdo_dashboard')
 
 @login_required(login_url='login')
+@session_protected
 def barangay_dashboard(request):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
@@ -175,6 +198,7 @@ def barangay_dashboard(request):
 
 
 @login_required(login_url='login')
+@session_protected
 def barangay_accounts(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -184,6 +208,7 @@ def barangay_accounts(request):
 
 
 @login_required(login_url='login')
+@session_protected
 def zone_detail(request, zone_id):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
@@ -198,6 +223,7 @@ def zone_detail(request, zone_id):
 
 #household detail
 @login_required(login_url='login')
+@session_protected
 def household_detail(request, household_id):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
@@ -218,6 +244,7 @@ def household_detail(request, household_id):
 
 #add household
 @login_required(login_url='login')
+@session_protected
 def add_household(request, zone_id):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
@@ -246,6 +273,7 @@ def add_household(request, zone_id):
     })
 
 @login_required
+@session_protected
 def add_family(request, household_id):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
@@ -273,6 +301,7 @@ def add_family(request, household_id):
 
 #family detail
 @login_required
+@session_protected
 def family_detail(request, family_id):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
@@ -292,6 +321,7 @@ def family_detail(request, family_id):
 
 #add family member
 @login_required
+@session_protected
 def add_family_member(request, family_id):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
@@ -319,6 +349,7 @@ def add_family_member(request, family_id):
 
 #edit family member
 @login_required
+@session_protected
 def edit_family_member(request, member_id):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
@@ -345,6 +376,7 @@ def edit_family_member(request, member_id):
 # ----------------- RFID Scan and Monitoring View -----------------
 # ----------------- RFID Scan and Monitoring View -----------------
 @login_required
+@session_protected
 def scan_rfid(request):
     error = None
     success = None
@@ -482,6 +514,7 @@ def scan_rfid(request):
 
 #----------------- RFID Registration View -----------------
 @login_required
+@session_protected
 def register_rfid(request, family_id=None):
     # MSWDO ONLY
     if request.user.role != 'MSWDO':
@@ -527,7 +560,8 @@ def register_rfid(request, family_id=None):
         'families': families,
         'selected_family': selected_family,  # used in template to show family name if editing
         'error': error,
-        'success': success
+        'success': success,
+        'requires_auth': True,
     }
 
     return render(request, 'accounts/register_rfid.html', context)
@@ -538,6 +572,7 @@ def register_rfid(request, family_id=None):
 
 #----------------MSWDO Navigation Views------------------
 @login_required
+@session_protected
 def household_list(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -545,6 +580,7 @@ def household_list(request):
     return render(request, 'accounts/household_list.html', {'households': households})
 
 @login_required
+@session_protected
 def family_list(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -552,6 +588,7 @@ def family_list(request):
     return render(request, 'accounts/family_list.html', {'families': families})
 
 @login_required
+@session_protected
 def rfid_overview(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -565,6 +602,7 @@ def rfid_overview(request):
 
 #----------------- Aid Type/Monitoring Views -----------------
 @login_required
+@session_protected
 def aid_type_list(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -574,6 +612,7 @@ def aid_type_list(request):
     })
 
 @login_required
+@session_protected
 def aid_barangay_list(request, aid_type):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -587,6 +626,7 @@ def aid_barangay_list(request, aid_type):
 
 #------------------ Aid Barangay Detail View -----------------
 @login_required
+@session_protected
 def aid_barangay_detail(request, aid_type, barangay_id):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -695,6 +735,7 @@ def aid_barangay_detail(request, aid_type, barangay_id):
 
 #------------------ Aid List Views -----------------
 @login_required
+@session_protected
 def aid_list(request, aid_type):
     barangays = Barangay.objects.all()
     return render(request, 'accounts/aid_list.html', {
@@ -704,6 +745,7 @@ def aid_list(request, aid_type):
 
 #---------------- RFID Claim Monitoring View -----------------
 @login_required
+@session_protected
 def rfid_claim_monitoring(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -736,6 +778,7 @@ def rfid_claim_monitoring(request):
 
 #---------------- RFID Live Claims JSON View -----------------
 @login_required
+@session_protected
 def rfid_live_claims(request):
     now = timezone.now()
 
@@ -767,6 +810,7 @@ def rfid_live_claims(request):
 
 
 @login_required
+@session_protected
 def get_family_members(request):
     uid = request.GET.get('rfid_uid')
     aid_type = request.GET.get('aid_type')
@@ -791,6 +835,7 @@ def get_family_members(request):
 
 #----------------- Set Aid Schedule View -----------------
 @login_required
+@session_protected
 def set_aid_schedule(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -830,6 +875,7 @@ def set_aid_schedule(request):
     return redirect('mswdo_dashboard')
 #------------------ For MSWDO Household List and RFID -----------------
 @login_required
+@session_protected
 def barangay_list(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -841,6 +887,7 @@ def barangay_list(request):
     })
 
 @login_required
+@session_protected
 def barangay_zones(request, barangay_id):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -854,6 +901,7 @@ def barangay_zones(request, barangay_id):
     })
 
 @login_required
+@session_protected
 def zone_households(request, zone_id):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -874,6 +922,7 @@ def zone_households(request, zone_id):
     })
 
 @login_required
+@session_protected
 def household_info(request, household_id):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -895,6 +944,7 @@ def household_info(request, household_id):
     })
 
 @login_required
+@session_protected
 def family_members(request, family_id):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -909,6 +959,7 @@ def family_members(request, family_id):
     })
 
 @login_required
+@session_protected
 def deactivate_rfid(request, family_id):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -928,6 +979,7 @@ def deactivate_rfid(request, family_id):
 
 #----------------- Analytics View -----------------
 @login_required
+@session_protected
 def analytics(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
@@ -944,6 +996,7 @@ def analytics(request):
 
 #----------------- Aid Schedule Reports View -----------------
 @login_required
+@session_protected
 def aid_reports(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
