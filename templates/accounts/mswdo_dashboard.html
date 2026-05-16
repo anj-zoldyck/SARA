@@ -1,150 +1,174 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}MSWDO Dashboard{% endblock %}
+{% block title %}MSWDO Dashboard — SARA{% endblock %}
 
-{% block navbar_title %}
-MSWDO ADMIN DASHBOARD
-{% endblock %}
+{% block navbar_title %}MSWDO ADMIN DASHBOARD{% endblock %}
 
 {% block css %}
-<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
-<style>
-.dashboard-card {
-    border-radius: 8px;
-    padding: 20px;
-    color: white;
-    font-weight: bold;
-    text-align: center;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    cursor: pointer;
-}
-.dashboard-card:hover {
-    transform: scale(1.03);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-}
-
-.card-relief { background-color: #0d2d6b; }
-.card-household { background-color: #134ED5; }
-.card-family { background-color: #007bff; }
-.card-rfid { background-color: #1a75ff; }
-/*.card-scholar { background-color: #28a745; }*/
-.card-senior { background-color: #fd7e14; }
-
-.card-link {
-    text-decoration: none;
-    color: inherit;
-    display: block;
-}
-
-.aid-day-box {
-    border: 2px dashed #0d6efd;
-    border-radius: 8px;
-    padding: 15px;
-    background: #f8f9fa;
-}
-</style>
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
 
-  <!-- ================= SUMMARY CARDS ================= -->
-  <div class="row g-3 mb-4">
-    <div class="col-md-3 col-6">
-      <a href="{% url 'barangay_accounts' %}" class="card-link">
-        <div class="dashboard-card card-relief">
-          <h6>Barangay Accounts</h6>
-          <p class="fs-4">{{ barangayAcc_count }}</p>
-        </div>
-      </a>
-    </div>
-<!--
-    <div class="col-md-3 col-6">
-      <a href="{% url 'household_list' %}" class="card-link">
-        <div class="dashboard-card card-household">
-          <h6>Households</h6>
-          <p class="fs-4">{{ household_count }}</p>
-        </div>
-      </a>
-    </div>
--->
-    <div class="col-md-3 col-6">
-      <a href="{% url 'barangay_list' %}" class="card-link">
-        <div class="dashboard-card card-household">
-          <h6>Barangays</h6>
-          <p class="fs-4">{{ barangay_count }}</p>
-        </div>
-      </a>
-    </div>
-
-<!--  <div class="col-md-3 col-6">
-      <a href="{% url 'family_list' %}" class="card-link">
-        <div class="dashboard-card card-family">
-          <h6>Families</h6>
-          <p class="fs-4">{{ family_count }}</p>
-        </div>
-      </a>
-    </div>
-
-    <div class="col-md-3 col-6">
-      <a href="{% url 'scan_rfid' %}" class="card-link">
-        <div class="dashboard-card card-rfid">
-          <h6>RFID Claims</h6>
-          <p class="fs-6">
-            Claimed: {{ rfid_claimed }} <br>
-            Unclaimed: {{ rfid_unclaimed }}
-          </p>
-        </div>
-      </a>
-    </div>
--->
+<!-- ======================================================
+     PAGE HEADER
+====================================================== -->
+<div class="dash-page-header">
+  <div>
+    <h1 class="dash-page-title">Dashboard</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-calendar3 me-1"></i>
+      <span id="dashDate"></span>
+      &nbsp;·&nbsp; Santa Rita, Pampanga MSWDO
+    </p>
   </div>
+  <div class="dash-header-actions">
+    <a href="{% url 'aid_reports' %}" class="btn-dash-outline">
+      <i class="bi bi-file-earmark-bar-graph"></i> View Reports
+    </a>
+  </div>
+</div>
 
-  <!-- ================= AID OF THE DAY ================= -->
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="aid-day-box">
-        <h5 class="mb-2">📅 Scheduled Distribution</h5>
+<!-- ======================================================
+     SUMMARY CARDS
+====================================================== -->
+<div class="dash-grid dash-grid--cards">
 
-          {% if active_schedules or upcoming_schedules %}
-            {% for sched in active_schedules %}
-              <div class="mb-2 p-2 border rounded">
-                <strong>Aid:</strong> {{ sched.aid_type }} <br>
-                <strong>Date & Time:</strong> {{ sched.schedule_datetime }} <br>
-                <strong>Location:</strong> {{ sched.location }} <br>
-                <strong>Barangay:</strong> {{ sched.barangay }}
+  <!-- Barangay Accounts -->
+  <a href="{% url 'barangay_accounts' %}" class="stat-card stat-card--blue">
+    <div class="stat-card__icon">
+      <i class="bi bi-person-badge"></i>
+    </div>
+    <div class="stat-card__body">
+      <span class="stat-card__label">Barangay Accounts</span>
+      <span class="stat-card__value">{{ barangayAcc_count }}</span>
+    </div>
+    <i class="bi bi-arrow-right-short stat-card__arrow"></i>
+  </a>
+
+  <!-- Barangays -->
+  <a href="{% url 'barangay_list' %}" class="stat-card stat-card--navy">
+    <div class="stat-card__icon">
+      <i class="bi bi-geo-alt"></i>
+    </div>
+    <div class="stat-card__body">
+      <span class="stat-card__label">Barangays</span>
+      <span class="stat-card__value">{{ barangay_count }}</span>
+    </div>
+    <i class="bi bi-arrow-right-short stat-card__arrow"></i>
+  </a>
+
+  <!-- Relief Aid (shortcut card) -->
+  <a href="{% url 'aid_list' 'RELIEF' %}" class="stat-card stat-card--teal">
+    <div class="stat-card__icon">
+      <i class="bi bi-box-seam"></i>
+    </div>
+    <div class="stat-card__body">
+      <span class="stat-card__label">Relief Distribution</span>
+      <span class="stat-card__value stat-card__value--sm">Manage</span>
+    </div>
+    <i class="bi bi-arrow-right-short stat-card__arrow"></i>
+  </a>
+
+  <!-- Senior Aid (shortcut card) -->
+  <a href="{% url 'aid_list' 'SENIOR' %}" class="stat-card stat-card--amber">
+    <div class="stat-card__icon">
+      <i class="bi bi-heart-pulse"></i>
+    </div>
+    <div class="stat-card__body">
+      <span class="stat-card__label">Senior Distribution</span>
+      <span class="stat-card__value stat-card__value--sm">Manage</span>
+    </div>
+    <i class="bi bi-arrow-right-short stat-card__arrow"></i>
+  </a>
+
+</div>
+
+<!-- ======================================================
+     MAIN BODY: Schedule + Quick Actions
+====================================================== -->
+<div class="dash-grid dash-grid--main">
+
+  <!-- ── LEFT: Scheduled Distribution ───────────────────── -->
+  <div class="dash-panel">
+    <div class="dash-panel__header">
+      <div class="dash-panel__header-left">
+        <i class="bi bi-calendar-check dash-panel__icon"></i>
+        <div>
+          <h2 class="dash-panel__title">Scheduled Distribution</h2>
+          <p class="dash-panel__sub">Active and upcoming aid schedules</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Schedule List -->
+    <div class="dash-panel__body">
+      {% if active_schedules %}
+        <p class="sched-list-label">
+          <i class="bi bi-broadcast-pin"></i> Active Schedules
+        </p>
+        <div class="sched-list">
+          {% for sched in active_schedules %}
+          <div class="sched-item">
+            <div class="sched-item__badge sched-item__badge--active">Active</div>
+            <div class="sched-item__details">
+              <span class="sched-item__aid">{{ sched.aid_type }}</span>
+              <div class="sched-item__meta">
+                <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
+                <span><i class="bi bi-geo"></i> {{ sched.location }}</span>
+                <span><i class="bi bi-buildings"></i> {{ sched.barangay }}</span>
               </div>
-            {% endfor %}
-          {% else %}
-            <p class="text-danger">No scheduled distribution.</p>
-          {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="sched-empty">
+          <i class="bi bi-calendar-x"></i>
+          <p>No active scheduled distribution.</p>
+        </div>
+      {% endif %}
 
-        <form method="post" action="{% url 'set_aid_schedule' %}" class="row g-2">
-          {% csrf_token %}
+      <!-- Divider -->
+      <div class="dash-divider">
+        <span>Set New Schedule</span>
+      </div>
 
-          <div class="col-md-3">
-            <select name="aid_type" class="form-select" required>
-              <option value="">-- Select Aid --</option>
+      <!-- Schedule Form -->
+      <form method="post" action="{% url 'set_aid_schedule' %}" class="sched-form">
+        {% csrf_token %}
+
+        <div class="sched-form__grid">
+
+          <div class="sched-form__field">
+            <label class="sched-form__label">Aid Type</label>
+            <select name="aid_type" class="form-select form-select-sm" required>
+              <option value="">— Select Aid —</option>
               <option value="RELIEF">Relief</option>
               <option value="SENIOR">Senior</option>
             </select>
           </div>
 
-          <div class="col-md-3">
-            <input type="datetime-local" name="schedule_datetime" class="form-control" required>
+          <div class="sched-form__field">
+            <label class="sched-form__label">Start Date & Time</label>
+            <input type="datetime-local" name="schedule_datetime" class="form-control form-control-sm" required>
           </div>
 
-          <div class="col-md-3">
-            <input type="datetime-local" name="end_datetime" class="form-control" required>
+          <div class="sched-form__field">
+            <label class="sched-form__label">End Date & Time</label>
+            <input type="datetime-local" name="end_datetime" class="form-control form-control-sm" required>
           </div>
 
-          <div class="col-md-3">
-            <input type="text" name="location" class="form-control" placeholder="Location (e.g. Plaza)" required>
+          <div class="sched-form__field">
+            <label class="sched-form__label">Location</label>
+            <input type="text" name="location" class="form-control form-control-sm"
+              placeholder="e.g. Municipal Plaza" required>
           </div>
 
-          <div class="col-md-2">
-            <select name="barangay" class="form-select">
+          <div class="sched-form__field">
+            <label class="sched-form__label">Barangay</label>
+            <select name="barangay" class="form-select form-select-sm">
               <option value="">All Barangays</option>
               {% for b in barangays %}
                 <option value="{{ b.id }}">{{ b.name }}</option>
@@ -152,41 +176,106 @@ MSWDO ADMIN DASHBOARD
             </select>
           </div>
 
-          <div class="col-md-1">
-            <button class="btn btn-primary w-100">Set</button>
+        </div>
+
+        <div class="sched-form__footer">
+          <button type="submit" class="btn-dash-primary">
+            <i class="bi bi-calendar-plus me-1"></i> Set Schedule
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ── RIGHT: Quick Actions + Aid Shortcuts ────────────── -->
+  <div class="dash-side">
+
+    <!-- Quick Actions Panel -->
+    <div class="dash-panel">
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-lightning-charge dash-panel__icon"></i>
+          <div>
+            <h2 class="dash-panel__title">Quick Actions</h2>
+            <p class="dash-panel__sub">Frequently used tools</p>
           </div>
-        </form>
+        </div>
+      </div>
+      <div class="dash-panel__body">
+        <div class="quick-actions">
+
+          <a href="{% url 'register_rfid' %}" class="quick-action quick-action--green">
+            <div class="quick-action__icon">
+              <i class="bi bi-credit-card-2-front"></i>
+            </div>
+            <div class="quick-action__info">
+              <span class="quick-action__label">Register RFID</span>
+              <span class="quick-action__desc">Enroll new RFID card</span>
+            </div>
+            <i class="bi bi-chevron-right quick-action__arrow"></i>
+          </a>
+
+          <a href="{% url 'scan_rfid' %}" class="quick-action quick-action--blue">
+            <div class="quick-action__icon">
+              <i class="bi bi-upc-scan"></i>
+            </div>
+            <div class="quick-action__info">
+              <span class="quick-action__label">RFID Scan</span>
+              <span class="quick-action__desc">Verify beneficiary card</span>
+            </div>
+            <i class="bi bi-chevron-right quick-action__arrow"></i>
+          </a>
+
+          <a href="{% url 'aid_type_list' %}" class="quick-action quick-action--orange">
+            <div class="quick-action__icon">
+              <i class="bi bi-clipboard2-data"></i>
+            </div>
+            <div class="quick-action__info">
+              <span class="quick-action__label">Aid Monitoring</span>
+              <span class="quick-action__desc">Track aid type status</span>
+            </div>
+            <i class="bi bi-chevron-right quick-action__arrow"></i>
+          </a>
+
+          <a href="#" class="quick-action quick-action--indigo">
+            <div class="quick-action__icon">
+              <i class="bi bi-person-vcard"></i>
+            </div>
+            <div class="quick-action__info">
+              <span class="quick-action__label">Resident Profiling</span>
+              <span class="quick-action__desc">View resident records</span>
+            </div>
+            <i class="bi bi-chevron-right quick-action__arrow"></i>
+          </a>
+
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- ================= AID DISTRIBUTION SHORTCUTS ================= -->
-  <div class="row g-3 mb-4">
-    <div class="col-md-4">
-      <a href="{% url 'aid_list' 'RELIEF' %}" class="card-link">
-        <div class="dashboard-card card-relief">
-          Relief Distribution
-        </div>
-      </a>
+    <!-- System Notice -->
+    <div class="dash-notice">
+      <i class="bi bi-shield-check dash-notice__icon"></i>
+      <div>
+        <p class="dash-notice__title">Secure System Access</p>
+        <p class="dash-notice__text">All actions are logged and monitored. Handle beneficiary data with care and in accordance with the Data Privacy Act.</p>
+      </div>
     </div>
-    <div class="col-md-4">
-      <a href="{% url 'aid_list' 'SENIOR' %}" class="card-link">
-        <div class="dashboard-card card-senior">
-          Senior Distribution
-        </div>
-      </a>
-    </div>
+
   </div>
-
-  <!-- ================= ACTION BUTTONS ================= -->
-  <div class="d-flex flex-wrap gap-2 mb-4">
-    <a href="{% url 'register_rfid' %}" class="btn btn-success">Register RFID</a>
-    <a href="{% url 'scan_rfid' %}" class="btn btn-primary">RFID Scan</a>
-    <a href="{% url 'aid_type_list' %}" class="btn btn-warning">Aid Monitoring</a>
-    <a href="#" class="btn btn-info text-white">Resident Profiling</a>
-  </div>
-
-  <a href="{% url 'logout' %}" class="btn btn-outline-secondary">Logout</a>
-
 </div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+  // Live date display
+  const el = document.getElementById('dashDate');
+  if (el) {
+    const now = new Date();
+    el.textContent = now.toLocaleDateString('en-PH', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+  }
+</script>
 {% endblock %}

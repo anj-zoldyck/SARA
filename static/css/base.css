@@ -307,10 +307,12 @@ ul {
   z-index: 1098;
   opacity: 0;
   transition: opacity var(--transition);
+  pointer-events: none;
 }
 
 .sidebar-overlay--visible {
   opacity: 1;
+  pointer-events: auto;
 }
 
 /* =============================================================

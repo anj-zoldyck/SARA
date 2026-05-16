@@ -1,79 +1,166 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Barangay Accounts{% endblock %}
+{% block title %}Barangay Accounts — SARA{% endblock %}
 
-{% block navbar_title %}
-Barangay Accounts Management
-{% endblock %}
+{% block navbar_title %}Barangay Accounts Management{% endblock %}
 
 {% block css %}
-<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
-<style>
-.card-header {
-    font-weight: bold;
-}
-
-.table td, .table th {
-    vertical-align: middle;
-}
-
-@media (max-width: 768px) {
-    .table-responsive {
-        overflow-x: auto;
-    }
-}
-</style>
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
 
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Barangay Accounts</h2>
-    <a href="{% url 'create_barangay' %}" class="btn btn-primary">+ Add Barangay</a>
+<!-- ── Page Header ─────────────────────────────────────────── -->
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Barangay Accounts</span>
+    </div>
+    <h1 class="dash-page-title">Barangay Accounts</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-buildings me-1"></i>
+      Manage barangay administrator accounts and access
+    </p>
+  </div>
+  <div class="dash-header-actions">
+    <a href="{% url 'create_barangay' %}" class="btn-dash-primary">
+      <i class="bi bi-plus-lg"></i> Add Barangay
+    </a>
+  </div>
+</div>
+
+<!-- ── Summary Strip ──────────────────────────────────────── -->
+<div class="acct-summary-strip">
+  <div class="acct-summary-item">
+    <i class="bi bi-buildings acct-summary-icon acct-summary-icon--blue"></i>
+    <div>
+      <span class="acct-summary-val">{{ barangays|length }}</span>
+      <span class="acct-summary-label">Total Accounts</span>
+    </div>
+  </div>
+  <div class="acct-summary-divider"></div>
+  <div class="acct-summary-item">
+    <i class="bi bi-check-circle acct-summary-icon acct-summary-icon--green"></i>
+    <div>
+      <span class="acct-summary-val">
+        {% with active_count=barangays|length %}{{ active_count }}{% endwith %}
+      </span>
+      <span class="acct-summary-label">Active</span>
+    </div>
+  </div>
+  <div class="acct-summary-divider"></div>
+  <div class="acct-summary-item">
+    <i class="bi bi-geo-alt acct-summary-icon acct-summary-icon--navy"></i>
+    <div>
+      <span class="acct-summary-val">Santa Rita</span>
+      <span class="acct-summary-label">Municipality</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Accounts Table Panel ───────────────────────────────── -->
+<div class="dash-panel">
+
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-person-badge dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Account Registry</h2>
+        <p class="dash-panel__sub">All registered barangay administrator accounts</p>
+      </div>
+    </div>
   </div>
 
-  <div class="table-responsive">
-    <table class="table table-striped table-bordered">
-      <thead class="table-dark">
-        <tr>
-          <th>Barangay</th>
-          <th>Username</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for barangay in barangays %}
-        <tr>
-          <td>{{ barangay.barangay }}</td>
-          <td>{{ barangay.username }}</td>
-          <td>
-            {% if barangay.is_active %}
-              <span class="badge bg-success">Active</span>
-            {% else %}
-              <span class="badge bg-danger">Deactivated</span>
-            {% endif %}
-          </td>
-          <td>
-            <a href="#" class="btn btn-sm btn-warning">Edit</a>
-            {% if barangay.is_active %}
-            <a href="{% url 'deactivate_barangay' barangay.id %}" class="btn btn-sm btn-danger">Deactivate</a>
-            {% endif %}
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="4" class="text-center">No barangay accounts found.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="dash-panel__body p-0">
+    <div class="table-responsive">
+      <table class="acct-table">
+        <thead>
+          <tr>
+            <th class="acct-th">#</th>
+            <th class="acct-th">Barangay</th>
+            <th class="acct-th">Username</th>
+            <th class="acct-th">Status</th>
+            <th class="acct-th acct-th--actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for barangay in barangays %}
+          <tr class="acct-row">
+            <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
+            <td class="acct-td">
+              <div class="acct-barangay-cell">
+                <div class="acct-avatar">
+                  <!-- Placeholder avatar with building icon -->
+                  <i class="bi bi-person-badge dash-panel__icon"></i>
+                </div>
+                <span class="acct-barangay-name">{{ barangay.barangay }}</span>
+              </div>
+            </td>
+            <td class="acct-td">
+              <span class="acct-username">
+                <i class="bi bi-person me-1"></i>{{ barangay.username }}
+              </span>
+            </td>
+            <td class="acct-td">
+              {% if barangay.is_active %}
+                <span class="acct-badge acct-badge--active">
+                  <i class="bi bi-circle-fill"></i> Active
+                </span>
+              {% else %}
+                <span class="acct-badge acct-badge--inactive">
+                  <i class="bi bi-circle-fill"></i> Deactivated
+                </span>
+              {% endif %}
+            </td>
+            <td class="acct-td acct-td--actions">
+              <div class="acct-actions">
+                <a href="#" class="acct-btn acct-btn--edit" title="Edit account">
+                  <i class="bi bi-pencil"></i>
+                  <span>Edit</span>
+                </a>
+                {% if barangay.is_active %}
+                <a href="{% url 'deactivate_barangay' barangay.id %}"
+                   class="acct-btn acct-btn--deactivate"
+                   title="Deactivate account"
+                   onclick="return confirm('Deactivate {{ barangay.barangay }} account?')">
+                  <i class="bi bi-slash-circle"></i>
+                  <span>Deactivate</span>
+                </a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="acct-empty">
+              <div class="acct-empty-state">
+                <i class="bi bi-buildings"></i>
+                <p>No barangay accounts found.</p>
+                <a href="{% url 'create_barangay' %}" class="btn-dash-primary">
+                  <i class="bi bi-plus-lg"></i> Add First Barangay
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 
-  <a href="{% url 'mswdo_dashboard' %}" class="btn btn-outline-secondary mt-3">
-    Back to Dashboard
+</div>
+
+<!-- ── Back Link ──────────────────────────────────────────── -->
+<div class="page-back-row">
+  <a href="{% url 'mswdo_dashboard' %}" class="btn-dash-outline">
+    <i class="bi bi-arrow-left"></i> Back to Dashboard
   </a>
 </div>
+
 {% endblock %}

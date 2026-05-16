@@ -38,14 +38,28 @@ def logout_view(request):
     response['Expires'] = '0'
 
     #Clears the browser's back-forward cache for this origin
-    response['Clear-Site-Data'] = '"cache", "cookies", "storage"'
+    response['Clear-Site-Data'] = '"cache"'
+
+    # Explicitly overwrite sara_auth with expired cookie
+    response.set_cookie(
+        'sara_auth',
+        '',
+        max_age=0,
+        expires='Thu, 01 Jan 1970 00:00:00 GMT',
+        samesite='Lax'
+    )
     return response
 
 def login_view(request):
+    if request.user.is_authenticated:
+        if request.user.role == 'MSWDO':
+            return redirect('mswdo_dashboard')
+        else:
+            return redirect('barangay_dashboard')
+
     if request.method == "POST":
         username = request.POST.get('username')
         password = request.POST.get('password')
-
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
@@ -54,13 +68,20 @@ def login_view(request):
             else:
                 login(request, user)
                 if user.role == 'MSWDO':
-                    return redirect('mswdo_dashboard')
+                    response = redirect('mswdo_dashboard')
                 else:
-                    return redirect('barangay_dashboard')
+                    response = redirect('barangay_dashboard')
+
+                # ✅ Set a JS-readable cookie to signal active session
+                response.set_cookie('sara_auth', '1', samesite='Lax')
+                return response
         else:
             messages.error(request, "Invalid username or password.")
 
-    return render(request, 'accounts/login.html')
+    # ✅ Prevent login page from being stored in bfcache
+    response = render(request, 'accounts/login.html')
+    response['Cache-Control'] = 'no-store'
+    return response
 
 User = get_user_model()
 

@@ -5,18 +5,30 @@
   <meta charset="UTF-8">
   <title>{% block title %}SARA{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- Cache Control for Authenticated Pages -->
+<!-- Prevent caching of protected pages to avoid showing stale content when session expires -->
   <script>
     (function() {
       var pageRequiresAuth = {{ requires_auth|default:"false"|lower }};
+      var isLoginPage = window.location.pathname === '/login/';
+
+      function isSessionAlive() {
+        return document.cookie.split(';').some(function(c) {
+          return c.trim().startsWith('sara_auth=1');
+        });
+      }
+
       window.addEventListener('pageshow', function(e) {
         if (e.persisted) {
-          if (pageRequiresAuth) {
+          if (pageRequiresAuth && !isSessionAlive()) {
+            // Protected page, session gone — go to login
             document.documentElement.style.visibility = 'hidden';
             window.location.replace('/login/');
+          } else if (isLoginPage && isSessionAlive()) {
+            // Login page cached but user is logged in — go to dashboard
+            document.documentElement.style.visibility = 'hidden';
+            window.location.replace('/mswdo/dashboard/');
           } else {
-            window.location.reload();
+            document.documentElement.style.visibility = 'visible';
           }
         }
       });

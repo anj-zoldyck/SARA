@@ -1,71 +1,175 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}
-House {{ household.house_number }} – Families
-{% endblock %}
+{% block title %}House {{ household.house_number }} — Families — SARA{% endblock %}
+{% block navbar_title %}House {{ household.house_number }} — {{ household.barangay.name }}{% endblock %}
 
-{% block navbar_title %}
-House {{ household.house_number }} – {{ household.barangay.name }}/{{ household.zone.name }}
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
 
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4>Families in House {{ household.house_number }}</h4>
-    <a href="{% url 'zone_households' household.zone.id %}" class="btn btn-secondary btn-sm">
-      ← Back to Households
+<!-- ── Page Header ─────────────────────────────────────────── -->
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'zone_households' household.zone.id %}" class="breadcrumb-link">
+        {{ household.zone.name }}
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">House {{ household.house_number }}</span>
+    </div>
+    <h1 class="dash-page-title">House {{ household.house_number }}</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-people me-1"></i>
+      {{ families|length }} famil{{ families|length|pluralize:"y,ies" }} &mdash;
+      {{ household.barangay.name }}, {{ household.zone.name }}
+    </p>
+  </div>
+  <div class="dash-header-actions">
+    <a href="{% url 'zone_households' household.zone.id %}" class="btn-dash-outline">
+      <i class="bi bi-arrow-left"></i> Back to Households
     </a>
   </div>
+</div>
 
-  <div class="table-responsive">
-    <table class="table table-bordered table-hover align-middle">
-      <thead class="table-dark">
-        <tr>
-          <th>Family Name</th>
-          <th>RFID UID</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for family in families %}
-          <tr>
-            <td>
-              <a href="{% url 'family_members' family.id %}">
-                {{ family.family_name }}
-              </a>
-            </td>
-            <td>
-              {% if family.rfid_uid %}
-                {{ family.rfid_uid }}
-              {% else %}
-                <span class="text-muted">Not registered</span>
-              {% endif %}
-            </td>
-            <td>
-              {% if family.rfid_uid %}
-                <a href="{% url 'register_rfid' family.id %}" class="btn btn-sm btn-warning">
-                  Update RFID
-                </a>
-                <a href="{% url 'deactivate_rfid' family.id %}" class="btn btn-sm btn-danger"
-                   onclick="return confirm('Are you sure you want to deactivate this RFID?');">
-                  Deactivate RFID
-                </a>
-              {% else %}
-                <a href="{% url 'register_rfid' family.id %}" class="btn btn-sm btn-primary">
-                  Register RFID
-                </a>
-              {% endif %}
-            </td>
-          </tr>
-        {% empty %}
-          <tr>
-            <td colspan="3" class="text-center">No families found in this household.</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<!-- ── Info Strip ─────────────────────────────────────────── -->
+<div class="brgy-info-strip">
+  <div class="brgy-info-item">
+    <div class="brgy-info-icon">
+      <i class="bi bi-house-door"></i>
+    </div>
+    <div>
+      <span class="brgy-info-val">House {{ household.house_number }}</span>
+      <span class="brgy-info-label">Household</span>
+    </div>
+  </div>
+  <div class="brgy-info-divider"></div>
+  <div class="brgy-info-item">
+    <div class="brgy-info-icon brgy-info-icon--teal">
+      <i class="bi bi-people"></i>
+    </div>
+    <div>
+      <span class="brgy-info-val">{{ families|length }}</span>
+      <span class="brgy-info-label">Families</span>
+    </div>
+  </div>
+  <div class="brgy-info-divider"></div>
+  <div class="brgy-info-item">
+    <div class="brgy-info-icon brgy-info-icon--navy">
+      <i class="bi bi-map"></i>
+    </div>
+    <div>
+      <span class="brgy-info-val">{{ household.zone.name }}</span>
+      <span class="brgy-info-label">Zone</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Families Table ─────────────────────────────────────── -->
+<div class="dash-panel">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-people dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Registered Families</h2>
+        <p class="dash-panel__sub">Family RFID registration and status</p>
+      </div>
+    </div>
   </div>
 
+  <div class="dash-panel__body p-0">
+    <div class="table-responsive">
+      <table class="acct-table">
+        <thead>
+          <tr>
+            <th class="acct-th">#</th>
+            <th class="acct-th">Family Name</th>
+            <th class="acct-th">RFID UID</th>
+            <th class="acct-th">RFID Status</th>
+            <th class="acct-th acct-th--actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for family in families %}
+          <tr class="acct-row">
+            <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
+            <td class="acct-td">
+              <div class="acct-barangay-cell">
+                <div class="acct-avatar">{{ family.family_name|first|upper }}</div>
+                <a href="{% url 'family_members' family.id %}" class="hh-family-link">
+                  {{ family.family_name }}
+                </a>
+              </div>
+            </td>
+            <td class="acct-td">
+              {% if family.rfid_uid %}
+                <span class="hh-rfid-uid">
+                  <i class="bi bi-credit-card-2-front me-1"></i>{{ family.rfid_uid }}
+                </span>
+              {% else %}
+                <span class="hh-rfid-none">
+                  <i class="bi bi-x-circle me-1"></i>Not registered
+                </span>
+              {% endif %}
+            </td>
+            <td class="acct-td">
+              {% if family.rfid_uid %}
+                <span class="acct-badge acct-badge--active">
+                  <i class="bi bi-circle-fill"></i> Registered
+                </span>
+              {% else %}
+                <span class="acct-badge acct-badge--inactive">
+                  <i class="bi bi-circle-fill"></i> Unregistered
+                </span>
+              {% endif %}
+            </td>
+            <td class="acct-td acct-td--actions">
+              <div class="acct-actions">
+                {% if family.rfid_uid %}
+                  <a href="{% url 'register_rfid' family.id %}" class="acct-btn acct-btn--edit">
+                    <i class="bi bi-arrow-repeat"></i><span>Update RFID</span>
+                  </a>
+                  <a href="{% url 'deactivate_rfid' family.id %}"
+                     class="acct-btn acct-btn--deactivate"
+                     onclick="return confirm('Deactivate RFID for {{ family.family_name }}?')">
+                    <i class="bi bi-slash-circle"></i><span>Deactivate</span>
+                  </a>
+                {% else %}
+                  <a href="{% url 'register_rfid' family.id %}" class="acct-btn acct-btn--register">
+                    <i class="bi bi-credit-card-2-front"></i><span>Register RFID</span>
+                  </a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="acct-empty">
+              <div class="acct-empty-state">
+                <i class="bi bi-people"></i>
+                <p>No families found in this household.</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
+
+<div class="page-back-row">
+  <a href="{% url 'zone_households' household.zone.id %}" class="btn-dash-outline">
+    <i class="bi bi-arrow-left"></i> Back to Households
+  </a>
+</div>
+
 {% endblock %}

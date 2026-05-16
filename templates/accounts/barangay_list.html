@@ -1,39 +1,75 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Barangays{% endblock %}
+{% block title %}Barangays — SARA{% endblock %}
 {% block navbar_title %}Barangays{% endblock %}
 
-{% block content %}
-<div class="container mt-4">
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
+{% endblock %}
 
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4>Barangays</h4>
-    <a href="{% url 'mswdo_dashboard' %}" class="btn btn-secondary btn-sm">
-      ← Back to Dashboard
+{% block content %}
+
+<!-- ── Page Header ─────────────────────────────────────────── -->
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Barangays</span>
+    </div>
+    <h1 class="dash-page-title">Barangays</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-geo-alt me-1"></i>
+      Santa Rita, Pampanga &mdash; {{ barangays|length }} barangay{{ barangays|length|pluralize }} registered
+    </p>
+  </div>
+  <div class="dash-header-actions">
+    <a href="{% url 'mswdo_dashboard' %}" class="btn-dash-outline">
+      <i class="bi bi-arrow-left"></i> Back to Dashboard
     </a>
   </div>
-
-  <div class="row g-3">
-    {% for barangay in barangays %}
-      <div class="col-md-4 col-sm-6 col-12">
-        <a href="{% url 'barangay_zones' barangay.id %}"
-           class="text-decoration-none">
-          <div class="card shadow-sm h-100">
-            <div class="card-body text-center">
-              <h5 class="card-title mb-0">{{ barangay.name }}</h5>
-              <small class="text-muted">View zones & households</small>
-            </div>
-          </div>
-        </a>
-      </div>
-    {% empty %}
-      <div class="col-12">
-        <div class="alert alert-info text-center">
-          No barangays found.
-        </div>
-      </div>
-    {% endfor %}
-  </div>
-
 </div>
+
+<!-- ── Barangay Cards Grid ────────────────────────────────── -->
+{% if barangays %}
+<div class="brgy-grid">
+  {% for barangay in barangays %}
+  <a href="{% url 'barangay_zones' barangay.id %}" class="brgy-card">
+    <div class="brgy-card__icon-wrap">
+      <i class="bi bi-buildings"></i>
+    </div>
+    <div class="brgy-card__body">
+      <h3 class="brgy-card__name">{{ barangay.name }}</h3>
+      <p class="brgy-card__sub">View zones &amp; households</p>
+    </div>
+    <div class="brgy-card__footer">
+      <span class="brgy-card__cta">
+        Explore <i class="bi bi-arrow-right"></i>
+      </span>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+
+{% else %}
+<!-- Empty State -->
+<div class="dash-panel">
+  <div class="dash-panel__body">
+    <div class="brgy-empty">
+      <i class="bi bi-geo-alt-fill"></i>
+      <h3>No Barangays Found</h3>
+      <p>No barangays have been registered in the system yet.</p>
+      <a href="{% url 'mswdo_dashboard' %}" class="btn-dash-outline">
+        <i class="bi bi-arrow-left"></i> Back to Dashboard
+      </a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}

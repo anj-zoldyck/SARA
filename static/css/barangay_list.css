@@ -1,0 +1,358 @@
+/* =============================================================
+   SARA — BARANGAY LIST & ZONES STYLES
+   Extends dashboard.css + barangay_accounts.css tokens
+============================================================= */
+
+/* =============================================================
+   BARANGAY CARDS GRID (barangay_list)
+============================================================= */
+.brgy-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.brgy-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--panel-radius);
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+  overflow: hidden;
+  transition: transform var(--transition), box-shadow var(--transition),
+              border-color var(--transition);
+  position: relative;
+}
+
+.brgy-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--secondary);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.brgy-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
+  border-color: rgba(19, 78, 213, 0.2);
+}
+
+.brgy-card:hover::before {
+  opacity: 1;
+}
+
+/* Icon area */
+.brgy-card__icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 20px 16px;
+}
+
+.brgy-card__icon-wrap i {
+  font-size: 36px;
+  color: var(--secondary);
+  opacity: 0.75;
+  transition: opacity var(--transition), transform var(--transition);
+}
+
+.brgy-card:hover .brgy-card__icon-wrap i {
+  opacity: 1;
+  transform: scale(1.08);
+}
+
+/* Body */
+.brgy-card__body {
+  flex: 1;
+  padding: 0 20px 16px;
+  text-align: center;
+}
+
+.brgy-card__name {
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0 0 5px;
+  line-height: 1.3;
+}
+
+.brgy-card__sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Footer */
+.brgy-card__footer {
+  border-top: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex;
+  justify-content: center;
+  background: #f8fafd;
+  transition: background var(--transition);
+}
+
+.brgy-card:hover .brgy-card__footer {
+  background: rgba(19, 78, 213, 0.04);
+}
+
+.brgy-card__cta {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--secondary);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: gap var(--transition);
+}
+
+.brgy-card:hover .brgy-card__cta {
+  gap: 8px;
+}
+
+/* =============================================================
+   EMPTY STATE (shared)
+============================================================= */
+.brgy-empty {
+  text-align: center;
+  padding: 52px 24px;
+  color: var(--text-muted);
+}
+
+.brgy-empty i {
+  font-size: 44px;
+  display: block;
+  margin-bottom: 14px;
+  opacity: 0.3;
+  color: var(--primary);
+}
+
+.brgy-empty h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.brgy-empty p {
+  font-size: 13.5px;
+  margin-bottom: 20px;
+  max-width: 320px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* =============================================================
+   BARANGAY INFO STRIP (barangay_zones)
+============================================================= */
+.brgy-info-strip {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--panel-radius);
+  box-shadow: var(--shadow-card);
+  padding: 16px 24px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.brgy-info-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 140px;
+}
+
+.brgy-info-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.brgy-info-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(19, 78, 213, 0.1);
+  color: var(--secondary);
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.brgy-info-icon--teal {
+  background: #e6f4f4;
+  color: #0d7377;
+}
+
+.brgy-info-icon--navy {
+  background: rgba(13, 45, 107, 0.08);
+  color: var(--primary);
+}
+
+.brgy-info-val {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.brgy-info-label {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+/* =============================================================
+   ZONE CARDS GRID (barangay_zones)
+============================================================= */
+.zone-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.zone-card {
+  background: #f8fafd;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow var(--transition), border-color var(--transition),
+              transform var(--transition);
+}
+
+.zone-card:hover {
+  box-shadow: var(--shadow-hover);
+  border-color: rgba(19, 78, 213, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Zone card header */
+.zone-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--white);
+}
+
+.zone-card__icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  background: rgba(19, 78, 213, 0.08);
+  color: var(--secondary);
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.zone-card__number {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+/* Zone card body */
+.zone-card__body {
+  flex: 1;
+  padding: 14px;
+}
+
+.zone-card__name {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0 0 5px;
+  line-height: 1.3;
+}
+
+.zone-card__barangay {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* Zone card footer */
+.zone-card__footer {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.zone-card__btn {
+  width: 100%;
+  justify-content: center;
+  font-size: 13px;
+  padding: 8px 14px;
+}
+
+/* =============================================================
+   RESPONSIVE
+============================================================= */
+@media (max-width: 1100px) {
+  .brgy-grid,
+  .zone-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767.98px) {
+  .brgy-info-divider {
+    display: none;
+  }
+
+  .brgy-info-item {
+    min-width: 110px;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .brgy-grid,
+  .zone-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .brgy-info-strip {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .brgy-card__icon-wrap {
+    padding: 20px 20px 12px;
+  }
+
+  .brgy-card__icon-wrap i {
+    font-size: 28px;
+  }
+}
