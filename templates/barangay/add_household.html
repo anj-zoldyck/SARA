@@ -1,31 +1,87 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Add Household{% endblock %}
+{% block title %}Add Household — {{ zone.name }} — SARA{% endblock %}
+{% block navbar_title %}Add Household{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <h2>Add Household – {{ zone.name }}</h2>
 
-  <form method="post">
-    {% csrf_token %}
-
-    <div class="mb-3">
-      <label class="form-label">House Number</label>
-      {{ form.house_number }}
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'barangay_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'zone_detail' zone.id %}" class="breadcrumb-link">{{ zone.name }}</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Add Household</span>
     </div>
-
-    <div class="mb-3">
-      <label class="form-label">Family Name</label>
-      {{ form.family_name }}
-    </div>
-
-    <button type="submit" class="btn btn-primary">
-      Save Household
-    </button>
-
-    <a href="{% url 'zone_detail' zone.id %}" class="btn btn-secondary">
-      Cancel
-    </a>
-  </form>
+    <h1 class="dash-page-title">Add Household</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-map me-1"></i> Zone: {{ zone.name }}
+    </p>
+  </div>
 </div>
+
+<div class="form-page-layout">
+  <div class="dash-panel form-panel">
+    <div class="dash-panel__header">
+      <div class="dash-panel__header-left">
+        <i class="bi bi-house-door dash-panel__icon"></i>
+        <div>
+          <h2 class="dash-panel__title">Household Details</h2>
+          <p class="dash-panel__sub">Enter information for the new household</p>
+        </div>
+      </div>
+    </div>
+    <div class="dash-panel__body">
+      <form method="post" class="acct-form">
+        {% csrf_token %}
+
+        <div class="acct-form__group">
+          <label class="acct-form__label">
+            <i class="bi bi-hash"></i> House Number
+            <span class="acct-form__required">*</span>
+          </label>
+          <div class="acct-form__control-wrap">{{ form.house_number }}</div>
+        </div>
+
+        <div class="acct-form__group">
+          <label class="acct-form__label">
+            <i class="bi bi-people"></i> Family Name
+            <span class="acct-form__required">*</span>
+          </label>
+          <div class="acct-form__control-wrap">{{ form.family_name }}</div>
+        </div>
+
+        <div class="acct-form__actions">
+          <a href="{% url 'zone_detail' zone.id %}" class="btn-dash-outline">
+            <i class="bi bi-x-lg"></i> Cancel
+          </a>
+          <button type="submit" class="btn-dash-primary">
+            <i class="bi bi-check-lg"></i> Save Household
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="form-side">
+    <div class="dash-notice">
+      <i class="bi bi-info-circle dash-notice__icon"></i>
+      <div>
+        <p class="dash-notice__title">Adding to {{ zone.name }}</p>
+        <p class="dash-notice__text">This household will be registered under {{ zone.name }}. Make sure the house number is accurate and unique within this zone.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}

@@ -1,79 +1,140 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ barangay }} Dashboard — SARA{% endblock %}
+{% block navbar_title %}{{ barangay }} Dashboard{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+{% endblock %}
+
 {% block content %}
 
-<h5 class="mb-3 fw-bold text-primary">📢 Upcoming Distribution</h5>
-
-<div class="notification-container mb-4">
-
-    {% for sched in schedules %}
-        <div class="notification-card d-flex align-items-start mb-3">
-
-            <!-- LEFT: ICON -->
-            <div class="notif-icon me-3">
-                {% if sched.aid_type == "RELIEF" %}
-                    🧺
-                {% else %}
-                    👴
-                {% endif %}
-            </div>
-
-            <!-- CENTER: CONTENT -->
-            <div class="flex-grow-1">
-                <div class="notif-title">
-                    {{ sched.aid_type }} Distribution
-                </div>
-
-                <div class="notif-meta">
-                    📅 {{ sched.schedule_datetime }}
-                </div>
-
-                <div class="notif-meta">
-                    📍 {{ sched.location }}
-                </div>
-
-                {% if sched.barangay %}
-                    <span class="badge bg-primary mt-1">
-                        {{ sched.barangay }}
-                    </span>
-                {% else %}
-                    <span class="badge bg-secondary mt-1">
-                        All Barangays
-                    </span>
-                {% endif %}
-            </div>
-
-            <!-- RIGHT: STATUS -->
-            <div class="text-end">
-                <span class="notif-status upcoming">
-                    Upcoming
-                </span>
-            </div>
-
-        </div>
-
-    {% empty %}
-        <div class="notification-empty">
-            No upcoming schedules.
-        </div>
-    {% endfor %}
-
+<!-- Page Header -->
+<div class="dash-page-header">
+  <div>
+    <h1 class="dash-page-title">{{ barangay }} Dashboard</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-calendar3 me-1"></i>
+      <span id="dashDate"></span>
+      &nbsp;·&nbsp; Santa Rita, Pampanga
+    </p>
+  </div>
 </div>
 
-<h2>{{ barangay }} - Zones</h2>
-
-<div class="row">
-    {% for zone in zones %}
-    <div class="col-md-4 mb-3">
-        <div class="card zone-card">
-            <div class="card-body text-center">
-                <h5 class="card-title">{{ zone.name }}</h5>
-                <a href="{% url 'zone_detail' zone.id %}" class="btn btn-primary">
-                    View Households
-                </a>
-            </div>
-        </div>
+<!-- ── Upcoming Distribution ──────────────────────────────── -->
+<div class="dash-panel mb-4">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-calendar-check dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Upcoming Distribution</h2>
+        <p class="dash-panel__sub">Scheduled aid distributions for your barangay</p>
+      </div>
     </div>
-    {% endfor %}
+  </div>
+  <div class="dash-panel__body">
+
+    {% if schedules %}
+    <div class="notif-list">
+      {% for sched in schedules %}
+      <div class="notif-card">
+        <div class="notif-card__icon notif-card__icon--{% if sched.aid_type == 'RELIEF' %}blue{% else %}amber{% endif %}">
+          {% if sched.aid_type == 'RELIEF' %}
+            <i class="bi bi-box-seam"></i>
+          {% else %}
+            <i class="bi bi-heart-pulse"></i>
+          {% endif %}
+        </div>
+        <div class="notif-card__body">
+          <div class="notif-card__top">
+            <span class="notif-card__type">{{ sched.aid_type }} Distribution</span>
+            <span class="notif-card__status">
+              <i class="bi bi-circle-fill"></i> Upcoming
+            </span>
+          </div>
+          <div class="notif-card__meta">
+            <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
+            <span><i class="bi bi-geo-alt"></i> {{ sched.location }}</span>
+            {% if sched.barangay %}
+              <span class="notif-card__brgy notif-card__brgy--specific">
+                <i class="bi bi-buildings"></i> {{ sched.barangay }}
+              </span>
+            {% else %}
+              <span class="notif-card__brgy notif-card__brgy--all">
+                <i class="bi bi-buildings"></i> All Barangays
+              </span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="brgy-empty" style="padding: 32px 0 20px;">
+      <i class="bi bi-calendar-x"></i>
+      <h3>No Upcoming Schedules</h3>
+      <p>There are currently no upcoming distributions scheduled for your barangay.</p>
+    </div>
+    {% endif %}
+
+  </div>
 </div>
 
+<!-- ── Zones ──────────────────────────────────────────────── -->
+<div class="dash-panel">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-map dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">{{ barangay }} — Zones</h2>
+        <p class="dash-panel__sub">Select a zone to manage its households</p>
+      </div>
+    </div>
+  </div>
+  <div class="dash-panel__body">
+    {% if zones %}
+    <div class="zone-grid">
+      {% for zone in zones %}
+      <div class="zone-card">
+        <div class="zone-card__header">
+          <div class="zone-card__icon-wrap"><i class="bi bi-map"></i></div>
+          <span class="zone-card__number">Zone {{ forloop.counter }}</span>
+        </div>
+        <div class="zone-card__body">
+          <h3 class="zone-card__name">{{ zone.name }}</h3>
+          <p class="zone-card__barangay"><i class="bi bi-buildings me-1"></i>{{ barangay }}</p>
+        </div>
+        <div class="zone-card__footer">
+          <a href="{% url 'zone_detail' zone.id %}" class="btn-dash-primary zone-card__btn">
+            <i class="bi bi-house-door"></i> View Households
+          </a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="brgy-empty" style="padding: 32px 0 20px;">
+      <i class="bi bi-map"></i>
+      <h3>No Zones Found</h3>
+      <p>No zones have been set up for {{ barangay }} yet.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+  const el = document.getElementById('dashDate');
+  if (el) {
+    el.textContent = new Date().toLocaleDateString('en-PH', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+  }
+</script>
 {% endblock %}

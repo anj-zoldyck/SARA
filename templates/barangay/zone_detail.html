@@ -1,24 +1,83 @@
 {% extends 'base.html' %}
-{% block content %}
-<a href="{% url 'barangay_dashboard' %}" class="btn btn-secondary mb-3">
-  ← Back to Dashboard
-</a>
+{% load static %}
 
-<h2>{{ zone.name }} - Households</h2>
-<a href="{% url 'add_household' zone.id %}" class="btn btn-success mb-3">
-  + Add Household
-</a>
-<div class="row">
-    {% for household in households %}
-    <div class="col-md-4 mb-3">
-        <div class="card household-card">
-            <div class="card-body text-center">
-                <h5 class="card-title">House {{ household.house_number }}</h5>
-                <p>{{ household.family_name }} Family</p>
-                <a href="{% url 'household_detail' household.id %}" class="btn btn-primary">View Members</a>
-            </div>
-        </div>
+{% block title %}{{ zone.name }} — Households — SARA{% endblock %}
+{% block navbar_title %}{{ zone.name }} — Households{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'barangay_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">{{ zone.name }}</span>
     </div>
-    {% endfor %}
+    <h1 class="dash-page-title">{{ zone.name }} — Households</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-house-door me-1"></i>
+      {{ households|length }} household{{ households|length|pluralize }} in this zone
+    </p>
+  </div>
+  <div class="dash-header-actions">
+    <a href="{% url 'add_household' zone.id %}" class="btn-dash-primary">
+      <i class="bi bi-plus-lg"></i> Add Household
+    </a>
+    <a href="{% url 'barangay_dashboard' %}" class="btn-dash-outline">
+      <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+  </div>
 </div>
+
+{% if households %}
+<div class="hh-grid">
+  {% for household in households %}
+  <div class="hh-card">
+    <div class="hh-card__header">
+      <div class="hh-card__icon"><i class="bi bi-house-door"></i></div>
+      <span class="hh-card__num">House #{{ household.house_number }}</span>
+    </div>
+    <div class="hh-card__body">
+      <p class="hh-card__family">
+        <i class="bi bi-people me-1"></i>{{ household.family_name }} Family
+      </p>
+    </div>
+    <div class="hh-card__footer">
+      <a href="{% url 'household_detail' household.id %}" class="btn-dash-primary hh-card__btn">
+        <i class="bi bi-person-lines-fill"></i> View Members
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="dash-panel">
+  <div class="dash-panel__body">
+    <div class="brgy-empty">
+      <i class="bi bi-house-door"></i>
+      <h3>No Households Yet</h3>
+      <p>Add the first household in {{ zone.name }}.</p>
+      <a href="{% url 'add_household' zone.id %}" class="btn-dash-primary">
+        <i class="bi bi-plus-lg"></i> Add Household
+      </a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="page-back-row">
+  <a href="{% url 'barangay_dashboard' %}" class="btn-dash-outline">
+    <i class="bi bi-arrow-left"></i> Back to Dashboard
+  </a>
+</div>
+
 {% endblock %}

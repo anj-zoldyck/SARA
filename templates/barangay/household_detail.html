@@ -1,42 +1,97 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}House {{ household.house_number }}{% endblock %}
+{% block title %}House {{ household.house_number }} — SARA{% endblock %}
+{% block navbar_title %}House {{ household.house_number }}{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+{% endblock %}
 
 {% block content %}
-<a href="{% url 'zone_detail' household.zone.id %}" class="btn btn-secondary mb-3">
-  ← Back to Zone
-</a>
 
-<div class="container mt-4">
-  <h2>House {{ household.house_number }}</h2>
-
-  <a href="{% url 'add_family' household.id %}" class="btn btn-success mb-3">
-    + Add Family
-  </a>
-
-  <div class="row">
-    {% for family in families %}
-      <div class="col-md-4 mb-3">
-        <div class="card">
-          <div class="card-body text-center">
-                <a href="{% url 'family_detail' family.id %}" class="btn btn-primary btn-sm">
-                View Members
-                </a>
-            <h5 class="card-title">{{ family.family_name }}</h5>
-            <p>Status:
-              {% if family.is_active %}
-                <span class="text-success">Active</span>
-              {% else %}
-                <span class="text-danger">Inactive</span>
-              {% endif %}
-            </p>
-            <!-- Members & RFID later -->
-          </div>
-        </div>
-      </div>
-    {% empty %}
-      <p>No families added yet.</p>
-    {% endfor %}
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'barangay_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'zone_detail' household.zone.id %}" class="breadcrumb-link">{{ household.zone.name }}</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">House {{ household.house_number }}</span>
+    </div>
+    <h1 class="dash-page-title">House {{ household.house_number }} — Families</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-people me-1"></i>
+      {{ families|length }} famil{{ families|length|pluralize:"y,ies" }} registered
+      &nbsp;·&nbsp; {{ household.zone.name }}
+    </p>
+  </div>
+  <div class="dash-header-actions">
+    <a href="{% url 'add_family' household.id %}" class="btn-dash-primary">
+      <i class="bi bi-plus-lg"></i> Add Family
+    </a>
+    <a href="{% url 'zone_detail' household.zone.id %}" class="btn-dash-outline">
+      <i class="bi bi-arrow-left"></i> Back to Zone
+    </a>
   </div>
 </div>
+
+{% if families %}
+<div class="hh-grid">
+  {% for family in families %}
+  <div class="hh-card">
+    <div class="hh-card__header">
+      <div class="hh-card__icon"><i class="bi bi-people"></i></div>
+      <span class="hh-card__num">
+        {% if family.is_active %}
+          <span class="acct-badge acct-badge--active" style="font-size:10px;">
+            <i class="bi bi-circle-fill"></i> Active
+          </span>
+        {% else %}
+          <span class="acct-badge acct-badge--inactive" style="font-size:10px;">
+            <i class="bi bi-circle-fill"></i> Inactive
+          </span>
+        {% endif %}
+      </span>
+    </div>
+    <div class="hh-card__body">
+      <h3 class="hh-card__family-name">{{ family.family_name }}</h3>
+      <p class="hh-card__location">
+        <i class="bi bi-house-door me-1"></i> House {{ household.house_number }}
+      </p>
+    </div>
+    <div class="hh-card__footer">
+      <a href="{% url 'family_detail' family.id %}" class="btn-dash-primary hh-card__btn">
+        <i class="bi bi-person-lines-fill"></i> View Members
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="dash-panel">
+  <div class="dash-panel__body">
+    <div class="brgy-empty">
+      <i class="bi bi-people"></i>
+      <h3>No Families Yet</h3>
+      <p>Add the first family to House {{ household.house_number }}.</p>
+      <a href="{% url 'add_family' household.id %}" class="btn-dash-primary">
+        <i class="bi bi-plus-lg"></i> Add Family
+      </a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="page-back-row">
+  <a href="{% url 'zone_detail' household.zone.id %}" class="btn-dash-outline">
+    <i class="bi bi-arrow-left"></i> Back to Zone
+  </a>
+</div>
+
 {% endblock %}

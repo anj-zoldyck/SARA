@@ -1,35 +1,114 @@
 {% extends 'base.html' %}
-{% block title %}Add Member{% endblock %}
+{% load static %}
+
+{% block title %}Add Member — {{ family.family_name }} — SARA{% endblock %}
+{% block navbar_title %}Add Family Member{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <h2>Add Member – {{ family.family_name }}</h2>
 
-  <form method="post">
-    {% csrf_token %}
-
-    <div class="mb-3">
-      <label>First Name</label>
-      {{ form.first_name }}
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'barangay_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'household_detail' family.household.id %}" class="breadcrumb-link">House {{ family.household.house_number }}</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'family_detail' family.id %}" class="breadcrumb-link">{{ family.family_name }}</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Add Member</span>
     </div>
-
-    <div class="mb-3">
-      <label>Last Name</label>
-      {{ form.last_name }}
-    </div>
-
-    <div class="mb-3">
-      <label>Relationship</label>
-      {{ form.relationship }}
-    </div>
-
-    <div class="mb-3">
-      <label>Age</label>
-      {{ form.age }}
-    </div>
-
-    <button type="submit" class="btn btn-primary">Save</button>
-    <a href="{% url 'family_detail' family.id %}" class="btn btn-secondary">Cancel</a>
-  </form>
+    <h1 class="dash-page-title">Add Member</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-people me-1"></i> {{ family.family_name }} Family &mdash; House {{ family.household.house_number }}
+    </p>
+  </div>
 </div>
+
+<div class="form-page-layout">
+  <div class="dash-panel form-panel">
+    <div class="dash-panel__header">
+      <div class="dash-panel__header-left">
+        <i class="bi bi-person-plus dash-panel__icon"></i>
+        <div>
+          <h2 class="dash-panel__title">Member Details</h2>
+          <p class="dash-panel__sub">Enter the new member's information</p>
+        </div>
+      </div>
+    </div>
+    <div class="dash-panel__body">
+      <form method="post" class="acct-form">
+        {% csrf_token %}
+
+        <div class="hh-form-row">
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-person"></i> First Name
+              <span class="acct-form__required">*</span>
+            </label>
+            <div class="acct-form__control-wrap">{{ form.first_name }}</div>
+          </div>
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-person"></i> Last Name
+              <span class="acct-form__required">*</span>
+            </label>
+            <div class="acct-form__control-wrap">{{ form.last_name }}</div>
+          </div>
+        </div>
+
+        <div class="hh-form-row">
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-diagram-3"></i> Relationship
+              <span class="acct-form__required">*</span>
+            </label>
+            <div class="acct-form__control-wrap">{{ form.relationship }}</div>
+          </div>
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-calendar3"></i> Age
+              <span class="acct-form__required">*</span>
+            </label>
+            <div class="acct-form__control-wrap">{{ form.age }}</div>
+          </div>
+        </div>
+
+        <div class="acct-form__actions">
+          <a href="{% url 'family_detail' family.id %}" class="btn-dash-outline">
+            <i class="bi bi-x-lg"></i> Cancel
+          </a>
+          <button type="submit" class="btn-dash-primary">
+            <i class="bi bi-check-lg"></i> Save Member
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="form-side">
+    <div class="dash-notice">
+      <i class="bi bi-info-circle dash-notice__icon"></i>
+      <div>
+        <p class="dash-notice__title">{{ family.family_name }} Family</p>
+        <p class="dash-notice__text">This member will be added to the {{ family.family_name }} family in House {{ family.household.house_number }}.</p>
+      </div>
+    </div>
+    <div class="dash-notice" style="border-color: rgba(13,45,107,0.12);">
+      <i class="bi bi-shield-check dash-notice__icon"></i>
+      <div>
+        <p class="dash-notice__title">Data Accuracy</p>
+        <p class="dash-notice__text">Ensure names and ages are accurate. This data is used for aid distribution eligibility.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}

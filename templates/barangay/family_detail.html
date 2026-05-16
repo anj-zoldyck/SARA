@@ -1,44 +1,122 @@
 {% extends 'base.html' %}
-{% block title %}{{ family.family_name }}{% endblock %}
+{% load static %}
+
+{% block title %}{{ family.family_name }} Family — SARA{% endblock %}
+{% block navbar_title %}{{ family.family_name }} Family{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+{% endblock %}
 
 {% block content %}
-<a href="{% url 'household_detail' family.household.id %}" class="btn btn-secondary mb-3">
-  ← Back to Household
-</a>
 
-<div class="container mt-4">
-  <h2>{{ family.family_name }} Family</h2>
-
-  <a href="{% url 'add_family_member' family.id %}" class="btn btn-success mb-3">
-    + Add Member
-  </a>
-
-  <table class="table table-bordered">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Relationship</th>
-        <th>Age</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for member in members %}
-      <tr>
-        <td>{{ member.first_name }} {{ member.last_name }}</td>
-        <td>{{ member.relationship }}</td>
-        <td>{{ member.age }}</td>
-        <td>
-            <a href="{% url 'edit_family_member' member.id %}" class="btn btn-sm btn-warning">
-                Edit
-            </a>
-        </td>
-      </tr>
-      {% empty %}
-      <tr>
-        <td colspan="3">No members added yet.</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'barangay_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'zone_detail' family.household.zone.id %}" class="breadcrumb-link">{{ family.household.zone.name }}</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'household_detail' family.household.id %}" class="breadcrumb-link">House {{ family.household.house_number }}</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">{{ family.family_name }}</span>
+    </div>
+    <h1 class="dash-page-title">{{ family.family_name }} Family</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-person-lines-fill me-1"></i>
+      {{ members|length }} member{{ members|length|pluralize }}
+      &nbsp;·&nbsp; House {{ family.household.house_number }}
+    </p>
+  </div>
+  <div class="dash-header-actions">
+    <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary">
+      <i class="bi bi-plus-lg"></i> Add Member
+    </a>
+    <a href="{% url 'household_detail' family.household.id %}" class="btn-dash-outline">
+      <i class="bi bi-arrow-left"></i> Back to Household
+    </a>
+  </div>
 </div>
+
+<!-- Members Table -->
+<div class="dash-panel">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-person-lines-fill dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Family Members</h2>
+        <p class="dash-panel__sub">All registered members of the {{ family.family_name }} family</p>
+      </div>
+    </div>
+    <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary" style="font-size:13px; padding:7px 14px;">
+      <i class="bi bi-plus-lg"></i> Add Member
+    </a>
+  </div>
+
+  <div class="dash-panel__body p-0">
+    <div class="table-responsive">
+      <table class="acct-table">
+        <thead>
+          <tr>
+            <th class="acct-th">#</th>
+            <th class="acct-th">Full Name</th>
+            <th class="acct-th">Relationship</th>
+            <th class="acct-th">Age</th>
+            <th class="acct-th acct-th--actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for member in members %}
+          <tr class="acct-row">
+            <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
+            <td class="acct-td">
+              <div class="acct-barangay-cell">
+                <div class="acct-avatar">{{ member.first_name|first|upper }}</div>
+                <span class="acct-barangay-name">{{ member.first_name }} {{ member.last_name }}</span>
+              </div>
+            </td>
+            <td class="acct-td">
+              <span class="hh-relationship">{{ member.relationship }}</span>
+            </td>
+            <td class="acct-td">
+              <span class="hh-age-badge">{{ member.age }} yrs</span>
+            </td>
+            <td class="acct-td acct-td--actions">
+              <div class="acct-actions">
+                <a href="{% url 'edit_family_member' member.id %}" class="acct-btn acct-btn--edit">
+                  <i class="bi bi-pencil"></i><span>Edit</span>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="acct-empty">
+              <div class="acct-empty-state">
+                <i class="bi bi-person-lines-fill"></i>
+                <p>No members added yet.</p>
+                <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary">
+                  <i class="bi bi-plus-lg"></i> Add First Member
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="page-back-row">
+  <a href="{% url 'household_detail' family.household.id %}" class="btn-dash-outline">
+    <i class="bi bi-arrow-left"></i> Back to Household
+  </a>
+</div>
+
 {% endblock %}

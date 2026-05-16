@@ -1,19 +1,204 @@
 {% extends 'base.html' %}
-{% block title %}Edit Member{% endblock %}
+{% load static %}
+
+{% block title %}Edit Member — {{ member.first_name }} {{ member.last_name }} — SARA{% endblock %}
+{% block navbar_title %}Edit Family Member{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <h2>Edit Member</h2>
 
-  <form method="post">
-    {% csrf_token %}
-
-    {{ form.as_p }}
-
-    <button type="submit" class="btn btn-primary">Save Changes</button>
-    <a href="{% url 'family_detail' member.family.id %}" class="btn btn-secondary">
-      Back
-    </a>
-  </form>
+<!-- ── Page Header ─────────────────────────────────────────── -->
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'barangay_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'household_detail' member.family.household.id %}" class="breadcrumb-link">
+        House {{ member.family.household.house_number }}
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'family_detail' member.family.id %}" class="breadcrumb-link">
+        {{ member.family.family_name }}
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Edit Member</span>
+    </div>
+    <h1 class="dash-page-title">Edit Member</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-person-gear me-1"></i>
+      Updating: {{ member.first_name }} {{ member.last_name }}
+      &nbsp;·&nbsp; {{ member.family.family_name }} Family
+    </p>
+  </div>
 </div>
+
+<!-- ── Form Layout ────────────────────────────────────────── -->
+<div class="form-page-layout">
+
+  <!-- Form Panel -->
+  <div class="dash-panel form-panel">
+    <div class="dash-panel__header">
+      <div class="dash-panel__header-left">
+        <i class="bi bi-person-gear dash-panel__icon"></i>
+        <div>
+          <h2 class="dash-panel__title">Member Details</h2>
+          <p class="dash-panel__sub">Update the information for this family member</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-panel__body">
+
+      <!-- Error Block -->
+      {% if form.errors %}
+      <div class="form-error-block">
+        <div class="form-error-block__icon">
+          <i class="bi bi-exclamation-triangle"></i>
+        </div>
+        <div class="form-error-block__content">
+          <p class="form-error-block__title">Please fix the following errors:</p>
+          <ul class="form-error-block__list">
+            {% for field in form %}
+              {% for error in field.errors %}
+                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+              {% endfor %}
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      {% endif %}
+
+      <form method="post" class="acct-form">
+        {% csrf_token %}
+
+        <!-- Name Row -->
+        <div class="hh-form-row">
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-person"></i> First Name
+              <span class="acct-form__required">*</span>
+            </label>
+            <div class="acct-form__control-wrap">{{ form.first_name }}</div>
+            {% if form.first_name.errors %}
+              <p class="acct-form__error">{{ form.first_name.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-person"></i> Last Name
+              <span class="acct-form__required">*</span>
+            </label>
+            <div class="acct-form__control-wrap">{{ form.last_name }}</div>
+            {% if form.last_name.errors %}
+              <p class="acct-form__error">{{ form.last_name.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Relationship & Age Row -->
+        <div class="hh-form-row">
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-diagram-3"></i> Relationship
+              <span class="acct-form__required">*</span>
+            </label>
+            <div class="acct-form__control-wrap">{{ form.relationship }}</div>
+            {% if form.relationship.errors %}
+              <p class="acct-form__error">{{ form.relationship.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-calendar3"></i> Age
+              <span class="acct-form__required">*</span>
+            </label>
+            <div class="acct-form__control-wrap">{{ form.age }}</div>
+            {% if form.age.errors %}
+              <p class="acct-form__error">{{ form.age.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="acct-form__actions">
+          <a href="{% url 'family_detail' member.family.id %}" class="btn-dash-outline">
+            <i class="bi bi-x-lg"></i> Cancel
+          </a>
+          <button type="submit" class="btn-dash-primary">
+            <i class="bi bi-check-lg"></i> Save Changes
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- Side Panel -->
+  <div class="form-side">
+
+    <!-- Current Info Card -->
+    <div class="dash-panel">
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-person-circle dash-panel__icon"></i>
+          <div>
+            <h2 class="dash-panel__title">Current Record</h2>
+            <p class="dash-panel__sub">Existing member information</p>
+          </div>
+        </div>
+      </div>
+      <div class="dash-panel__body">
+        <div class="edit-member-info">
+          <div class="edit-member-avatar">
+            {{ member.first_name|first|upper }}{{ member.last_name|first|upper }}
+          </div>
+          <div class="edit-member-details">
+            <p class="edit-member-name">{{ member.first_name }} {{ member.last_name }}</p>
+            <div class="edit-member-meta">
+              <span>
+                <i class="bi bi-diagram-3"></i> {{ member.relationship }}
+              </span>
+              <span>
+                <i class="bi bi-calendar3"></i> {{ member.age }} years old
+              </span>
+              <span>
+                <i class="bi bi-people"></i> {{ member.family.family_name }} Family
+              </span>
+              <span>
+                <i class="bi bi-house-door"></i> House {{ member.family.household.house_number }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notice -->
+    <div class="dash-notice">
+      <i class="bi bi-shield-check dash-notice__icon"></i>
+      <div>
+        <p class="dash-notice__title">Data Accuracy</p>
+        <p class="dash-notice__text">Ensure all changes are accurate. Member records are used for aid distribution eligibility and beneficiary profiling.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Back Link ──────────────────────────────────────────── -->
+<div class="page-back-row">
+  <a href="{% url 'family_detail' member.family.id %}" class="btn-dash-outline">
+    <i class="bi bi-arrow-left"></i> Back to Family
+  </a>
+</div>
+
 {% endblock %}

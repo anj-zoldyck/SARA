@@ -13,13 +13,10 @@
 
 {% block content %}
 
-<!-- ── Page Header ─────────────────────────────────────────── -->
 <div class="dash-page-header">
   <div>
     <div class="page-breadcrumb">
-      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
-        <i class="bi bi-speedometer2"></i> Dashboard
-      </a>
+      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
       <a href="{% url 'barangay_list' %}" class="breadcrumb-link">Barangays</a>
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
@@ -27,10 +24,10 @@
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
       <span class="breadcrumb-current">{{ zone.name }}</span>
     </div>
-    <h1 class="dash-page-title">{{ zone.name }}</h1>
+    <h1 class="dash-page-title">{{ zone.name }} — Households</h1>
     <p class="dash-page-sub">
       <i class="bi bi-house-door me-1"></i>
-      {{ households|length }} household{{ households|length|pluralize }} &mdash; {{ barangay.name }}
+      {{ households|length }} household{{ households|length|pluralize }} &nbsp;·&nbsp; {{ barangay.name }}
     </p>
   </div>
   <div class="dash-header-actions">
@@ -40,12 +37,18 @@
   </div>
 </div>
 
-<!-- ── Info Strip ─────────────────────────────────────────── -->
+<!-- Info Strip -->
 <div class="brgy-info-strip">
   <div class="brgy-info-item">
-    <div class="brgy-info-icon">
-      <i class="bi bi-map"></i>
+    <div class="brgy-info-icon"><i class="bi bi-buildings"></i></div>
+    <div>
+      <span class="brgy-info-val">{{ barangay.name }}</span>
+      <span class="brgy-info-label">Barangay</span>
     </div>
+  </div>
+  <div class="brgy-info-divider"></div>
+  <div class="brgy-info-item">
+    <div class="brgy-info-icon brgy-info-icon--teal"><i class="bi bi-map"></i></div>
     <div>
       <span class="brgy-info-val">{{ zone.name }}</span>
       <span class="brgy-info-label">Zone</span>
@@ -53,43 +56,25 @@
   </div>
   <div class="brgy-info-divider"></div>
   <div class="brgy-info-item">
-    <div class="brgy-info-icon brgy-info-icon--teal">
-      <i class="bi bi-house-door"></i>
-    </div>
+    <div class="brgy-info-icon brgy-info-icon--navy"><i class="bi bi-house-door"></i></div>
     <div>
       <span class="brgy-info-val">{{ households|length }}</span>
       <span class="brgy-info-label">Households</span>
     </div>
   </div>
-  <div class="brgy-info-divider"></div>
-  <div class="brgy-info-item">
-    <div class="brgy-info-icon brgy-info-icon--navy">
-      <i class="bi bi-buildings"></i>
-    </div>
-    <div>
-      <span class="brgy-info-val">{{ barangay.name }}</span>
-      <span class="brgy-info-label">Barangay</span>
-    </div>
-  </div>
 </div>
 
-<!-- ── Households Grid ────────────────────────────────────── -->
 {% if households %}
 <div class="hh-grid">
   {% for household in households %}
   <div class="hh-card">
     <div class="hh-card__header">
-      <div class="hh-card__icon">
-        <i class="bi bi-house-door"></i>
-      </div>
-      <span class="hh-card__tag">House {{ household.house_number }}</span>
+      <div class="hh-card__icon"><i class="bi bi-house-door"></i></div>
+      <span class="hh-card__num">House #{{ household.house_number }}</span>
     </div>
     <div class="hh-card__body">
-      <h3 class="hh-card__name">No. {{ household.house_number }}</h3>
-      <p class="hh-card__meta">
-        <i class="bi bi-buildings me-1"></i>{{ household.barangay.name }}
-        &nbsp;·&nbsp;
-        <i class="bi bi-map me-1"></i>{{ household.zone.name }}
+      <p class="hh-card__location">
+        <i class="bi bi-geo-alt"></i> {{ household.barangay.name }} &mdash; {{ household.zone.name }}
       </p>
     </div>
     <div class="hh-card__footer">
@@ -100,7 +85,6 @@
   </div>
   {% endfor %}
 </div>
-
 {% else %}
 <div class="dash-panel">
   <div class="dash-panel__body">
@@ -108,9 +92,6 @@
       <i class="bi bi-house-door"></i>
       <h3>No Households Found</h3>
       <p>No households have been registered in {{ zone.name }} yet.</p>
-      <a href="{% url 'barangay_zones' barangay.id %}" class="btn-dash-outline">
-        <i class="bi bi-arrow-left"></i> Back to Zones
-      </a>
     </div>
   </div>
 </div>
