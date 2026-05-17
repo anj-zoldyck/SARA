@@ -270,6 +270,19 @@
   box-shadow: 0 2px 6px rgba(190, 18, 60, 0.15);
 }
 
+.acct-btn--activate {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.acct-btn--activate:hover {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #14532d;
+  box-shadow: 0 2px 6px rgba(22, 101, 52, 0.15);
+}
+
 /* Empty state */
 .acct-empty {
   padding: 0 !important;
@@ -512,6 +525,62 @@
 }
 
 .form-guideline-icon--blue { color: var(--secondary); }
+
+/* =============================================================
+   EDIT MEMBER INFO CARD
+============================================================= */
+
+.edit-member-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.edit-member-avatar {
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  background: rgba(19, 78, 213, 0.1);
+  color: var(--secondary);
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.edit-member-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.edit-member-name {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.edit-member-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.edit-member-meta span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.edit-member-meta i {
+  font-size: 12px;
+}
 
 /* =============================================================
    RESPONSIVE

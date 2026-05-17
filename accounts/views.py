@@ -10,7 +10,7 @@ from django.db.models import Count, Q
 
 from accounts.decorators import session_protected
 from .models import AidSchedule, User, Household, Zone, Family, FamilyMember, Barangay, AidClaim, AidType
-from .forms import HouseholdForm, FamilyForm, FamilyMemberForm, BarangayAdminForm
+from .forms import BarangayAdminEditForm, HouseholdForm, FamilyForm, FamilyMemberForm, BarangayAdminForm
 from django.utils.safestring import mark_safe
 from .services import get_active_aid_schedule, get_active_schedule
 from django.utils.dateparse import parse_datetime
@@ -191,7 +191,48 @@ def deactivate_barangay(request, user_id):
     barangay.is_active = False
     barangay.save()
     
-    return redirect('mswdo_dashboard')
+    return redirect('barangay_accounts')
+
+# ── Activate Barangay ─────────────────────────────────────────
+@login_required(login_url='login')
+@session_protected
+def activate_barangay(request, user_id):
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+
+    barangay = User.objects.get(id=user_id)
+    barangay.is_active = True
+    barangay.save()
+
+    return redirect('barangay_accounts')  # or 'mswdo_dashboard' if you prefer
+
+
+# ── Edit Barangay ──────────────────────────────────────────────
+@login_required(login_url='login')
+@session_protected
+def edit_barangay(request, user_id):
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+
+    barangay = get_object_or_404(User, id=user_id, role='BARANGAY')
+
+    if request.method == 'POST':
+        form = BarangayAdminEditForm(request.POST, instance=barangay)
+        if form.is_valid():
+            user = form.save(commit=False)
+            # Only update password if a new one was provided
+            new_password = form.cleaned_data.get('password')
+            if new_password:
+                user.set_password(new_password)
+            user.save()
+            return redirect('barangay_accounts')
+    else:
+        form = BarangayAdminEditForm(instance=barangay)
+
+    return render(request, 'accounts/edit_barangay.html', {
+        'form': form,
+        'barangay': barangay,
+    })
 
 @login_required(login_url='login')
 @session_protected
@@ -225,7 +266,11 @@ def barangay_accounts(request):
         return HttpResponseForbidden("Access Denied")
     
     barangays = User.objects.filter(role='BARANGAY')
-    return render(request, 'accounts/barangay_accounts.html', {'barangays': barangays})
+    active_count = barangays.filter(is_active=True).count()
+    return render(request, 'accounts/barangay_accounts.html', {
+        'barangays': barangays,
+        'active_count': active_count
+    })
 
 
 @login_required(login_url='login')
@@ -867,21 +912,20 @@ def set_aid_schedule(request):
         start = parse_datetime(request.POST.get('schedule_datetime'))
         end = parse_datetime(request.POST.get('end_datetime'))
 
-        # Make timezone-aware
+        # Guard against parse_datetime returning None
+        if not start or not end:
+            messages.error(request, "Invalid date/time format. Please try again.")
+            return redirect('mswdo_dashboard')
+
         if timezone.is_naive(start):
             start = timezone.make_aware(start)
 
         if timezone.is_naive(end):
             end = timezone.make_aware(end)
 
-
         location = request.POST.get('location')
-
         barangay_id = request.POST.get('barangay')
-        if barangay_id:
-            barangay = Barangay.objects.get(id=barangay_id)
-        else:
-            barangay = None
+        barangay = Barangay.objects.filter(id=barangay_id).first() if barangay_id else None
 
         AidSchedule.objects.create(
             aid_type=aid_type,

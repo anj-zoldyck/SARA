@@ -18,10 +18,21 @@
   <div>
     <h1 class="dash-page-title">{{ barangay }} Dashboard</h1>
     <p class="dash-page-sub">
-      <i class="bi bi-calendar3 me-1"></i>
-      <span id="dashDate"></span>
       &nbsp;·&nbsp; Santa Rita, Pampanga
     </p>
+  </div>
+  <div class="dash-header-actions">
+    <div class="dash-clock">
+      <i class="bi bi-clock dash-clock__icon"></i>
+      <div class="dash-clock__body">
+        <span class="dash-clock__time" id="dashTime"></span>
+        <span class="dash-clock__date">
+          <span id="dashDay"></span>
+          &nbsp;&middot;&nbsp;
+          <span id="dashDate"></span>
+        </span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -130,11 +141,34 @@
 
 {% block js %}
 <script>
-  const el = document.getElementById('dashDate');
-  if (el) {
-    el.textContent = new Date().toLocaleDateString('en-PH', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  function updateClock() {
+    const now = new Date();
+
+    const time = now.toLocaleTimeString('en-PH', {
+      hour:   '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
     });
+
+    const day  = now.toLocaleDateString('en-PH', { weekday: 'long' });
+
+    const date = now.toLocaleDateString('en-PH', {
+      month: 'long',
+      day:   'numeric',
+      year:  'numeric'
+    });
+
+    const timeEl = document.getElementById('dashTime');
+    const dayEl  = document.getElementById('dashDay');
+    const dateEl = document.getElementById('dashDate');
+
+    if (timeEl) timeEl.textContent = time;
+    if (dayEl)  dayEl.textContent  = day;
+    if (dateEl) dateEl.textContent = date;
   }
+
+  updateClock();
+  setInterval(updateClock, 1000);
 </script>
 {% endblock %}

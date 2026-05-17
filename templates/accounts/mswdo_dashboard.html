@@ -18,12 +18,25 @@
   <div>
     <h1 class="dash-page-title">Dashboard</h1>
     <p class="dash-page-sub">
-      <i class="bi bi-calendar3 me-1"></i>
-      <span id="dashDate"></span>
       &nbsp;·&nbsp; Santa Rita, Pampanga MSWDO
     </p>
   </div>
   <div class="dash-header-actions">
+    <!-- Live Clock -->
+    <div class="dash-clock">
+      <i class="bi bi-clock dash-clock__icon"></i>
+      <div class="dash-clock__body">
+        <span class="dash-clock__time" id="dashTime"></span>
+        <span class="dash-clock__date">
+          <span id="dashDay"></span>
+          &nbsp;&middot;&nbsp;
+          <span id="dashDate"></span>
+        </span>
+      </div>
+    </div>
+
+    <div class="dash-clock-sep"></div>
+
     <a href="{% url 'aid_reports' %}" class="btn-dash-outline">
       <i class="bi bi-file-earmark-bar-graph"></i> View Reports
     </a>
@@ -127,6 +140,27 @@
         <div class="sched-empty">
           <i class="bi bi-calendar-x"></i>
           <p>No active scheduled distribution.</p>
+        </div>
+      {% endif %}
+
+      {% if upcoming_schedules %}
+        <p class="sched-list-label">
+          <i class="bi bi-calendar-event"></i> Upcoming Schedules
+        </p>
+        <div class="sched-list">
+          {% for sched in upcoming_schedules %}
+          <div class="sched-item">
+            <div class="sched-item__badge sched-item__badge--upcoming">Upcoming</div>
+            <div class="sched-item__details">
+              <span class="sched-item__aid">{{ sched.aid_type }}</span>
+              <div class="sched-item__meta">
+                <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
+                <span><i class="bi bi-geo"></i> {{ sched.location }}</span>
+                <span><i class="bi bi-buildings"></i> {{ sched.barangay }}</span>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
         </div>
       {% endif %}
 
@@ -269,13 +303,38 @@
 
 {% block js %}
 <script>
-  // Live date display
-  const el = document.getElementById('dashDate');
-  if (el) {
-    const now = new Date();
-    el.textContent = now.toLocaleDateString('en-PH', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  function updateClock() {
+    const now  = new Date();
+
+    // Time — 12-hour with seconds and AM/PM
+    const time = now.toLocaleTimeString('en-PH', {
+      hour:   '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
     });
+
+    // Day — full weekday name
+    const day  = now.toLocaleDateString('en-PH', { weekday: 'long' });
+
+    // Date — Month Day, Year
+    const date = now.toLocaleDateString('en-PH', {
+      month: 'long',
+      day:   'numeric',
+      year:  'numeric'
+    });
+
+    const timeEl = document.getElementById('dashTime');
+    const dayEl  = document.getElementById('dashDay');
+    const dateEl = document.getElementById('dashDate');
+
+    if (timeEl) timeEl.textContent = time;
+    if (dayEl)  dayEl.textContent  = day;
+    if (dateEl) dateEl.textContent = date;
   }
+
+  // Run immediately then update every second
+  updateClock();
+  setInterval(updateClock, 1000);
 </script>
 {% endblock %}

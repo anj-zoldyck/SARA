@@ -17,6 +17,9 @@ urlpatterns = [
     path('mswdo/rfid-overview/', views.rfid_overview, name='rfid_overview'),
 
     path('mswdo/barangay-accounts/', views.barangay_accounts, name='barangay_accounts'),
+    path('mswdo/barangay-accounts/<int:user_id>/edit/', views.edit_barangay, name='edit_barangay'),
+    path('mswdo/barangay-accounts/<int:user_id>/deactivate/', views.deactivate_barangay, name='deactivate_barangay'),
+    path('mswdo/barangay-accounts/<int:user_id>/activate/', views.activate_barangay, name='activate_barangay'),
     #path('mswdo/set-aid-of-the-day/', views.set_aid_of_the_day, name='set_aid_of_the_day'),
     path('mswdo/set-aid-schedule/', views.set_aid_schedule, name='set_aid_schedule'),
 

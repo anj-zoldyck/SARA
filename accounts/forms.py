@@ -61,3 +61,37 @@ class BarangayAdminForm(forms.ModelForm):
 
     username = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control'}))
     password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'form-control'}))
+
+# ----------------- Barangay User Edit Form -----------------
+class BarangayAdminEditForm(forms.ModelForm):
+    """
+    Edit form for an existing barangay account.
+    Password is optional — leave blank to keep the current password.
+    """
+    password = forms.CharField(
+        required=False,
+        widget=forms.PasswordInput(attrs={'placeholder': 'Leave blank to keep current password'}),
+        label='New Password',
+    )
+    confirm_password = forms.CharField(
+        required=False,
+        widget=forms.PasswordInput(attrs={'placeholder': 'Repeat new password'}),
+        label='Confirm Password',
+    )
+
+    class Meta:
+        model = User  # replace with your actual User model
+        fields = ['barangay', 'username']  # add any other editable fields here
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get('password')
+        confirm_password = cleaned_data.get('confirm_password')
+
+        if password or confirm_password:
+            if password != confirm_password:
+                raise forms.ValidationError("Passwords do not match.")
+            if len(password) < 8:
+                raise forms.ValidationError("Password must be at least 8 characters.")
+
+        return cleaned_data
