@@ -2,7 +2,6 @@
 {% load static %}
 
 {% block title %}Create Barangay Account — SARA{% endblock %}
-
 {% block navbar_title %}Create Barangay Account{% endblock %}
 
 {% block css %}
@@ -37,7 +36,6 @@
 
   <!-- Form Panel -->
   <div class="dash-panel form-panel">
-
     <div class="dash-panel__header">
       <div class="dash-panel__header-left">
         <i class="bi bi-person-plus dash-panel__icon"></i>
@@ -98,7 +96,22 @@
           {% if form.username.errors %}
             <p class="acct-form__error">{{ form.username.errors|join:", " }}</p>
           {% endif %}
-          <p class="acct-form__hint">This will be used to log in to the barangay portal.</p>
+          <p class="acct-form__hint">Must be unique across the system.</p>
+        </div>
+
+        <!-- Email Field -->
+        <div class="acct-form__group">
+          <label class="acct-form__label" for="{{ form.email.id_for_label }}">
+            <i class="bi bi-envelope"></i> Email Address
+            <span class="acct-form__required">*</span>
+          </label>
+          <div class="acct-form__control-wrap">
+            {{ form.email }}
+          </div>
+          {% if form.email.errors %}
+            <p class="acct-form__error">{{ form.email.errors|join:", " }}</p>
+          {% endif %}
+          <p class="acct-form__hint">Used for login, password reset, and 2FA verification.</p>
         </div>
 
         <!-- Password Field -->
@@ -136,7 +149,6 @@
 
   <!-- Side Info Panel -->
   <div class="form-side">
-
     <div class="dash-panel">
       <div class="dash-panel__header">
         <div class="dash-panel__header-left">
@@ -159,6 +171,10 @@
           </li>
           <li class="form-guideline-item">
             <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
+            <span>A valid email is required for login, password reset, and 2FA.</span>
+          </li>
+          <li class="form-guideline-item">
+            <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
             <span>Provide a strong password and share it securely.</span>
           </li>
           <li class="form-guideline-item">
@@ -176,7 +192,6 @@
         <p class="dash-notice__text">Account credentials are sensitive. Only authorized MSWDO personnel should create and manage barangay accounts.</p>
       </div>
     </div>
-
   </div>
 
 </div>
@@ -192,7 +207,6 @@
 
 {% block js %}
 <script>
-  // Password visibility toggle
   const pwToggle = document.getElementById('pwToggle');
   const pwIcon   = document.getElementById('pwToggleIcon');
   const pwField  = document.querySelector('[name="password"]');

@@ -14,6 +14,7 @@ from .forms import BarangayAdminEditForm, HouseholdForm, FamilyForm, FamilyMembe
 from django.utils.safestring import mark_safe
 from .services import get_active_aid_schedule, get_active_schedule
 from django.utils.dateparse import parse_datetime
+from django_otp.plugins.otp_email.models import EmailDevice
 from django.urls import reverse
 import json
 
@@ -1093,3 +1094,24 @@ def aid_reports(request):
         'barangays': barangays,
         'selected_barangay': selected_barangay,
     })
+
+#----------------- OTP Verification View -----------------
+def verify_otp(request):
+    if request.method == 'POST':
+        otp_token = request.POST.get('otp_token')
+        user = request.session.get('pre_2fa_user_id')
+
+        device = EmailDevice.objects.filter(user_id=user, confirmed=True).first()
+        if device and device.verify_token(otp_token):
+            login(request, get_user_model().objects.get(pk=user),
+                  backend='accounts.backends.EmailBackend')
+            return redirect('dashboard')
+        else:
+            return render(request, 'accounts/verify_otp.html', {'error': 'Invalid OTP'})
+
+    return render(request, 'accounts/verify_otp.html')
+
+
+def send_otp(request, user):
+    device, _ = EmailDevice.objects.get_or_create(user=user, defaults={'name': 'email'})
+    device.generate_challenge()  # sends OTP via Brevo SMTP

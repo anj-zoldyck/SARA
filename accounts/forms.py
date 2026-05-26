@@ -60,6 +60,7 @@ class BarangayAdminForm(forms.ModelForm):
     )
 
     username = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control'}))
+    email = forms.EmailField(widget=forms.EmailInput(attrs={'class': 'form-control'}))
     password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'form-control'}))
 
 # ----------------- Barangay User Edit Form -----------------
@@ -68,6 +69,7 @@ class BarangayAdminEditForm(forms.ModelForm):
     Edit form for an existing barangay account.
     Password is optional — leave blank to keep the current password.
     """
+    email = forms.EmailField(widget=forms.EmailInput(attrs={'class': 'form-control'}))
     password = forms.CharField(
         required=False,
         widget=forms.PasswordInput(attrs={'placeholder': 'Leave blank to keep current password'}),

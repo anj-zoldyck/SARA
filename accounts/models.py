@@ -9,6 +9,7 @@ class User(AbstractUser):
         ('BARANGAY', 'Barangay Admin'),
     )
 
+    email = models.EmailField(unique=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     barangay = models.ForeignKey(
         'Barangay', on_delete=models.SET_NULL, blank=True, null=True, related_name='users'

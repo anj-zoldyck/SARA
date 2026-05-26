@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+
+# Environment
+.env
+
+# Database (local only)
+db.sqlite3
+
+# Logs
+*.log
