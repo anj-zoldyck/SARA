@@ -1069,13 +1069,45 @@ def analytics(request):
         return HttpResponseForbidden("Access Denied")
 
     aid_data = AidClaim.objects.values('aid_type').annotate(count=Count('id'))
-
     labels = [item['aid_type'] for item in aid_data]
     data = [item['count'] for item in aid_data]
 
     return render(request, 'accounts/analytics.html', {
-        'labels': mark_safe(json.dumps(labels)),
-        'data': mark_safe(json.dumps(data)),
+        'labels': labels,
+        'data': data,
+    })
+
+#----------------- Barangay Analytics View -----------------
+@login_required
+@session_protected
+def barangay_analytics(request):
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+
+    barangay = request.user.barangay
+
+    aid_data = AidClaim.objects.filter(
+        family__household__barangay=barangay
+    ).values('aid_type').annotate(count=Count('id'))
+
+    labels = [item['aid_type'] for item in aid_data]
+    data   = [item['count'] for item in aid_data]
+
+    total_families = Family.objects.filter(
+        household__barangay=barangay,
+        is_active=True
+    ).count()
+
+    claimed_families = AidClaim.objects.filter(
+        family__household__barangay=barangay
+    ).values('family').distinct().count()
+
+    return render(request, 'barangay/barangay_analytics.html', {
+        'labels': labels,
+        'data': data,
+        'barangay': barangay,
+        'total_families': total_families,
+        'claimed_families': claimed_families,
     })
 
 #----------------- Aid Schedule Reports View -----------------

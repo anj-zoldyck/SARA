@@ -218,6 +218,14 @@
 
         <li class="sidebar-section-label">Data & Insights</li>
 
+        <!-- Analytics -->
+        <li class="sidebar-item">
+          <a href="{% url 'analytics' %}" class="sidebar-link {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}">
+            <i class="bi bi-bar-chart-line"></i>
+            <span>Analytics</span>
+          </a>
+        </li>
+
         <!-- Reports -->
         <li class="sidebar-item">
           <a href="{% url 'aid_reports' %}" class="sidebar-link {% if request.resolver_match.url_name == 'aid_reports' %}active{% endif %}">
@@ -238,7 +246,7 @@
 
         <!-- User Management -->
         <li class="sidebar-item">
-          <a href="#" class="sidebar-link">
+          <a href="{% url 'barangay_accounts' %}" class="sidebar-link">
             <i class="bi bi-people"></i>
             <span>User Management</span>
           </a>
@@ -286,6 +294,14 @@
           <a href="#" class="sidebar-link">
             <i class="bi bi-people"></i>
             <span>Families</span>
+          </a>
+        </li>
+
+        <li class="sidebar-section-label">Data & Insights</li>
+        <li class="sidebar-item">
+          <a href="{% url 'barangay_analytics' %}" class="sidebar-link {% if request.resolver_match.url_name == 'barangay_analytics' %}active{% endif %}">
+            <i class="bi bi-bar-chart-line"></i>
+            <span>Analytics</span>
           </a>
         </li>
 

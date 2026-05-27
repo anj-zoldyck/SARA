@@ -1,0 +1,115 @@
+  .analytics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .analytics-grid--full {
+    grid-template-columns: 1fr;
+  }
+
+  @media (max-width: 768px) {
+    .analytics-grid { grid-template-columns: 1fr; }
+  }
+
+  .chart-panel {
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid rgba(0,0,0,.08);
+    border-radius: .75rem;
+    padding: 1.5rem;
+  }
+
+  .chart-panel__title {
+    font-size: .8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #6c757d;
+    margin-bottom: .25rem;
+  }
+
+  .chart-panel__sub {
+    font-size: .95rem;
+    font-weight: 600;
+    color: #212529;
+    margin-bottom: 1.25rem;
+  }
+
+  .chart-wrap { position: relative; width: 100%; }
+  .chart-wrap--pie { max-width: 280px; margin: 0 auto; }
+
+  .stat-row {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.25rem;
+    flex-wrap: wrap;
+  }
+
+  .stat-pill {
+    flex: 1;
+    min-width: 120px;
+    border-radius: .5rem;
+    padding: .75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+  }
+
+  .stat-pill--blue   { background: #e8f0fe; }
+  .stat-pill--amber  { background: #fff3cd; }
+  .stat-pill--teal   { background: #d1f2eb; }
+  .stat-pill--purple { background: #ede7f6; }
+
+  .stat-pill__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .stat-pill__dot--blue   { background: #0d2d6b; }
+  .stat-pill__dot--amber  { background: #fd7e14; }
+  .stat-pill__dot--teal   { background: #0e9f6e; }
+  .stat-pill__dot--purple { background: #7c3aed; }
+
+  .stat-pill__label {
+    font-size: .78rem;
+    color: #6c757d;
+    display: block;
+    line-height: 1.2;
+  }
+
+  .stat-pill__value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #212529;
+    display: block;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #adb5bd;
+  }
+
+  .empty-state i {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: .75rem;
+  }
+
+  .empty-state p { font-size: .9rem; margin: 0; }
+
+  .brgy-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    background: #e8f0fe;
+    color: #0d2d6b;
+    font-size: .8rem;
+    font-weight: 600;
+    padding: .3rem .75rem;
+    border-radius: 20px;
+    margin-top: .25rem;
+  }

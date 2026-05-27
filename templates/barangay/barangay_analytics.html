@@ -1,123 +1,13 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Aid Analytics — SARA{% endblock %}
-{% block navbar_title %}Aid Analytics{% endblock %}
+{% block title %}{{ barangay }} Analytics — SARA{% endblock %}
+{% block navbar_title %}Barangay Analytics{% endblock %}
 
 {% block css %}
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
-<style>
-  .analytics-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.25rem;
-    margin-bottom: 1.25rem;
-  }
+<link rel="stylesheet" href="{% static 'css/barangay_analytics.css' %}">
 
-  .analytics-grid--full {
-    grid-template-columns: 1fr;
-  }
-
-  @media (max-width: 768px) {
-    .analytics-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  .chart-panel {
-    background: var(--bs-body-bg, #fff);
-    border: 1px solid rgba(0,0,0,.08);
-    border-radius: .75rem;
-    padding: 1.5rem;
-  }
-
-  .chart-panel__title {
-    font-size: .8rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: .06em;
-    color: #6c757d;
-    margin-bottom: .25rem;
-  }
-
-  .chart-panel__sub {
-    font-size: .95rem;
-    font-weight: 600;
-    color: #212529;
-    margin-bottom: 1.25rem;
-  }
-
-  .chart-wrap {
-    position: relative;
-    width: 100%;
-  }
-
-  .chart-wrap--pie {
-    max-width: 280px;
-    margin: 0 auto;
-  }
-
-  .stat-row {
-    display: flex;
-    gap: 1rem;
-    margin-top: 1.25rem;
-  }
-
-  .stat-pill {
-    flex: 1;
-    border-radius: .5rem;
-    padding: .75rem 1rem;
-    display: flex;
-    align-items: center;
-    gap: .6rem;
-  }
-
-  .stat-pill--blue  { background: #e8f0fe; }
-  .stat-pill--amber { background: #fff3cd; }
-  .stat-pill--teal  { background: #d1f2eb; }
-
-  .stat-pill__dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .stat-pill__dot--blue  { background: #0d2d6b; }
-  .stat-pill__dot--amber { background: #fd7e14; }
-  .stat-pill__dot--teal  { background: #0e9f6e; }
-
-  .stat-pill__label {
-    font-size: .78rem;
-    color: #6c757d;
-    display: block;
-    line-height: 1.2;
-  }
-
-  .stat-pill__value {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #212529;
-    display: block;
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 3rem 1rem;
-    color: #adb5bd;
-  }
-
-  .empty-state i {
-    font-size: 2.5rem;
-    display: block;
-    margin-bottom: .75rem;
-  }
-
-  .empty-state p {
-    font-size: .9rem;
-    margin: 0;
-  }
-</style>
 {% endblock %}
 
 {% block content %}
@@ -126,20 +16,23 @@
 <div class="dash-page-header">
   <div>
     <div class="page-breadcrumb">
-      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
+      <a href="{% url 'barangay_dashboard' %}" class="breadcrumb-link">
         <i class="bi bi-speedometer2"></i> Dashboard
       </a>
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
-      <span class="breadcrumb-current">Aid Analytics</span>
+      <span class="breadcrumb-current">Analytics</span>
     </div>
-    <h1 class="dash-page-title">Aid Analytics</h1>
+    <h1 class="dash-page-title">Barangay Analytics</h1>
     <p class="dash-page-sub">
       <i class="bi bi-bar-chart-line me-1"></i>
-      Visual summary of aid claims across all programs
+      Aid claims summary for your barangay
     </p>
+    <span class="brgy-badge">
+      <i class="bi bi-buildings"></i> {{ barangay }}
+    </span>
   </div>
   <div class="dash-header-actions">
-    <a href="{% url 'mswdo_dashboard' %}" class="btn-dash-outline">
+    <a href="{% url 'barangay_dashboard' %}" class="btn-dash-outline">
       <i class="bi bi-arrow-left"></i> Back to Dashboard
     </a>
   </div>
@@ -153,7 +46,7 @@
   <!-- Pie Chart -->
   <div class="chart-panel">
     <p class="chart-panel__title">Distribution</p>
-    <p class="chart-panel__sub">Claims by Aid Type</p>
+    <p class="chart-panel__sub">Claims by Aid Type — {{ barangay }}</p>
     <div class="chart-wrap chart-wrap--pie">
       <canvas id="aidPieChart"></canvas>
     </div>
@@ -186,11 +79,11 @@
 
 </div>
 
-<!-- ── Row 2: Total Summary ────────────────────────────────── -->
+<!-- ── Row 2: Summary ──────────────────────────────────────── -->
 <div class="analytics-grid analytics-grid--full">
   <div class="chart-panel">
     <p class="chart-panel__title">Overview</p>
-    <p class="chart-panel__sub">Total Claims Summary</p>
+    <p class="chart-panel__sub">{{ barangay }} Summary</p>
     <div class="stat-row">
       <div class="stat-pill stat-pill--blue">
         <span class="stat-pill__dot stat-pill__dot--blue"></span>
@@ -213,6 +106,13 @@
           <span class="stat-pill__value" id="total-count">—</span>
         </div>
       </div>
+      <div class="stat-pill stat-pill--purple">
+        <span class="stat-pill__dot stat-pill__dot--purple"></span>
+        <div>
+          <span class="stat-pill__label">Families Served</span>
+          <span class="stat-pill__value">{{ claimed_families }} / {{ total_families }}</span>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -223,7 +123,7 @@
 <div class="chart-panel">
   <div class="empty-state">
     <i class="bi bi-bar-chart-line"></i>
-    <p>No claims data available yet. Claims will appear here once aid distributions begin.</p>
+    <p>No claims data yet for <strong>{{ barangay }}</strong>. Data will appear once aid distributions begin.</p>
   </div>
 </div>
 
@@ -231,12 +131,12 @@
 
 <!-- Back Link -->
 <div class="page-back-row">
-  <a href="{% url 'mswdo_dashboard' %}" class="btn-dash-outline">
+  <a href="{% url 'barangay_dashboard' %}" class="btn-dash-outline">
     <i class="bi bi-arrow-left"></i> Back to Dashboard
   </a>
 </div>
 
-<!-- Safe data injection using |json_script — no XSS risk -->
+<!-- Safe data injection -->
 {{ labels|json_script:"chart-labels" }}
 {{ data|json_script:"chart-data" }}
 
@@ -245,7 +145,6 @@
 {% block js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  // Read data safely — no mark_safe, no inline JSON
   const labels = JSON.parse(document.getElementById('chart-labels').textContent);
   const data   = JSON.parse(document.getElementById('chart-data').textContent);
 
@@ -315,9 +214,7 @@
             ticks: { stepSize: 1 },
             grid: { color: 'rgba(0,0,0,.05)' }
           },
-          x: {
-            grid: { display: false }
-          }
+          x: { grid: { display: false } }
         }
       }
     });
