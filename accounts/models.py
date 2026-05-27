@@ -96,6 +96,13 @@ class AidClaim(models.Model):
     aid_type = models.CharField(max_length=20, choices=AidType.choices)
     schedule = models.ForeignKey('AidSchedule', on_delete=models.CASCADE, null=True)
     claimed_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+            User,
+            on_delete=models.SET_NULL,
+            null=True,
+            blank=True,
+            related_name='processed_claims'
+        )
 
     def __str__(self):
         if self.family_member:

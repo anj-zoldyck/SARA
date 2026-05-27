@@ -526,6 +526,7 @@ def scan_rfid(request):
                     family=family,
                     aid_type=aid_type,
                     schedule=aid_schedule,
+                    created_by=request.user,
                 )
                 success = f"{family.family_name} successfully claimed RELIEF."
 
@@ -559,7 +560,8 @@ def scan_rfid(request):
                         family=family,
                         family_member=member,
                         aid_type=aid_type,
-                        claimed_at=timezone.now()
+                        claimed_at=timezone.now(),
+                        created_by=request.user,
                     )
                     success = f"{member.first_name} {member.last_name} successfully claimed {aid_type}."
                     # Clear family_members after claim so dropdown doesn't persist
@@ -855,7 +857,8 @@ def rfid_claim_monitoring(request):
         'family__household',
         'family__household__zone',
         'family__household__barangay',
-        'family_member'
+        'family_member',
+        'created_by'  # ADD this so it doesn't do extra queries
     ).order_by('-claimed_at')
 
     monitoring_data = []
@@ -869,7 +872,11 @@ def rfid_claim_monitoring(request):
             ),
             'address': claim.family.household.address,
             'aid_type': claim.aid_type,
-            'claimed_at': claim.claimed_at
+            'claimed_at': claim.claimed_at,
+            'processed_by': (
+                claim.created_by.username
+                if claim.created_by else "System"
+            ),
         })
 
     return render(request, 'accounts/rfid_claim_monitoring.html', {
@@ -893,6 +900,12 @@ def rfid_live_claims(request):
         aid_type=aid_type
     ).select_related('family', 'family_member', 'family__household', 'family__household__barangay')
 
+    # Scope to barangay user's own barangay
+    if request.user.role == 'BARANGAY':
+        claims = claims.filter(
+            family__household__barangay=request.user.barangay
+        )
+
     data = []
     for c in claims:
         data.append({
@@ -908,7 +921,7 @@ def rfid_live_claims(request):
 
     return JsonResponse({'claims': data})
 
-
+#---------------- Get Family Members for Aid Claiming (AJAX) -----------------
 @login_required
 @session_protected
 def get_family_members(request):
