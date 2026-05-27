@@ -196,7 +196,7 @@ def deactivate_barangay(request, user_id):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
 
-    barangay = User.objects.get(id=user_id)
+    barangay = get_object_or_404(User, id=user_id, role='BARANGAY')
     barangay.is_active = False
     barangay.save()
     
@@ -209,7 +209,7 @@ def activate_barangay(request, user_id):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
 
-    barangay = User.objects.get(id=user_id)
+    barangay = get_object_or_404(User, id=user_id, role='BARANGAY')
     barangay.is_active = True
     barangay.save()
 
@@ -938,6 +938,11 @@ def set_aid_schedule(request):
 
         if timezone.is_naive(end):
             end = timezone.make_aware(end)
+            
+        # Guard against end date being before start date
+        if end <= start:
+            messages.error(request, "End date & time must be after the start date & time.")
+            return redirect('mswdo_dashboard')
 
         location = request.POST.get('location')
         barangay_id = request.POST.get('barangay')

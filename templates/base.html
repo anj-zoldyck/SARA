@@ -323,6 +323,19 @@
 
   <!-- ==================== MAIN CONTENT ==================== -->
   <main class="{% if user.is_authenticated %}main-content{% endif %}">
+      <!-- ── Django Messages (global) ──────────────────────────── -->
+      {% if messages %}
+        <div style="padding: 1rem 1rem 0;">
+          {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+              <i class="bi bi-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
     {% block content %}{% endblock %}
   </main>
 
