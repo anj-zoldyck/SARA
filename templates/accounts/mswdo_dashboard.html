@@ -115,54 +115,66 @@
       </div>
     </div>
 
-    <!-- Active Schedule List -->
+    <!-- Schedule Lists (populated by fetch) -->
     <div class="dash-panel__body">
-      {% if active_schedules %}
-        <p class="sched-list-label">
-          <i class="bi bi-broadcast-pin"></i> Active Schedules
-        </p>
-        <div class="sched-list">
-          {% for sched in active_schedules %}
-          <div class="sched-item">
-            <div class="sched-item__badge sched-item__badge--active">Active</div>
-            <div class="sched-item__details">
-              <span class="sched-item__aid">{{ sched.aid_type }}</span>
-              <div class="sched-item__meta">
-                <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
-                <span><i class="bi bi-geo"></i> {{ sched.location }}</span>
-                <span><i class="bi bi-buildings"></i> {{ sched.barangay }}</span>
-              </div>
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-      {% else %}
-        <div class="sched-empty">
-          <i class="bi bi-calendar-x"></i>
-          <p>No active scheduled distribution.</p>
-        </div>
-      {% endif %}
 
-      {% if upcoming_schedules %}
-        <p class="sched-list-label">
-          <i class="bi bi-calendar-event"></i> Upcoming Schedules
-        </p>
-        <div class="sched-list">
-          {% for sched in upcoming_schedules %}
-          <div class="sched-item">
-            <div class="sched-item__badge sched-item__badge--upcoming">Upcoming</div>
-            <div class="sched-item__details">
-              <span class="sched-item__aid">{{ sched.aid_type }}</span>
-              <div class="sched-item__meta">
-                <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
-                <span><i class="bi bi-geo"></i> {{ sched.location }}</span>
-                <span><i class="bi bi-buildings"></i> {{ sched.barangay }}</span>
+      <!-- ACTIVE SCHEDULES -->
+      <p class="sched-list-label">
+        <i class="bi bi-broadcast-pin"></i> Active Schedules
+      </p>
+      <div id="active-schedules-list">
+        {% if active_schedules %}
+          <div class="sched-list">
+            {% for sched in active_schedules %}
+            <div class="sched-item">
+              <div class="sched-item__badge sched-item__badge--active">Active</div>
+              <div class="sched-item__details">
+                <span class="sched-item__aid">{{ sched.aid_type }}</span>
+                <div class="sched-item__meta">
+                  <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
+                  <span><i class="bi bi-geo"></i> {{ sched.location }}</span>
+                  <span><i class="bi bi-buildings"></i> {{ sched.barangay|default:"All Barangays" }}</span>
+                </div>
               </div>
             </div>
+            {% endfor %}
           </div>
-          {% endfor %}
-        </div>
-      {% endif %}
+        {% else %}
+          <div class="sched-empty">
+            <i class="bi bi-calendar-x"></i>
+            <p>No active scheduled distribution.</p>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- UPCOMING SCHEDULES -->
+      <p class="sched-list-label" style="margin-top: 1rem;">
+        <i class="bi bi-calendar-event"></i> Upcoming Schedules
+      </p>
+      <div id="upcoming-schedules-list">
+        {% if upcoming_schedules %}
+          <div class="sched-list">
+            {% for sched in upcoming_schedules %}
+            <div class="sched-item">
+              <div class="sched-item__badge sched-item__badge--upcoming">Upcoming</div>
+              <div class="sched-item__details">
+                <span class="sched-item__aid">{{ sched.aid_type }}</span>
+                <div class="sched-item__meta">
+                  <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
+                  <span><i class="bi bi-geo"></i> {{ sched.location }}</span>
+                  <span><i class="bi bi-buildings"></i> {{ sched.barangay|default:"All Barangays" }}</span>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="sched-empty">
+            <i class="bi bi-calendar-x"></i>
+            <p>No upcoming scheduled distribution.</p>
+          </div>
+        {% endif %}
+      </div>
 
       <!-- Divider -->
       <div class="dash-divider">
@@ -303,38 +315,77 @@
 
 {% block js %}
 <script>
+  // ── Live Clock ─────────────────────────────────────────
   function updateClock() {
     const now  = new Date();
-
-    // Time — 12-hour with seconds and AM/PM
     const time = now.toLocaleTimeString('en-PH', {
       hour:   '2-digit',
       minute: '2-digit',
       second: '2-digit',
       hour12: true
     });
-
-    // Day — full weekday name
     const day  = now.toLocaleDateString('en-PH', { weekday: 'long' });
-
-    // Date — Month Day, Year
     const date = now.toLocaleDateString('en-PH', {
       month: 'long',
       day:   'numeric',
       year:  'numeric'
     });
-
     const timeEl = document.getElementById('dashTime');
     const dayEl  = document.getElementById('dashDay');
     const dateEl = document.getElementById('dashDate');
-
     if (timeEl) timeEl.textContent = time;
     if (dayEl)  dayEl.textContent  = day;
     if (dateEl) dateEl.textContent = date;
   }
-
-  // Run immediately then update every second
   updateClock();
   setInterval(updateClock, 1000);
+
+  // ── Schedule Fetch & Render ────────────────────────────
+  function renderEmpty(label) {
+    return `
+      <div class="sched-empty">
+        <i class="bi bi-calendar-x"></i>
+        <p>No ${label.toLowerCase()} scheduled distribution.</p>
+      </div>`;
+  }
+
+  function renderScheduleList(schedules, badgeClass, badgeLabel) {
+    if (!schedules.length) return renderEmpty(badgeLabel);
+    const items = schedules.map(s => `
+      <div class="sched-item">
+        <div class="sched-item__badge sched-item__badge--${badgeClass}">${badgeLabel}</div>
+        <div class="sched-item__details">
+          <span class="sched-item__aid">${s.aid_type}</span>
+          <div class="sched-item__meta">
+            <span><i class="bi bi-clock"></i> ${s.schedule_datetime}</span>
+            <span><i class="bi bi-geo"></i> ${s.location}</span>
+            <span><i class="bi bi-buildings"></i> ${s.barangay}</span>
+          </div>
+        </div>
+      </div>`).join('');
+    return `<div class="sched-list">${items}</div>`;
+  }
+
+  function refreshSchedules() {
+    fetch("{% url 'schedule_status' %}")
+      .then(res => {
+        if (!res.ok) throw new Error('Network error');
+        return res.json();
+      })
+      .then(data => {
+        const activeEl   = document.getElementById('active-schedules-list');
+        const upcomingEl = document.getElementById('upcoming-schedules-list');
+        if (activeEl)   activeEl.innerHTML   = renderScheduleList(data.active,   'active',   'Active');
+        if (upcomingEl) upcomingEl.innerHTML = renderScheduleList(data.upcoming, 'upcoming', 'Upcoming');
+      })
+      .catch(err => {
+        // Silently fail — page still shows server-rendered data on error
+        console.warn('Schedule refresh failed:', err);
+      });
+  }
+
+  // Run immediately then every 30 seconds
+  refreshSchedules();
+  setInterval(refreshSchedules, 30000);
 </script>
 {% endblock %}

@@ -116,6 +116,9 @@ def mswdo_dashboard(request):
     #schedules = AidSchedule.objects.all().order_by('-schedule_datetime')
 
     now = timezone.localtime(timezone.now())
+
+    # Auto-deactivate expired schedules every time dashboard loads
+    AidSchedule.objects.filter(end_datetime__lt=now, is_active=True).update(is_active=False)
     # ACTIVE (ongoing)
     active_schedules = AidSchedule.objects.filter(
         schedule_datetime__lte=now,
@@ -133,6 +136,11 @@ def mswdo_dashboard(request):
     expired_schedules = AidSchedule.objects.filter(
         end_datetime__lt=now
     )
+
+    # Auto-deactivate all expired schedules
+    expired = AidSchedule.objects.filter(end_datetime__lt=now)
+    count = expired.update(is_active=False)
+    print(f"Deactivated {count} expired schedules.")
 
 
     context = {
@@ -445,6 +453,8 @@ def edit_family_member(request, member_id):
 @login_required
 @session_protected
 def scan_rfid(request):
+    if request.user.role not in ('MSWDO', 'BARANGAY'):
+        return HttpResponseForbidden("Access Denied")
     error = None
     success = None
     family = None
@@ -477,12 +487,17 @@ def scan_rfid(request):
 
         # Get family by RFID
         try:
-            family = Family.objects.get(rfid_uid=uid, is_active=True)
+            if request.user.role == 'BARANGAY':
+                family = Family.objects.get(
+                    rfid_uid=uid,
+                    is_active=True,
+                    household__barangay=request.user.barangay
+                )
+            else:  # MSWDO can scan any family
+                family = Family.objects.get(rfid_uid=uid, is_active=True)
         except Family.DoesNotExist:
             error = "Invalid RFID UID."
-            return render(request, 'accounts/scan_rfid.html', {
-                'error': error
-            })
+            return render(request, 'accounts/scan_rfid.html', {'error': error})
 
         # -------- RELIEF (family-based) --------
         if aid_type == 'RELIEF':
@@ -928,6 +943,9 @@ def set_aid_schedule(request):
         barangay_id = request.POST.get('barangay')
         barangay = Barangay.objects.filter(id=barangay_id).first() if barangay_id else None
 
+        # Auto-expire past schedules when a new one is created
+        AidSchedule.objects.filter(end_datetime__lt=timezone.now()).update(is_active=False)
+
         AidSchedule.objects.create(
             aid_type=aid_type,
             schedule_datetime=start,
@@ -1093,6 +1111,7 @@ def aid_reports(request):
         'schedules': schedules,
         'barangays': barangays,
         'selected_barangay': selected_barangay,
+        'now': timezone.now(),
     })
 
 #----------------- OTP Verification View -----------------
@@ -1115,3 +1134,49 @@ def verify_otp(request):
 def send_otp(request, user):
     device, _ = EmailDevice.objects.get_or_create(user=user, defaults={'name': 'email'})
     device.generate_challenge()  # sends OTP via Brevo SMTP
+
+#----------------- Aid Schedule Status API View -----------------
+@login_required
+@session_protected
+def schedule_status(request):
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+
+    now = timezone.localtime(timezone.now())
+
+    # Auto-deactivate expired schedules
+    AidSchedule.objects.filter(
+        end_datetime__lt=now, is_active=True
+    ).update(is_active=False)
+
+    active = AidSchedule.objects.filter(
+        schedule_datetime__lte=now,
+        end_datetime__gte=now,
+        is_active=True
+    )
+    upcoming = AidSchedule.objects.filter(
+        schedule_datetime__gt=now,
+        is_active=True
+    )
+    expired = AidSchedule.objects.filter(
+        end_datetime__lt=now
+    )
+
+    def fmt(dt):
+        return timezone.localtime(dt).strftime('%B %d, %Y, %I:%M %p') if dt else None
+
+    def serialize(qs):
+        return [{
+            'id': s.id,
+            'aid_type': s.aid_type,
+            'schedule_datetime': fmt(s.schedule_datetime),
+            'end_datetime': fmt(s.end_datetime),
+            'location': s.location,
+            'barangay': str(s.barangay) if s.barangay else 'All Barangays',
+        } for s in qs]
+
+    return JsonResponse({
+        'active': serialize(active),
+        'upcoming': serialize(upcoming),
+        'expired': serialize(expired),
+    })

@@ -87,8 +87,15 @@ urlpatterns = [
         'password-reset/',
         auth_views.PasswordResetView.as_view(
             template_name='password-reset/password_reset.html',
-            email_template_name='password-reset/password_reset_email.html',
+
+            # Plain text fallback email
+            email_template_name='password-reset/password_reset_email.txt',
+
+            # HTML email
+            html_email_template_name='password-reset/password_reset_email.html',
+
             subject_template_name='password_reset_subject.txt',
+
             success_url='/password-reset/done/',
         ),
         name='password_reset',
@@ -118,5 +125,8 @@ urlpatterns = [
         ),
         name='password_reset_complete',
     ),
+
+    # Schedule Status API for AJAX
+    path('schedule-status/', views.schedule_status, name='schedule_status'),
 
 ]
