@@ -323,7 +323,7 @@
 
   <!-- ==================== MAIN CONTENT ==================== -->
   <main class="{% if user.is_authenticated %}main-content{% endif %}">
-      <!-- ── Django Messages (global) ──────────────────────────── -->
+      <!-- ── Django Messages (global) ──────────────────────────── 
       {% if messages %}
         <div style="padding: 1rem 1rem 0;">
           {% for message in messages %}
@@ -334,7 +334,7 @@
             </div>
           {% endfor %}
         </div>
-      {% endif %}
+      {% endif %} -->
 
     {% block content %}{% endblock %}
   </main>

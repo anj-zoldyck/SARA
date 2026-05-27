@@ -17,6 +17,9 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
+# Custom error handler
+handler429 = 'accounts.views.ratelimit_error'  # Custom handler for 429 Too Many Requests
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('accounts.urls')),

@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div style="text-align:center; padding: 4rem 1rem;">
+  <i class="bi bi-shield-exclamation" style="font-size:3rem; color:#dc3545;"></i>
+  <h2 style="margin-top:1rem;">Too Many Attempts</h2>
+  <p style="color:#6c757d;">Too many login attempts from your device. Please wait a minute and try again.</p>
+  <a href="{% url 'login' %}" class="btn-dash-outline" style="margin-top:1rem; display:inline-block;">
+    <i class="bi bi-arrow-left"></i> Back to Login
+  </a>
+</div>
+{% endblock %}

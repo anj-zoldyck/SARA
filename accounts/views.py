@@ -16,6 +16,7 @@ from .services import get_active_aid_schedule, get_active_schedule
 from django.utils.dateparse import parse_datetime
 from django_otp.plugins.otp_email.models import EmailDevice
 from django.urls import reverse
+from django.core.cache import cache
 import json
 
 def check_session(request):
@@ -51,6 +52,7 @@ def logout_view(request):
     )
     return response
 
+
 def login_view(request):
     if request.user.is_authenticated:
         if request.user.role == 'MSWDO':
@@ -59,6 +61,17 @@ def login_view(request):
             return redirect('barangay_dashboard')
 
     if request.method == "POST":
+        # Rate limiting — max 5 attempts per IP per minute
+        ip = request.META.get('REMOTE_ADDR')
+        cache_key = f'login_attempts_{ip}'
+        attempts = cache.get(cache_key, 0)
+
+        if attempts >= 5:
+            messages.error(request, "Too many login attempts. Please wait a minute and try again.")
+            response = render(request, 'accounts/login.html')
+            response['Cache-Control'] = 'no-store'
+            return response
+
         username = request.POST.get('username')
         password = request.POST.get('password')
         user = authenticate(request, username=username, password=password)
@@ -67,25 +80,30 @@ def login_view(request):
             if not user.is_active:
                 messages.error(request, "Account is deactivated.")
             else:
+                cache.delete(cache_key)  # Reset attempts on successful login
                 login(request, user)
                 if user.role == 'MSWDO':
                     response = redirect('mswdo_dashboard')
                 else:
                     response = redirect('barangay_dashboard')
-
-                # ✅ Set a JS-readable cookie to signal active session
                 response.set_cookie('sara_auth', '1', samesite='Lax')
                 return response
         else:
+            # Increment failed attempts, expire after 60 seconds
+            cache.set(cache_key, attempts + 1, timeout=60)
             messages.error(request, "Invalid username or password.")
 
-    # ✅ Prevent login page from being stored in bfcache
     response = render(request, 'accounts/login.html')
     response['Cache-Control'] = 'no-store'
     return response
 
 User = get_user_model()
 
+#----------------- Rate Limit Error Handler -----------------
+#def ratelimit_error(request, exception=None):
+    #return render(request, 'accounts/429.html', status=429)
+
+#----------------- MSWDO Dashboard View -----------------
 @login_required(login_url='login')
 @session_protected
 def mswdo_dashboard(request):
@@ -938,7 +956,7 @@ def set_aid_schedule(request):
 
         if timezone.is_naive(end):
             end = timezone.make_aware(end)
-            
+
         # Guard against end date being before start date
         if end <= start:
             messages.error(request, "End date & time must be after the start date & time.")
