@@ -1,6 +1,7 @@
 from urllib import request
 from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.contrib.auth.decorators import login_required
+from django.forms import ValidationError
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden, JsonResponse, HttpResponseRedirect
 from django.contrib import messages
@@ -479,11 +480,13 @@ def scan_rfid(request):
     family_members = None
     aid_type = None
 
-    # Get today's aid schedule (if any)
     now = timezone.now()
 
+    # Get ACTIVE schedule only (started and not ended)
     aid_schedule = AidSchedule.objects.filter(
-        is_active=True
+        is_active=True,
+        schedule_datetime__lte=now,
+        end_datetime__gte=now,
     ).order_by('-schedule_datetime').first()
 
     if not aid_schedule:
@@ -494,7 +497,6 @@ def scan_rfid(request):
         uid = request.POST.get('rfid_uid')
         member_id = request.POST.get('family_member')
 
-        # If AidOfTheDay exists, force aid_type
         if aid_schedule:
             aid_type = aid_schedule.aid_type
         else:
@@ -511,7 +513,7 @@ def scan_rfid(request):
                     is_active=True,
                     household__barangay=request.user.barangay
                 )
-            else:  # MSWDO can scan any family
+            else:
                 family = Family.objects.get(rfid_uid=uid, is_active=True)
         except Family.DoesNotExist:
             error = "Invalid RFID UID."
@@ -519,8 +521,13 @@ def scan_rfid(request):
 
         # -------- RELIEF (family-based) --------
         if aid_type == 'RELIEF':
-            if AidClaim.objects.filter(family=family, aid_type=aid_type).exists():
-                error = f"{family.family_name} has already claimed RELIEF."
+            # CHANGE 1: scope duplicate check to current schedule only
+            if AidClaim.objects.filter(
+                family=family,
+                aid_type=aid_type,
+                schedule=aid_schedule
+            ).exists():
+                error = f"{family.family_name} has already claimed RELIEF for this schedule."
             else:
                 AidClaim.objects.create(
                     family=family,
@@ -532,9 +539,11 @@ def scan_rfid(request):
 
         # -------- SENIOR (individual-based) --------
         elif aid_type == 'SENIOR':
+            # CHANGE 2: scope claimed members to current schedule only
             claimed_member_ids = AidClaim.objects.filter(
                 family=family,
                 aid_type=aid_type,
+                schedule=aid_schedule,
                 family_member__isnull=False
             ).values_list('family_member_id', flat=True)
 
@@ -542,45 +551,47 @@ def scan_rfid(request):
                 age__gte=60
             ).exclude(id__in=claimed_member_ids)
 
-            # If member_id is submitted, create claim
             if member_id:
                 member = get_object_or_404(
                     FamilyMember,
                     id=member_id,
                     family=family
                 )
+                # CHANGE 3: scope member duplicate check to current schedule only
                 if AidClaim.objects.filter(
                     family=family,
                     family_member=member,
-                    aid_type=aid_type
+                    aid_type=aid_type,
+                    schedule=aid_schedule
                 ).exists():
-                    error = f"{member.first_name} {member.last_name} already claimed {aid_type}."
+                    error = f"{member.first_name} {member.last_name} already claimed {aid_type} for this schedule."
                 else:
                     AidClaim.objects.create(
                         family=family,
                         family_member=member,
                         aid_type=aid_type,
                         claimed_at=timezone.now(),
+                        schedule=aid_schedule,
                         created_by=request.user,
                     )
                     success = f"{member.first_name} {member.last_name} successfully claimed {aid_type}."
-                    # Clear family_members after claim so dropdown doesn't persist
                     family_members = None
             else:
-                # Show dropdown if eligible members exist
                 if not family_members.exists():
-                    error = f"All eligible members have already claimed {aid_type}."
+                    error = f"All eligible members have already claimed {aid_type} for this schedule."
                 else:
                     return render(request, 'accounts/scan_rfid.html', {
                         'family': family,
                         'family_members': family_members,
                         'aid_type': aid_type,
                         'aid_of_the_day': aid_schedule,
-                        'rfid_uid_value': ''  # clear RFID input
+                        'rfid_uid_value': ''
                     })
 
     # ----------------- FILTERS (GET) -----------------
     selected_barangay = request.GET.get('barangay')
+
+    # CHANGE 4: live monitor only shows claims for the current active schedule
     claims = AidClaim.objects.select_related(
         'family',
         'family__household',
@@ -589,14 +600,16 @@ def scan_rfid(request):
         'family_member'
     )
 
+    if aid_schedule:
+        claims = claims.filter(schedule=aid_schedule)
+
     if selected_barangay:
         claims = claims.filter(family__household__barangay__id=selected_barangay)
 
     recent_claims = claims.order_by('-claimed_at')[:20]
     barangays = Barangay.objects.all()
 
-    # ----------------- Prepare RFID input value -----------------
-    rfid_uid_value = ''  # Always clear after submission
+    rfid_uid_value = ''
 
     return render(request, 'accounts/scan_rfid.html', {
         'error': error,
@@ -756,7 +769,10 @@ def aid_barangay_detail(request, aid_type, barangay_id):
     # ---------------- DATE FILTER (RELIEF DAY) ----------------
     selected_date = request.GET.get('date')
     if selected_date:
-        claims = claims.filter(claimed_at__date=selected_date)
+        try:
+            claims = claims.filter(claimed_at__date=selected_date)
+        except (ValueError, ValidationError):
+            selected_date = None
 
     zones = Zone.objects.filter(barangay=barangay)
 
