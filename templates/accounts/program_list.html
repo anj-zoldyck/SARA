@@ -1,0 +1,963 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Aid Programs — SARA{% endblock %}
+{% block navbar_title %}AID PROGRAMS{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/program_list.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Django Messages ────────────────────────────────────── -->
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+      <i class="bi bi-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<!-- ── Page Header ─────────────────────────────────────────── -->
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Aid Programs</span>
+    </div>
+    <h1 class="dash-page-title">Aid Programs</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-gift me-1"></i>
+      Manage aid programs, categories, and assistance entries
+    </p>
+  </div>
+  <div class="dash-header-actions">
+    <button class="btn-dash-outline" data-bs-toggle="modal" data-bs-target="#addAssistanceModal">
+      <i class="bi bi-plus-lg"></i> Add Assistance
+    </button>
+    <button class="btn-dash-primary" data-bs-toggle="modal" data-bs-target="#addProgramModal">
+      <i class="bi bi-plus-lg"></i> Add Program
+    </button>
+  </div>
+</div>
+
+<!-- ── Program Cards ──────────────────────────────────────── -->
+{% if programs %}
+  {% for program in programs %}
+  <div class="dash-panel prog-card">
+
+    <!-- Program Header -->
+    <div class="dash-panel__header prog-card__header">
+      <div class="dash-panel__header-left">
+        <div class="dash-panel__icon">
+          <i class="bi bi-gift"></i>
+        </div>
+        <div>
+          <div class="prog-card__title-row">
+            <h2 class="dash-panel__title">{{ program.name }}</h2>
+            {% if program.is_active %}
+              <span class="acct-badge acct-badge--active">
+                <i class="bi bi-circle-fill"></i> Active
+              </span>
+            {% else %}
+              <span class="acct-badge acct-badge--inactive">
+                <i class="bi bi-circle-fill"></i> Inactive
+              </span>
+            {% endif %}
+          </div>
+          <p class="dash-panel__sub">
+            Aid program with {{ program.assistances.count }} assistance entr{{ program.assistances.count|pluralize:"y,ies" }}
+            {% if program.description %}
+              &nbsp;·&nbsp; {{ program.description }}
+            {% endif %}
+          </p>
+        </div>
+      </div>
+
+      <!-- Program Actions -->
+      <div class="acct-actions">
+        <button
+          class="acct-btn acct-btn--edit"
+          data-bs-toggle="modal"
+          data-bs-target="#addCategoryModal"
+          data-program-id="{{ program.id }}"
+          data-program-name="{{ program.name }}"
+          title="Add aid category">
+          <i class="bi bi-folder-plus"></i>
+          <span>+ Category</span>
+        </button>
+        <button
+          class="acct-btn acct-btn--edit"
+          data-bs-toggle="modal"
+          data-bs-target="#editProgramModal"
+          data-program-id="{{ program.id }}"
+          data-program-name="{{ program.name }}"
+          data-program-desc="{{ program.description|default:'' }}"
+          data-program-active="{{ program.is_active|yesno:'true,false' }}"
+          title="Edit program">
+          <i class="bi bi-pencil"></i>
+          <span>Edit</span>
+        </button>
+        <button
+          class="acct-btn {% if program.is_active %}acct-btn--deactivate{% else %}acct-btn--activate{% endif %}"
+          data-bs-toggle="modal"
+          data-bs-target="#toggleProgramModal"
+          data-program-id="{{ program.id }}"
+          data-program-name="{{ program.name }}"
+          data-program-active="{{ program.is_active|yesno:'true,false' }}"
+          title="{% if program.is_active %}Deactivate{% else %}Activate{% endif %} program">
+          <i class="bi bi-{% if program.is_active %}slash-circle{% else %}check-circle{% endif %}"></i>
+          <span>{% if program.is_active %}Deactivate{% else %}Activate{% endif %}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Assistance Table -->
+    <div class="dash-panel__body p-0">
+      <div class="table-responsive">
+        <table class="acct-table">
+          <thead>
+            <tr>
+              <th class="acct-th">#</th>
+              <th class="acct-th">Aid Category</th>
+              <th class="acct-th">Beneficiary Type</th>
+              <th class="acct-th">Min. Age</th>
+              <th class="acct-th">Status</th>
+              <th class="acct-th acct-th--actions">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in program.assistances.all %}
+            <tr class="acct-row">
+              <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
+              <td class="acct-td">
+                <div class="acct-barangay-cell">
+                  <div class="acct-avatar">
+                    <i class="bi bi-tag" style="font-size:14px;"></i>
+                  </div>
+                  <span class="acct-barangay-name">{{ a.aid_category.name }}</span>
+                </div>
+              </td>
+              <td class="acct-td">
+                <span class="prog-beneficiary-type">
+                  <i class="bi bi-{% if a.beneficiary_type == 'individual' %}person{% else %}people{% endif %} me-1"></i>
+                  {{ a.get_beneficiary_type_display }}
+                </span>
+              </td>
+              <td class="acct-td">
+                {% if a.minimum_age %}
+                  <span class="prog-age-badge">{{ a.minimum_age }}+ yrs</span>
+                {% else %}
+                  <span class="acct-username">—</span>
+                {% endif %}
+              </td>
+              <td class="acct-td">
+                {% if a.is_active %}
+                  <span class="acct-badge acct-badge--active">
+                    <i class="bi bi-circle-fill"></i> Active
+                  </span>
+                {% else %}
+                  <span class="acct-badge acct-badge--inactive">
+                    <i class="bi bi-circle-fill"></i> Inactive
+                  </span>
+                {% endif %}
+              </td>
+              <td class="acct-td acct-td--actions">
+                <div class="acct-actions">
+                  <!-- Edit Assistance -->
+                  <button
+                    class="acct-btn acct-btn--edit"
+                    data-bs-toggle="modal"
+                    data-bs-target="#editAssistanceModal"
+                    data-assistance-id="{{ a.id }}"
+                    data-assistance-program-id="{{ a.program.id }}"
+                    data-assistance-program-name="{{ a.program.name }}"
+                    data-assistance-category-id="{{ a.aid_category.id }}"
+                    data-assistance-category-name="{{ a.aid_category.name }}"
+                    data-assistance-beneficiary="{{ a.beneficiary_type }}"
+                    data-assistance-min-age="{{ a.minimum_age|default:'' }}"
+                    data-assistance-active="{{ a.is_active|yesno:'true,false' }}"
+                    title="Edit assistance">
+                    <i class="bi bi-pencil"></i>
+                    <span>Edit</span>
+                  </button>
+                  <!-- Toggle Assistance -->
+                  <button
+                    class="acct-btn {% if a.is_active %}acct-btn--deactivate{% else %}acct-btn--activate{% endif %}"
+                    data-bs-toggle="modal"
+                    data-bs-target="#toggleAssistanceModal"
+                    data-assistance-id="{{ a.id }}"
+                    data-assistance-name="{{ a.aid_category.name }}"
+                    data-assistance-active="{{ a.is_active|yesno:'true,false' }}">
+                    <i class="bi bi-{% if a.is_active %}slash-circle{% else %}check-circle{% endif %}"></i>
+                    <span>{% if a.is_active %}Deactivate{% else %}Activate{% endif %}</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="6" class="acct-empty">
+                <div class="acct-empty-state" style="padding: 28px 24px;">
+                  <i class="bi bi-tag" style="font-size:28px;"></i>
+                  <p style="margin-bottom:10px;">No assistance entries for this program.</p>
+                  <button
+                    class="prog-empty-btn"
+                    data-bs-toggle="modal"
+                    data-bs-target="#addAssistanceModal">
+                    <i class="bi bi-plus-lg"></i> Add Assistance
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /.prog-card -->
+  {% endfor %}
+
+{% else %}
+  <!-- Empty State -->
+  <div class="dash-panel">
+    <div class="dash-panel__body">
+      <div class="acct-empty-state" style="padding: 52px 24px;">
+        <i class="bi bi-gift"></i>
+        <p>No aid programs found.</p>
+        <button
+          class="btn-dash-primary"
+          style="border:none; cursor:pointer;"
+          data-bs-toggle="modal"
+          data-bs-target="#addProgramModal">
+          <i class="bi bi-plus-lg"></i> Add First Program
+        </button>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+<!-- ── Back Link ──────────────────────────────────────────── -->
+<div class="page-back-row">
+  <a href="{% url 'mswdo_dashboard' %}" class="btn-dash-outline">
+    <i class="bi bi-arrow-left"></i> Back to Dashboard
+  </a>
+</div>
+
+
+<!-- ================================================================
+     MODALS
+================================================================ -->
+
+<!-- ── 1. Add Program Modal ──────────────────────────────────────── -->
+<div class="modal fade sara-modal" id="addProgramModal" tabindex="-1" aria-labelledby="addProgramModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addProgramModalLabel">
+          <i class="bi bi-gift"></i> Add Aid Program
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'add_program' %}">
+        {% csrf_token %}
+        <div class="modal-body">
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="prog_name">
+              <i class="bi bi-tag"></i> Program Name
+              <span class="modal-form__required">*</span>
+            </label>
+            <input
+              type="text"
+              id="prog_name"
+              name="name"
+              class="modal-form__control"
+              placeholder="e.g. AICS, AKAP, Disaster Relief"
+              required
+              maxlength="100">
+          </div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="prog_desc">
+              <i class="bi bi-text-left"></i> Description
+            </label>
+            <textarea
+              id="prog_desc"
+              name="description"
+              class="modal-form__control"
+              placeholder="Brief description of this program (optional)"
+              rows="3"></textarea>
+          </div>
+
+          <div class="modal-form__group">
+            <div class="modal-form__check-row">
+              <input type="checkbox" id="prog_is_active" name="is_active" checked>
+              <div>
+                <label class="modal-form__check-label" for="prog_is_active">Active</label>
+                <p class="modal-form__check-sub">Inactive programs won't appear in schedule forms.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-dash-primary">
+            <i class="bi bi-plus-lg"></i> Add Program
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── 2. Edit Program Modal ─────────────────────────────────────── -->
+<div class="modal fade sara-modal" id="editProgramModal" tabindex="-1" aria-labelledby="editProgramModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editProgramModalLabel">
+          <i class="bi bi-pencil"></i> Edit Program
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" id="editProgramForm" action="">
+        {% csrf_token %}
+        <div class="modal-body">
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="edit_prog_name">
+              <i class="bi bi-tag"></i> Program Name
+              <span class="modal-form__required">*</span>
+            </label>
+            <input
+              type="text"
+              id="edit_prog_name"
+              name="name"
+              class="modal-form__control"
+              required
+              maxlength="100">
+          </div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="edit_prog_desc">
+              <i class="bi bi-text-left"></i> Description
+            </label>
+            <textarea
+              id="edit_prog_desc"
+              name="description"
+              class="modal-form__control"
+              rows="3"></textarea>
+          </div>
+
+          <div class="modal-form__group">
+            <div class="modal-form__check-row">
+              <input type="checkbox" id="edit_prog_is_active" name="is_active">
+              <div>
+                <label class="modal-form__check-label" for="edit_prog_is_active">Active</label>
+                <p class="modal-form__check-sub">Inactive programs won't appear in schedule forms.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-dash-primary">
+            <i class="bi bi-check-lg"></i> Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── 3. Toggle Program Modal (Activate / Deactivate) ───────────── -->
+<div class="modal fade sara-modal" id="toggleProgramModal" tabindex="-1" aria-labelledby="toggleProgramModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="toggleProgramModalLabel">
+          <i class="bi bi-slash-circle"></i> <span id="toggleProgramTitle">Confirm Action</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="text-align:center; padding: 28px 22px;">
+        <div class="confirm-icon" id="toggleProgramIcon">
+          <i class="bi bi-slash-circle"></i>
+        </div>
+        <p class="confirm-text" id="toggleProgramText">
+          Are you sure you want to deactivate <strong id="toggleProgramName"></strong>?
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+        <a href="#" id="toggleProgramBtn" class="btn-dash-primary" style="text-decoration:none;">
+          Confirm
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── 4. Add Aid Category Modal ─────────────────────────────────── -->
+<div class="modal fade sara-modal" id="addCategoryModal" tabindex="-1" aria-labelledby="addCategoryModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addCategoryModalLabel">
+          <i class="bi bi-folder-plus"></i> Add Aid Category
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" id="addCategoryForm" action="">
+        {% csrf_token %}
+        <div class="modal-body">
+
+          <div class="modal-form__group">
+            <label class="modal-form__label">
+              <i class="bi bi-gift"></i> Program
+            </label>
+            <input
+              type="text"
+              id="cat_program_display"
+              class="modal-form__control"
+              readonly
+              style="background:#f8fafd; cursor:default;">
+            <input type="hidden" name="program" id="cat_program_id">
+          </div>
+
+          <div class="modal-divider"></div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="cat_name">
+              <i class="bi bi-tag"></i> Category Name
+              <span class="modal-form__required">*</span>
+            </label>
+            <input
+              type="text"
+              id="cat_name"
+              name="name"
+              class="modal-form__control"
+              placeholder="e.g. Medical, Burial, Food Packs"
+              required
+              maxlength="100">
+          </div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="cat_desc">
+              <i class="bi bi-text-left"></i> Description
+            </label>
+            <textarea
+              id="cat_desc"
+              name="description"
+              class="modal-form__control"
+              rows="2"
+              placeholder="Optional"></textarea>
+          </div>
+
+          <div class="modal-form__group">
+            <div class="modal-form__check-row">
+              <input type="checkbox" id="cat_is_active" name="is_active" checked>
+              <div>
+                <label class="modal-form__check-label" for="cat_is_active">Active</label>
+                <p class="modal-form__check-sub">Inactive categories won't appear in assistance forms.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-dash-primary">
+            <i class="bi bi-plus-lg"></i> Add Category
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── 5. Add Assistance Modal ───────────────────────────────────── -->
+<div class="modal fade sara-modal" id="addAssistanceModal" tabindex="-1" aria-labelledby="addAssistanceModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addAssistanceModalLabel">
+          <i class="bi bi-plus-circle"></i> Add Assistance Entry
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'add_assistance' %}">
+        {% csrf_token %}
+        <div class="modal-body">
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="asst_program">
+              <i class="bi bi-gift"></i> Program
+              <span class="modal-form__required">*</span>
+            </label>
+            <select id="asst_program" name="program" class="modal-form__select" required>
+              <option value="">-- Select Program --</option>
+              {% for program in programs %}
+                <option value="{{ program.id }}">{{ program.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="asst_category">
+              <i class="bi bi-tag"></i> Aid Category
+              <span class="modal-form__required">*</span>
+            </label>
+            <select id="asst_category" name="aid_category" class="modal-form__select" required disabled>
+              <option value="">-- Select Program First --</option>
+            </select>
+            <p class="modal-form__hint">Select a program first to load its categories.</p>
+          </div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="asst_beneficiary_type">
+              <i class="bi bi-people"></i> Beneficiary Type
+              <span class="modal-form__required">*</span>
+            </label>
+            <select id="asst_beneficiary_type" name="beneficiary_type" class="modal-form__select" required>
+              <option value="">-- Select Type --</option>
+              <option value="family">Family</option>
+              <option value="individual">Individual</option>
+            </select>
+          </div>
+
+          <div class="modal-form__group" id="asst_min_age_group" style="display:none;">
+            <label class="modal-form__label" for="asst_min_age">
+              <i class="bi bi-person-check"></i> Minimum Age
+            </label>
+            <input
+              type="number"
+              id="asst_min_age"
+              name="minimum_age"
+              class="modal-form__control"
+              placeholder="e.g. 60 for Senior, leave blank if none"
+              min="1"
+              max="120">
+            <p class="modal-form__hint">Leave blank if no age requirement.</p>
+          </div>
+
+          <div class="modal-form__group">
+            <div class="modal-form__check-row">
+              <input type="checkbox" id="asst_is_active" name="is_active" checked>
+              <div>
+                <label class="modal-form__check-label" for="asst_is_active">Active</label>
+                <p class="modal-form__check-sub">Inactive entries won't appear in schedule forms.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-dash-primary">
+            <i class="bi bi-plus-lg"></i> Add Assistance
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── 6. Toggle Assistance Modal ────────────────────────────────── -->
+<div class="modal fade sara-modal" id="toggleAssistanceModal" tabindex="-1" aria-labelledby="toggleAssistanceModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="toggleAssistanceModalLabel">
+          <span id="toggleAssistanceTitle">Confirm Action</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="text-align:center; padding: 28px 22px;">
+        <div class="confirm-icon" id="toggleAssistanceIcon">
+          <i class="bi bi-slash-circle"></i>
+        </div>
+        <p class="confirm-text">
+          Are you sure you want to
+          <span id="toggleAssistanceAction">deactivate</span>
+          the assistance entry
+          <strong id="toggleAssistanceName"></strong>?
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+        <a href="#" id="toggleAssistanceBtn" class="btn-dash-primary" style="text-decoration:none;">
+          Confirm
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 7. Edit Assistance Modal ──────────────────────────────── -->
+<div class="modal fade sara-modal" id="editAssistanceModal" tabindex="-1" aria-labelledby="editAssistanceModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editAssistanceModalLabel">
+          <i class="bi bi-pencil"></i> Edit Assistance Entry
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" id="editAssistanceForm" action="">
+        {% csrf_token %}
+        <div class="modal-body">
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="edit_asst_program">
+              <i class="bi bi-gift"></i> Program
+              <span class="modal-form__required">*</span>
+            </label>
+            <select id="edit_asst_program" name="program" class="modal-form__select" required>
+              <option value="">-- Select Program --</option>
+              {% for program in programs %}
+                <option value="{{ program.id }}">{{ program.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="edit_asst_category">
+              <i class="bi bi-tag"></i> Aid Category
+              <span class="modal-form__required">*</span>
+            </label>
+            <select id="edit_asst_category" name="aid_category" class="modal-form__select" required>
+              <option value="">-- Select Program First --</option>
+            </select>
+            <p class="modal-form__hint">Change program above to reload categories.</p>
+          </div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="edit_asst_beneficiary">
+              <i class="bi bi-people"></i> Beneficiary Type
+              <span class="modal-form__required">*</span>
+            </label>
+            <select id="edit_asst_beneficiary" name="beneficiary_type" class="modal-form__select" required>
+              <option value="">-- Select Type --</option>
+              <option value="family">Family</option>
+              <option value="individual">Individual</option>
+            </select>
+          </div>
+
+          <div class="modal-form__group" id="edit_asst_min_age_group">
+            <label class="modal-form__label" for="edit_asst_min_age">
+              <i class="bi bi-person-check"></i> Minimum Age
+            </label>
+            <input
+              type="number"
+              id="edit_asst_min_age"
+              name="minimum_age"
+              class="modal-form__control"
+              placeholder="e.g. 60 for Senior, leave blank if none"
+              min="1"
+              max="120">
+            <p class="modal-form__hint">Only applies to individual-based assistance. Leave blank if none.</p>
+          </div>
+
+          <div class="modal-form__group">
+            <div class="modal-form__check-row">
+              <input type="checkbox" id="edit_asst_is_active" name="is_active">
+              <div>
+                <label class="modal-form__check-label" for="edit_asst_is_active">Active</label>
+                <p class="modal-form__check-sub">Inactive entries won't appear in schedule forms.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-dash-primary">
+            <i class="bi bi-check-lg"></i> Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block js %}
+<script>
+// ================================================================
+//  EDIT PROGRAM MODAL — populate fields from data attributes
+// ================================================================
+document.getElementById('editProgramModal').addEventListener('show.bs.modal', function (e) {
+  const btn         = e.relatedTarget;
+  const programId   = btn.dataset.programId;
+  const programName = btn.dataset.programName;
+  const programDesc = btn.dataset.programDesc;
+  const isActive    = btn.dataset.programActive === 'true';
+
+  // Set form action dynamically
+  document.getElementById('editProgramForm').action = `/mswdo/programs/${programId}/edit/`;
+
+  // Populate fields
+  document.getElementById('edit_prog_name').value    = programName;
+  document.getElementById('edit_prog_desc').value    = programDesc;
+  document.getElementById('edit_prog_is_active').checked = isActive;
+});
+
+
+// ================================================================
+//  TOGGLE PROGRAM MODAL — populate confirm text + action URL
+// ================================================================
+document.getElementById('toggleProgramModal').addEventListener('show.bs.modal', function (e) {
+  const btn       = e.relatedTarget;
+  const programId = btn.dataset.programId;
+  const name      = btn.dataset.programName;
+  const isActive  = btn.dataset.programActive === 'true';
+
+  const action    = isActive ? 'Deactivate' : 'Activate';
+  const iconClass = isActive ? 'confirm-icon--danger' : 'confirm-icon--success';
+  const iconBI    = isActive ? 'bi-slash-circle'       : 'bi-check-circle';
+  const btnClass  = isActive ? 'acct-btn--deactivate'  : 'acct-btn--activate';
+
+  document.getElementById('toggleProgramTitle').textContent      = `${action} Program`;
+  document.getElementById('toggleProgramName').textContent       = name;
+  document.getElementById('toggleProgramIcon').className         = `confirm-icon ${iconClass}`;
+  document.getElementById('toggleProgramIcon').innerHTML         = `<i class="bi ${iconBI}"></i>`;
+  document.getElementById('toggleProgramBtn').href               = `/mswdo/programs/${programId}/toggle/`;
+  document.getElementById('toggleProgramBtn').className          = `btn-dash-primary`;
+});
+
+
+// ================================================================
+//  ADD CATEGORY MODAL — set program name + form action
+// ================================================================
+document.getElementById('addCategoryModal').addEventListener('show.bs.modal', function (e) {
+  const btn         = e.relatedTarget;
+  const programId   = btn.dataset.programId;
+  const programName = btn.dataset.programName;
+
+  document.getElementById('cat_program_display').value = programName;
+  document.getElementById('cat_program_id').value      = programId;
+  document.getElementById('addCategoryForm').action    = `/mswdo/programs/${programId}/aid-categories/add/`;
+
+  // Clear previous inputs
+  document.getElementById('cat_name').value = '';
+  document.getElementById('cat_desc').value = '';
+  document.getElementById('cat_is_active').checked = true;
+});
+
+
+// ================================================================
+//  ADD ASSISTANCE MODAL
+//  — dynamic category load when program changes
+//  — show/hide minimum_age when beneficiary_type = individual
+// ================================================================
+const asstProgramSelect  = document.getElementById('asst_program');
+const asstCategorySelect = document.getElementById('asst_category');
+const asstBeneficiary    = document.getElementById('asst_beneficiary_type');
+const asstMinAgeGroup    = document.getElementById('asst_min_age_group');
+const asstMinAgeInput    = document.getElementById('asst_min_age');
+
+// Load categories via AJAX when program is selected
+asstProgramSelect.addEventListener('change', function () {
+  const programId = this.value;
+
+  // Reset category dropdown
+  asstCategorySelect.innerHTML = '<option value="">-- Loading... --</option>';
+  asstCategorySelect.disabled  = true;
+
+  if (!programId) {
+    asstCategorySelect.innerHTML = '<option value="">-- Select Program First --</option>';
+    return;
+  }
+
+  fetch(`/ajax/get-aid-categories/?program_id=${programId}`)
+    .then(res => res.json())
+    .then(data => {
+      asstCategorySelect.innerHTML = '<option value="">-- Select Category --</option>';
+      if (data.categories.length === 0) {
+        asstCategorySelect.innerHTML = '<option value="">No categories found — add one first</option>';
+      } else {
+        data.categories.forEach(cat => {
+          const opt = document.createElement('option');
+          opt.value       = cat.id;
+          opt.textContent = cat.name;
+          asstCategorySelect.appendChild(opt);
+        });
+        asstCategorySelect.disabled = false;
+      }
+    })
+    .catch(() => {
+      asstCategorySelect.innerHTML = '<option value="">Error loading categories</option>';
+    });
+});
+
+// Show minimum_age field only for individual-based assistance
+asstBeneficiary.addEventListener('change', function () {
+  if (this.value === 'individual') {
+    asstMinAgeGroup.style.display = 'block';
+  } else {
+    asstMinAgeGroup.style.display = 'none';
+    asstMinAgeInput.value = '';
+  }
+});
+
+// Reset Add Assistance modal on close
+document.getElementById('addAssistanceModal').addEventListener('hidden.bs.modal', function () {
+  asstProgramSelect.value          = '';
+  asstCategorySelect.innerHTML     = '<option value="">-- Select Program First --</option>';
+  asstCategorySelect.disabled      = true;
+  asstBeneficiary.value            = '';
+  asstMinAgeGroup.style.display    = 'none';
+  asstMinAgeInput.value            = '';
+  document.getElementById('asst_is_active').checked = true;
+});
+
+
+// ================================================================
+//  TOGGLE ASSISTANCE MODAL — populate confirm text + action URL
+// ================================================================
+document.getElementById('toggleAssistanceModal').addEventListener('show.bs.modal', function (e) {
+  const btn          = e.relatedTarget;
+  const assistanceId = btn.dataset.assistanceId;
+  const name         = btn.dataset.assistanceName;
+  const isActive     = btn.dataset.assistanceActive === 'true';
+
+  const action    = isActive ? 'deactivate' : 'activate';
+  const iconClass = isActive ? 'confirm-icon--danger' : 'confirm-icon--success';
+  const iconBI    = isActive ? 'bi-slash-circle'       : 'bi-check-circle';
+
+  document.getElementById('toggleAssistanceTitle').textContent  = `${isActive ? 'Deactivate' : 'Activate'} Assistance`;
+  document.getElementById('toggleAssistanceAction').textContent = action;
+  document.getElementById('toggleAssistanceName').textContent   = name;
+  document.getElementById('toggleAssistanceIcon').className     = `confirm-icon ${iconClass}`;
+  document.getElementById('toggleAssistanceIcon').innerHTML     = `<i class="bi ${iconBI}"></i>`;
+  document.getElementById('toggleAssistanceBtn').href           = `/mswdo/programs/assistance/${assistanceId}/toggle/`;
+});
+
+// ================================================================
+//  EDIT ASSISTANCE MODAL
+//  — pre-fill all fields from data attributes
+//  — reload categories via AJAX for the pre-selected program
+//  — show/hide minimum_age based on beneficiary_type
+// ================================================================
+const editAsstProgram     = document.getElementById('edit_asst_program');
+const editAsstCategory    = document.getElementById('edit_asst_category');
+const editAsstBeneficiary = document.getElementById('edit_asst_beneficiary');
+const editAsstMinAgeGroup = document.getElementById('edit_asst_min_age_group');
+const editAsstMinAge      = document.getElementById('edit_asst_min_age');
+
+document.getElementById('editAssistanceModal').addEventListener('show.bs.modal', function (e) {
+  const btn            = e.relatedTarget;
+  const assistanceId   = btn.dataset.assistanceId;
+  const programId      = btn.dataset.assistanceProgramId;
+  const programName    = btn.dataset.assistanceProgramName;
+  const categoryId     = btn.dataset.assistanceCategoryId;
+  const categoryName   = btn.dataset.assistanceCategoryName;
+  const beneficiary    = btn.dataset.assistanceBeneficiary;
+  const minAge         = btn.dataset.assistanceMinAge;
+  const isActive       = btn.dataset.assistanceActive === 'true';
+
+  // Set form action
+  document.getElementById('editAssistanceForm').action = `/mswdo/programs/assistance/${assistanceId}/edit/`;
+
+  // Set program dropdown
+  editAsstProgram.value = programId;
+
+  // Load categories for the current program, then select the current one
+  editAsstCategory.innerHTML = '<option value="">-- Loading... --</option>';
+  editAsstCategory.disabled  = true;
+
+  fetch(`/ajax/get-aid-categories/?program_id=${programId}`)
+    .then(res => res.json())
+    .then(data => {
+      editAsstCategory.innerHTML = '<option value="">-- Select Category --</option>';
+      data.categories.forEach(cat => {
+        const opt       = document.createElement('option');
+        opt.value       = cat.id;
+        opt.textContent = cat.name;
+        // Pre-select the current category
+        if (String(cat.id) === String(categoryId)) {
+          opt.selected = true;
+        }
+        editAsstCategory.appendChild(opt);
+      });
+      editAsstCategory.disabled = false;
+    })
+    .catch(() => {
+      editAsstCategory.innerHTML = '<option value="">Error loading categories</option>';
+    });
+
+  // Set beneficiary type
+  editAsstBeneficiary.value = beneficiary;
+
+  // Show/hide minimum age based on current beneficiary type
+  if (beneficiary === 'individual') {
+    editAsstMinAgeGroup.style.display = 'block';
+    editAsstMinAge.value = minAge;
+  } else {
+    editAsstMinAgeGroup.style.display = 'none';
+    editAsstMinAge.value = '';
+  }
+
+  // Set active checkbox
+  document.getElementById('edit_asst_is_active').checked = isActive;
+});
+
+// Reload categories when program changes inside Edit modal
+editAsstProgram.addEventListener('change', function () {
+  const programId = this.value;
+  editAsstCategory.innerHTML = '<option value="">-- Loading... --</option>';
+  editAsstCategory.disabled  = true;
+
+  if (!programId) {
+    editAsstCategory.innerHTML = '<option value="">-- Select Program First --</option>';
+    return;
+  }
+
+  fetch(`/ajax/get-aid-categories/?program_id=${programId}`)
+    .then(res => res.json())
+    .then(data => {
+      editAsstCategory.innerHTML = '<option value="">-- Select Category --</option>';
+      data.categories.forEach(cat => {
+        const opt       = document.createElement('option');
+        opt.value       = cat.id;
+        opt.textContent = cat.name;
+        editAsstCategory.appendChild(opt);
+      });
+      editAsstCategory.disabled = false;
+    })
+    .catch(() => {
+      editAsstCategory.innerHTML = '<option value="">Error loading categories</option>';
+    });
+});
+
+// Show/hide minimum age when beneficiary type changes inside Edit modal
+editAsstBeneficiary.addEventListener('change', function () {
+  if (this.value === 'individual') {
+    editAsstMinAgeGroup.style.display = 'block';
+  } else {
+    editAsstMinAgeGroup.style.display = 'none';
+    editAsstMinAge.value = '';
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,225 @@
+/* ── register_rfid.css ─────────────────────────────────────── */
+
+/* Filter Panel */
+.rfid-filter-panel {
+  margin-bottom: 1.25rem;
+}
+
+.rfid-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.rfid-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 200px;
+  flex: 1;
+}
+
+.rfid-filter-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted, #6b7280);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.rfid-filter-label i {
+  margin-right: 4px;
+}
+
+.rfid-filter-select {
+  padding: 0.5rem 0.75rem;
+  border: 1.5px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  background: var(--card-bg, #fff);
+  color: var(--text-main, #1e293b);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.rfid-filter-select:focus {
+  border-color: var(--accent, #2db89e);
+}
+
+.rfid-filter-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Stats Strip override */
+.rfid-stats-strip {
+  margin-bottom: 1.25rem;
+}
+
+.brgy-info-icon--warn {
+  background: rgba(231, 76, 111, 0.12);
+  color: #e74c6f;
+}
+
+/* Charts Row */
+.rfid-charts-row {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (max-width: 900px) {
+  .rfid-charts-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rfid-chart-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.rfid-chart-panel--wide {
+  min-width: 0;
+}
+
+.rfid-chart-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  min-height: 260px;
+  position: relative;
+}
+
+.rfid-chart-panel--wide .rfid-chart-body {
+  align-items: stretch;
+}
+
+.rfid-chart-panel--wide canvas {
+  width: 100% !important;
+  min-height: 240px;
+}
+
+/* Donut Legend */
+.rfid-donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.rfid-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-main, #1e293b);
+}
+
+.rfid-legend-item strong {
+  margin-left: auto;
+  font-weight: 700;
+}
+
+.rfid-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.rfid-legend-dot--registered   { background: #2db89e; }
+.rfid-legend-dot--unregistered { background: #e74c6f; }
+
+/* Table: RFID count badges */
+.rfid-count {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 2px 10px;
+  border-radius: 99px;
+}
+
+.rfid-count--reg {
+  background: rgba(45, 184, 158, 0.12);
+  color: #1a9b84;
+}
+
+.rfid-count--unreg {
+  background: rgba(231, 76, 111, 0.10);
+  color: #c0395a;
+}
+
+/* Zone filter tag in table */
+.rfid-zone-all {
+  font-size: 0.8rem;
+  color: var(--text-muted, #6b7280);
+  font-style: italic;
+}
+
+/* Progress bar in table */
+.rfid-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rfid-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--border-color, #e2e8f0);
+  border-radius: 99px;
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.rfid-progress-fill {
+  height: 100%;
+  background: #2db89e;
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+.rfid-progress-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted, #6b7280);
+  min-width: 34px;
+  text-align: right;
+}
+
+/* Barangay Cards — RFID variant */
+.rfid-brgy-card {
+  text-decoration: none;
+}
+
+.rfid-card-progress {
+  margin-top: 0.6rem;
+  height: 5px;
+  background: var(--border-color, #e2e8f0);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.rfid-card-progress__fill {
+  height: 100%;
+  background: #2db89e;
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+/* Section heading without panel wrapper */
+.dash-panel__header.mt-4 {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}

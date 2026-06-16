@@ -116,7 +116,7 @@
             <td class="acct-td acct-td--actions">
               <div class="acct-actions">
                 {% if family.rfid_uid %}
-                  <a href="{% url 'register_rfid' family.id %}" class="acct-btn acct-btn--edit">
+                  <a href="{% url 'register_rfid_family' family.id %}" class="acct-btn acct-btn--edit">
                     <i class="bi bi-arrow-repeat"></i><span>Update RFID</span>
                   </a>
                   <a href="{% url 'deactivate_rfid' family.id %}"
@@ -125,7 +125,7 @@
                     <i class="bi bi-slash-circle"></i><span>Deactivate</span>
                   </a>
                 {% else %}
-                  <a href="{% url 'register_rfid' family.id %}" class="acct-btn acct-btn--register">
+                  <a href="{% url 'register_rfid_family' family.id %}" class="acct-btn acct-btn--register">
                     <i class="bi bi-credit-card-2-front"></i><span>Register RFID</span>
                   </a>
                 {% endif %}

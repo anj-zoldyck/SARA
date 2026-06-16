@@ -527,59 +527,40 @@
 .form-guideline-icon--blue { color: var(--secondary); }
 
 /* =============================================================
-   EDIT MEMBER INFO CARD
+   PROGRAM LIST
 ============================================================= */
-
-.edit-member-info {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
+.prog-card {
+  margin-bottom: 20px;
 }
 
-.edit-member-avatar {
-  width: 54px;
-  height: 54px;
-  border-radius: 12px;
-  background: rgba(19, 78, 213, 0.1);
-  color: var(--secondary);
-  font-size: 20px;
-  font-weight: 700;
+.prog-card__header {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.prog-card__title-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.edit-member-details {
-  flex: 1;
-  min-width: 0;
-}
-
-.edit-member-name {
-  margin: 0 0 8px;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-main);
-  line-height: 1.2;
-}
-
-.edit-member-meta {
-  display: flex;
-  flex-direction: column;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-.edit-member-meta span {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.prog-beneficiary-type {
   font-size: 13px;
   color: var(--text-muted);
-  line-height: 1.4;
+  display: flex;
+  align-items: center;
 }
 
-.edit-member-meta i {
-  font-size: 12px;
+.prog-age-badge {
+  display: inline-block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  background: #f1f5f9;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
 }
 
 /* =============================================================

@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ aid_type }} Claims - {{ barangay.name }}{% endblock %}
+{% block title %}{{ assistance.program.name }} › {{ assistance.aid_category.name }} Claims - {{ barangay.name }}{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
 
   <h3 class="mb-3">
-    {{ aid_type }} Distribution – Barangay {{ barangay.name }}
+    {{ assistance.program.name }} › {{ assistance.aid_category.name }} Distribution – Barangay {{ barangay.name }}
   </h3>
 
   <a href="{% url 'mswdo_dashboard' %}" class="btn btn-secondary mb-4">

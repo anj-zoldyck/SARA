@@ -81,29 +81,29 @@
     <i class="bi bi-arrow-right-short stat-card__arrow"></i>
   </a>
 
-  <!-- Relief Aid (shortcut card) -->
-  <a href="{% url 'aid_list' 'RELIEF' %}" class="stat-card stat-card--teal">
-    <div class="stat-card__icon">
-      <i class="bi bi-box-seam"></i>
-    </div>
-    <div class="stat-card__body">
-      <span class="stat-card__label">Relief Distribution</span>
-      <span class="stat-card__value stat-card__value--sm">Manage</span>
-    </div>
-    <i class="bi bi-arrow-right-short stat-card__arrow"></i>
-  </a>
+<!-- Aid Monitoring shortcut -->
+<a href="{% url 'aid_type_list' %}" class="stat-card stat-card--teal">
+  <div class="stat-card__icon">
+    <i class="bi bi-box-seam"></i>
+  </div>
+  <div class="stat-card__body">
+    <span class="stat-card__label">Aid Monitoring</span>
+    <span class="stat-card__value stat-card__value--sm">Manage</span>
+  </div>
+  <i class="bi bi-arrow-right-short stat-card__arrow"></i>
+</a>
 
-  <!-- Senior Aid (shortcut card) -->
-  <a href="{% url 'aid_list' 'SENIOR' %}" class="stat-card stat-card--amber">
-    <div class="stat-card__icon">
-      <i class="bi bi-heart-pulse"></i>
-    </div>
-    <div class="stat-card__body">
-      <span class="stat-card__label">Senior Distribution</span>
-      <span class="stat-card__value stat-card__value--sm">Manage</span>
-    </div>
-    <i class="bi bi-arrow-right-short stat-card__arrow"></i>
-  </a>
+<!-- Program Management shortcut -->
+<a href="{% url 'program_list' %}" class="stat-card stat-card--amber">
+  <div class="stat-card__icon">
+    <i class="bi bi-heart-pulse"></i>
+  </div>
+  <div class="stat-card__body">
+    <span class="stat-card__label">Aid Programs</span>
+    <span class="stat-card__value stat-card__value--sm">Manage</span>
+  </div>
+  <i class="bi bi-arrow-right-short stat-card__arrow"></i>
+</a>
 
 </div>
 
@@ -138,7 +138,13 @@
             <div class="sched-item">
               <div class="sched-item__badge sched-item__badge--active">Active</div>
               <div class="sched-item__details">
-                <span class="sched-item__aid">{{ sched.aid_type }}</span>
+                <span class="sched-item__aid">
+                  {% if sched.assistance %}
+                    {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
+                  {% else %}
+                    N/A
+                  {% endif %}
+                </span>
                 <div class="sched-item__meta">
                   <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
                   <span><i class="bi bi-geo"></i> {{ sched.location }}</span>
@@ -167,7 +173,13 @@
             <div class="sched-item">
               <div class="sched-item__badge sched-item__badge--upcoming">Upcoming</div>
               <div class="sched-item__details">
-                <span class="sched-item__aid">{{ sched.aid_type }}</span>
+                <span class="sched-item__aid">
+                  {% if sched.assistance %}
+                    {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
+                  {% else %}
+                    N/A
+                  {% endif %}
+                </span>
                 <div class="sched-item__meta">
                   <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
                   <span><i class="bi bi-geo"></i> {{ sched.location }}</span>
@@ -198,10 +210,18 @@
 
           <div class="sched-form__field">
             <label class="sched-form__label">Aid Type</label>
-            <select name="aid_type" class="form-select form-select-sm" required>
-              <option value="">— Select Aid —</option>
-              <option value="RELIEF">Relief</option>
-              <option value="SENIOR">Senior</option>
+            <select name="assistance" class="form-select" required>
+              <option value="">-- Select Assistance --</option>
+              {% regroup assistances by program as program_list %}
+              {% for group in program_list %}
+                <optgroup label="{{ group.grouper }}">
+                  {% for a in group.list %}
+                    <option value="{{ a.id }}">
+                      {{ a.aid_category.name }} ({{ a.get_beneficiary_type_display }})
+                    </option>
+                  {% endfor %}
+                </optgroup>
+              {% endfor %}
             </select>
           </div>
 

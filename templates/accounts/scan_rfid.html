@@ -31,20 +31,11 @@
             </div>
 
             <div class="mb-3">
-              <label class="form-label">
-                Aid Type (Today's Aid: 
-                {% if aid_schedule %}
-                  {{ aid_schedule.aid_type }}
-                {% else %}
-                  Not set
-                {% endif %})
-              </label>
               <div class="mb-3">
                 <label class="form-label">Aid Type</label>
-
                 <input type="text"
                       class="form-control bg-light"
-                      value="{% if aid_schedule %}{{ aid_schedule.aid_type }}{% else %}No active schedule{% endif %}"
+                      value="{% if aid_schedule and aid_schedule.assistance %}{{ aid_schedule.assistance.program.name }} › {{ aid_schedule.assistance.aid_category.name }}{% else %}No active schedule{% endif %}"
                       readonly>
 
                 <small class="text-muted">
@@ -119,7 +110,13 @@
                       {% endif %}
                     </td>
                     <td>{{ claim.family.household.address }}</td>
-                    <td>{{ claim.aid_type }}</td>
+                    <td>
+                      {% if claim.assistance %}
+                        {{ claim.assistance.program.name }} › {{ claim.assistance.aid_category.name }}
+                      {% else %}
+                        —
+                      {% endif %}
+                    </td>
                     <td>{{ claim.claimed_at|date:"Y-m-d H:i:s" }}</td>
                   </tr>
                 {% endfor %}

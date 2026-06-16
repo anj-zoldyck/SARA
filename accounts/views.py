@@ -10,8 +10,8 @@ from datetime import date
 from django.db.models import Count, Q
 
 from accounts.decorators import session_protected
-from .models import AidSchedule, User, Household, Zone, Family, FamilyMember, Barangay, AidClaim, AidType
-from .forms import BarangayAdminEditForm, HouseholdForm, FamilyForm, FamilyMemberForm, BarangayAdminForm
+from .models import AidSchedule,  User, Household, Zone, Family, FamilyMember, Barangay, AidClaim, Program, AidCategory, Assistance
+from .forms import BarangayAdminEditForm, HouseholdForm, FamilyForm, FamilyMemberForm, BarangayAdminForm, ProgramForm, AidCategoryForm, AssistanceForm
 from django.utils.safestring import mark_safe
 from .services import get_active_aid_schedule, get_active_schedule
 from django.utils.dateparse import parse_datetime
@@ -126,13 +126,10 @@ def mswdo_dashboard(request):
     rfid_claimed = AidClaim.objects.filter(claimed_at__isnull=False).count()
     rfid_unclaimed = AidClaim.objects.filter(claimed_at__isnull=True).count()
 
-    # Add this for template iteration
-    aid_types = [choice[0] for choice in AidType.choices]
-
-    #today = date.today()
-    #aid_of_the_day = AidOfTheDay.objects.filter(date=today).first()
-
-    #schedules = AidSchedule.objects.all().order_by('-schedule_datetime')
+    # NEW: pass active assistance options for the schedule form
+    assistances = Assistance.objects.select_related(
+        'program', 'aid_category'
+    ).filter(is_active=True).order_by('program__name', 'aid_category__name')
 
     now = timezone.localtime(timezone.now())
 
@@ -170,8 +167,7 @@ def mswdo_dashboard(request):
         'family_count': family_count,
         'rfid_claimed': rfid_claimed,
         'rfid_unclaimed': rfid_unclaimed,
-        'aid_types': aid_types,  # <-- added this
-       
+       'assistances': assistances,
         'barangayAcc_count': barangayAcc_count,
         #'schedules': schedules,
 
@@ -474,16 +470,20 @@ def edit_family_member(request, member_id):
 def scan_rfid(request):
     if request.user.role not in ('MSWDO', 'BARANGAY'):
         return HttpResponseForbidden("Access Denied")
+
     error = None
     success = None
     family = None
     family_members = None
-    aid_type = None
 
     now = timezone.now()
 
-    # Get ACTIVE schedule only (started and not ended)
-    aid_schedule = AidSchedule.objects.filter(
+    # Get active schedule with assistance preloaded
+    aid_schedule = AidSchedule.objects.select_related(
+        'assistance',
+        'assistance__program',
+        'assistance__aid_category'
+    ).filter(
         is_active=True,
         schedule_datetime__lte=now,
         end_datetime__gte=now,
@@ -491,19 +491,14 @@ def scan_rfid(request):
 
     if not aid_schedule:
         error = "No active aid schedule right now."
+    elif not aid_schedule.assistance:
+        error = "Active schedule has no assistance type configured. Please contact admin."
 
     # ----------------- Handle RFID SCAN -----------------
-    if request.method == 'POST':
+    if request.method == 'POST' and aid_schedule and aid_schedule.assistance:
         uid = request.POST.get('rfid_uid')
         member_id = request.POST.get('family_member')
-
-        if aid_schedule:
-            aid_type = aid_schedule.aid_type
-        else:
-            error = "Today's aid type has not been set. Please contact admin."
-            return render(request, 'accounts/scan_rfid.html', {
-                'error': error
-            })
+        assistance = aid_schedule.assistance
 
         # Get family by RFID
         try:
@@ -517,87 +512,95 @@ def scan_rfid(request):
                 family = Family.objects.get(rfid_uid=uid, is_active=True)
         except Family.DoesNotExist:
             error = "Invalid RFID UID."
-            return render(request, 'accounts/scan_rfid.html', {'error': error})
+            return render(request, 'accounts/scan_rfid.html', {'error': error, 'aid_schedule': aid_schedule})
 
-        # -------- RELIEF (family-based) --------
-        if aid_type == 'RELIEF':
-            # CHANGE 1: scope duplicate check to current schedule only
-            if AidClaim.objects.filter(
+        # -------- FAMILY-BASED assistance --------
+        if assistance.beneficiary_type == 'family':
+            already_claimed = AidClaim.objects.filter(
                 family=family,
-                aid_type=aid_type,
+                assistance=assistance,
                 schedule=aid_schedule
-            ).exists():
-                error = f"{family.family_name} has already claimed RELIEF for this schedule."
+            ).exists()
+
+            if already_claimed:
+                error = f"{family.family_name} has already claimed {assistance.aid_category.name} for this schedule."
             else:
                 AidClaim.objects.create(
                     family=family,
-                    aid_type=aid_type,
+                    assistance=assistance,
                     schedule=aid_schedule,
                     created_by=request.user,
                 )
-                success = f"{family.family_name} successfully claimed RELIEF."
+                success = f"{family.family_name} successfully claimed {assistance.aid_category.name}."
 
-        # -------- SENIOR (individual-based) --------
-        elif aid_type == 'SENIOR':
-            # CHANGE 2: scope claimed members to current schedule only
+        # -------- INDIVIDUAL-BASED assistance --------
+        elif assistance.beneficiary_type == 'individual':
+            # Get already claimed member IDs for this schedule
             claimed_member_ids = AidClaim.objects.filter(
                 family=family,
-                aid_type=aid_type,
+                assistance=assistance,
                 schedule=aid_schedule,
                 family_member__isnull=False
             ).values_list('family_member_id', flat=True)
 
-            family_members = family.members.filter(
-                age__gte=60
-            ).exclude(id__in=claimed_member_ids)
+            # Build eligible members queryset
+            eligible_members = family.members.exclude(id__in=claimed_member_ids)
+
+            # Apply minimum age filter if configured on this assistance
+            if assistance.minimum_age:
+                eligible_members = eligible_members.filter(age__gte=assistance.minimum_age)
 
             if member_id:
-                member = get_object_or_404(
-                    FamilyMember,
-                    id=member_id,
-                    family=family
-                )
-                # CHANGE 3: scope member duplicate check to current schedule only
-                if AidClaim.objects.filter(
+                # A member was selected — process the claim
+                member = get_object_or_404(FamilyMember, id=member_id, family=family)
+
+                already_claimed = AidClaim.objects.filter(
                     family=family,
                     family_member=member,
-                    aid_type=aid_type,
+                    assistance=assistance,
                     schedule=aid_schedule
-                ).exists():
-                    error = f"{member.first_name} {member.last_name} already claimed {aid_type} for this schedule."
+                ).exists()
+
+                if already_claimed:
+                    error = f"{member.first_name} {member.last_name} already claimed {assistance.aid_category.name} for this schedule."
                 else:
                     AidClaim.objects.create(
                         family=family,
                         family_member=member,
-                        aid_type=aid_type,
-                        claimed_at=timezone.now(),
+                        assistance=assistance,
                         schedule=aid_schedule,
                         created_by=request.user,
                     )
-                    success = f"{member.first_name} {member.last_name} successfully claimed {aid_type}."
-                    family_members = None
+                    success = f"{member.first_name} {member.last_name} successfully claimed {assistance.aid_category.name}."
+                    eligible_members = None
+
             else:
-                if not family_members.exists():
-                    error = f"All eligible members have already claimed {aid_type} for this schedule."
+                # No member selected yet — show member selection step
+                if not eligible_members.exists():
+                    error = f"All eligible members have already claimed {assistance.aid_category.name} for this schedule."
                 else:
                     return render(request, 'accounts/scan_rfid.html', {
                         'family': family,
-                        'family_members': family_members,
-                        'aid_type': aid_type,
-                        'aid_of_the_day': aid_schedule,
-                        'rfid_uid_value': ''
+                        'family_members': eligible_members,
+                        'assistance': assistance,
+                        'aid_schedule': aid_schedule,
+                        'rfid_uid_value': uid,
                     })
+
+            family_members = eligible_members if 'eligible_members' in dir() else None
 
     # ----------------- FILTERS (GET) -----------------
     selected_barangay = request.GET.get('barangay')
 
-    # CHANGE 4: live monitor only shows claims for the current active schedule
     claims = AidClaim.objects.select_related(
         'family',
         'family__household',
         'family__household__zone',
         'family__household__barangay',
-        'family_member'
+        'family_member',
+        'assistance',
+        'assistance__aid_category',
+        'assistance__program',
     )
 
     if aid_schedule:
@@ -609,22 +612,18 @@ def scan_rfid(request):
     recent_claims = claims.order_by('-claimed_at')[:20]
     barangays = Barangay.objects.all()
 
-    rfid_uid_value = ''
-
     return render(request, 'accounts/scan_rfid.html', {
         'error': error,
         'success': success,
         'family': family,
         'family_members': family_members,
-        'aid_type': aid_type,
+        'assistance': aid_schedule.assistance if aid_schedule and aid_schedule.assistance else None,
         'recent_claims': recent_claims,
         'barangays': barangays,
         'selected_barangay': selected_barangay,
         'aid_schedule': aid_schedule,
-        'rfid_uid_value': rfid_uid_value,
+        'rfid_uid_value': '',
     })
-
-
 
 
 #----------------- RFID Registration View -----------------
@@ -715,88 +714,88 @@ def rfid_overview(request):
         'rfid_unclaimed': unclaimed
     })
 
-#----------------- Aid Type/Monitoring Views -----------------
+# ----------------- Program/Assistance Monitoring View -----------------
 @login_required
 @session_protected
 def aid_type_list(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
 
+    programs = Program.objects.prefetch_related(
+        'assistances__aid_category'
+    ).filter(is_active=True)
+
     return render(request, 'accounts/aid_type_list.html', {
-        'aid_types': AidType.choices
+        'programs': programs,
     })
 
+# ----------------- Aid Barangay List View -----------------
 @login_required
 @session_protected
-def aid_barangay_list(request, aid_type):
+def aid_barangay_list(request, assistance_id):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
 
+    assistance = get_object_or_404(
+        Assistance.objects.select_related('program', 'aid_category'),
+        id=assistance_id
+    )
     barangays = Barangay.objects.all()
 
     return render(request, 'accounts/aid_barangay_list.html', {
-        'aid_type': aid_type,
-        'barangays': barangays
+        'assistance': assistance,
+        'barangays': barangays,
     })
 
-#------------------ Aid Barangay Detail View -----------------
+
+# ----------------- Aid Barangay Detail View -----------------
 @login_required
 @session_protected
-def aid_barangay_detail(request, aid_type, barangay_id):
+def aid_barangay_detail(request, assistance_id, barangay_id):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
 
+    assistance = get_object_or_404(
+        Assistance.objects.select_related('program', 'aid_category'),
+        id=assistance_id
+    )
     barangay = get_object_or_404(Barangay, id=barangay_id)
 
     families = Family.objects.filter(
         household__barangay=barangay,
         is_active=True
-    ).select_related(
-        'household',
-        'household__zone'
-    )
+    ).select_related('household', 'household__zone')
 
     claims = AidClaim.objects.filter(
-        aid_type=aid_type,
+        assistance=assistance,
         family__household__barangay=barangay
     ).select_related('family', 'family_member')
 
-    # ---------------- ZONE FILTER ----------------
+    # Zone filter
     selected_zone = request.GET.get('zone')
     if selected_zone:
         families = families.filter(household__zone_id=selected_zone)
 
-    # ---------------- DATE FILTER (RELIEF DAY) ----------------
+    # Date filter
     selected_date = request.GET.get('date')
     if selected_date:
         try:
             claims = claims.filter(claimed_at__date=selected_date)
-        except (ValueError, ValidationError):
+        except (ValueError):
             selected_date = None
 
     zones = Zone.objects.filter(barangay=barangay)
-
-    # Map family_id → AidClaim
     claim_map = {claim.family_id: claim for claim in claims}
 
-    # ---------------- BUILD TABLE DATA ----------------
     families_data = []
     for family in families:
         claim = claim_map.get(family.id)
-
         if claim:
-            if claim.family_member:
-                claimed_by_name = (
-                    f"{claim.family_member.first_name} "
-                    f"{claim.family_member.last_name}"
-                )
-            else:
-                claimed_by_name = "FAMILY (RFID)"
-
-            status = (
-                f"CLAIMED BY: {claimed_by_name} "
-                f"on {claim.claimed_at.strftime('%Y-%m-%d %H:%M:%S')}"
+            claimed_by_name = (
+                f"{claim.family_member.first_name} {claim.family_member.last_name}"
+                if claim.family_member else "FAMILY (RFID)"
             )
+            status = f"CLAIMED BY: {claimed_by_name} on {claim.claimed_at.strftime('%Y-%m-%d %H:%M:%S')}"
         else:
             status = "NOT CLAIMED"
 
@@ -807,28 +806,17 @@ def aid_barangay_detail(request, aid_type, barangay_id):
             'zone': family.household.zone.name if family.household.zone else "N/A"
         })
 
-    # ---------------- COUNTS (FIXED) ----------------
     total_families = len(families_data)
-    claimed_count = sum(
-        1 for f in families_data if f['status'].startswith("CLAIMED")
-    )
+    claimed_count = sum(1 for f in families_data if f['status'].startswith("CLAIMED"))
     unclaimed_count = total_families - claimed_count
-    progress_percent = int(
-        (claimed_count / total_families) * 100
-    ) if total_families else 0
+    progress_percent = int((claimed_count / total_families) * 100) if total_families else 0
 
-    # ---------------- PER-ZONE PROGRESS ----------------
     zone_stats = []
     for zone in zones:
-        zone_families = [
-            f for f in families_data if f['zone'] == zone.name
-        ]
+        zone_families = [f for f in families_data if f['zone'] == zone.name]
         total = len(zone_families)
-        claimed = sum(
-            1 for f in zone_families if f['status'].startswith("CLAIMED")
-        )
+        claimed = sum(1 for f in zone_families if f['status'].startswith("CLAIMED"))
         percent = int((claimed / total) * 100) if total else 0
-
         zone_stats.append({
             'zone': zone.name,
             'claimed': claimed,
@@ -837,7 +825,7 @@ def aid_barangay_detail(request, aid_type, barangay_id):
         })
 
     return render(request, 'accounts/aid_barangay_detail.html', {
-        'aid_type': aid_type,
+        'assistance': assistance,
         'barangay': barangay,
         'families_data': families_data,
         'zones': zones,
@@ -848,17 +836,6 @@ def aid_barangay_detail(request, aid_type, barangay_id):
         'claimed_count': claimed_count,
         'unclaimed_count': unclaimed_count,
         'progress_percent': progress_percent,
-    })
-
-
-#------------------ Aid List Views -----------------
-@login_required
-@session_protected
-def aid_list(request, aid_type):
-    barangays = Barangay.objects.all()
-    return render(request, 'accounts/aid_list.html', {
-        'aid_type': aid_type,
-        'barangays': barangays
     })
 
 #---------------- RFID Claim Monitoring View -----------------
@@ -905,18 +882,23 @@ def rfid_claim_monitoring(request):
 def rfid_live_claims(request):
     now = timezone.now()
 
-    today_aid = AidSchedule.objects.filter(
+    today_aid = AidSchedule.objects.select_related('assistance').filter(
         schedule_datetime__lte=now,
         is_active=True
     ).order_by('-schedule_datetime').first()
 
-    aid_type = today_aid.aid_type if today_aid else None
+    claims = AidClaim.objects.select_related(
+        'family',
+        'family_member',
+        'family__household',
+        'family__household__barangay',
+        'assistance',
+        'assistance__aid_category',
+    )
 
-    claims = AidClaim.objects.filter(
-        aid_type=aid_type
-    ).select_related('family', 'family_member', 'family__household', 'family__household__barangay')
+    if today_aid:
+        claims = claims.filter(schedule=today_aid)
 
-    # Scope to barangay user's own barangay
     if request.user.role == 'BARANGAY':
         claims = claims.filter(
             family__household__barangay=request.user.barangay
@@ -928,9 +910,13 @@ def rfid_live_claims(request):
             'id': c.id,
             'rfid_uid': c.family.rfid_uid,
             'family_name': c.family.family_name,
-            'family_member_name': f"{c.family_member.first_name} {c.family_member.last_name}" if c.family_member else None,
+            'family_member_name': (
+                f"{c.family_member.first_name} {c.family_member.last_name}"
+                if c.family_member else None
+            ),
             'address': c.family.household.address,
-            'aid_type': c.aid_type,
+            # NEW: use assistance label
+            'aid_type': str(c.assistance) if c.assistance else (c.aid_type or 'N/A'),
             'claimed_at': c.claimed_at.strftime('%Y-%m-%d %H:%M:%S'),
             'barangay_id': c.family.household.barangay.id,
         })
@@ -942,24 +928,35 @@ def rfid_live_claims(request):
 @session_protected
 def get_family_members(request):
     uid = request.GET.get('rfid_uid')
-    aid_type = request.GET.get('aid_type')
+    assistance_id = request.GET.get('assistance_id')  # NEW: receive assistance ID
+
     try:
         family = Family.objects.get(rfid_uid=uid, is_active=True)
     except Family.DoesNotExist:
         return JsonResponse({'members': []})
 
+    try:
+        assistance = Assistance.objects.get(id=assistance_id)
+    except Assistance.DoesNotExist:
+        return JsonResponse({'members': []})
+
+    # Exclude already claimed members for this assistance
     claimed_member_ids = AidClaim.objects.filter(
         family=family,
-        aid_type=aid_type,
+        assistance=assistance,
         family_member__isnull=False
     ).values_list('family_member_id', flat=True)
 
-    if aid_type == 'SENIOR':
-        members = family.members.filter(age__gte=60).exclude(id__in=claimed_member_ids)
-    else:
-        members = family.members.exclude(id__in=claimed_member_ids)
+    members = family.members.exclude(id__in=claimed_member_ids)
 
-    members_data = [{'id': m.id, 'name': f'{m.first_name} {m.last_name}'} for m in members]
+    # Apply minimum age if set on this assistance
+    if assistance.minimum_age:
+        members = members.filter(age__gte=assistance.minimum_age)
+
+    members_data = [
+        {'id': m.id, 'name': f'{m.first_name} {m.last_name}'}
+        for m in members
+    ]
     return JsonResponse({'members': members_data})
 
 #----------------- Set Aid Schedule View -----------------
@@ -970,12 +967,17 @@ def set_aid_schedule(request):
         return HttpResponseForbidden("Access Denied")
 
     if request.method == 'POST':
-        aid_type = request.POST.get('aid_type')
+        # NEW: receive assistance ID instead of aid_type string
+        assistance_id = request.POST.get('assistance')
+        assistance = Assistance.objects.filter(id=assistance_id).first()
+
+        if not assistance:
+            messages.error(request, "Please select a valid assistance type.")
+            return redirect('mswdo_dashboard')
 
         start = parse_datetime(request.POST.get('schedule_datetime'))
         end = parse_datetime(request.POST.get('end_datetime'))
 
-        # Guard against parse_datetime returning None
         if not start or not end:
             messages.error(request, "Invalid date/time format. Please try again.")
             return redirect('mswdo_dashboard')
@@ -986,7 +988,6 @@ def set_aid_schedule(request):
         if timezone.is_naive(end):
             end = timezone.make_aware(end)
 
-        # Guard against end date being before start date
         if end <= start:
             messages.error(request, "End date & time must be after the start date & time.")
             return redirect('mswdo_dashboard')
@@ -995,18 +996,20 @@ def set_aid_schedule(request):
         barangay_id = request.POST.get('barangay')
         barangay = Barangay.objects.filter(id=barangay_id).first() if barangay_id else None
 
-        # Auto-expire past schedules when a new one is created
-        AidSchedule.objects.filter(end_datetime__lt=timezone.now()).update(is_active=False)
+        # Auto-expire past schedules
+        AidSchedule.objects.filter(
+            end_datetime__lt=timezone.now()
+        ).update(is_active=False)
 
         AidSchedule.objects.create(
-            aid_type=aid_type,
+            assistance=assistance,       # NEW
             schedule_datetime=start,
             end_datetime=end,
             location=location,
             barangay=barangay
         )
 
-        messages.success(request, "Distribution scheduled successfully.")
+        messages.success(request, f"Distribution scheduled successfully: {assistance}")
 
     return redirect('mswdo_dashboard')
 #------------------ For MSWDO Household List and RFID -----------------
@@ -1120,8 +1123,19 @@ def analytics(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
 
-    aid_data = AidClaim.objects.values('aid_type').annotate(count=Count('id'))
-    labels = [item['aid_type'] for item in aid_data]
+    # Group by assistance → aid_category name
+    aid_data = (
+        AidClaim.objects
+        .filter(assistance__isnull=False)
+        .values('assistance__aid_category__name', 'assistance__program__name')
+        .annotate(count=Count('id'))
+        .order_by('-count')
+    )
+
+    labels = [
+        f"{item['assistance__program__name']} › {item['assistance__aid_category__name']}"
+        for item in aid_data
+    ]
     data = [item['count'] for item in aid_data]
 
     return render(request, 'accounts/analytics.html', {
@@ -1138,12 +1152,22 @@ def barangay_analytics(request):
 
     barangay = request.user.barangay
 
-    aid_data = AidClaim.objects.filter(
-        family__household__barangay=barangay
-    ).values('aid_type').annotate(count=Count('id'))
+    aid_data = (
+        AidClaim.objects
+        .filter(
+            family__household__barangay=barangay,
+            assistance__isnull=False
+        )
+        .values('assistance__aid_category__name', 'assistance__program__name')
+        .annotate(count=Count('id'))
+        .order_by('-count')
+    )
 
-    labels = [item['aid_type'] for item in aid_data]
-    data   = [item['count'] for item in aid_data]
+    labels = [
+        f"{item['assistance__program__name']} › {item['assistance__aid_category__name']}"
+        for item in aid_data
+    ]
+    data = [item['count'] for item in aid_data]
 
     total_families = Family.objects.filter(
         household__barangay=barangay,
@@ -1179,14 +1203,14 @@ def aid_reports(request):
     # Attach claims per schedule
     for sched in schedules:
         sched.claims = AidClaim.objects.filter(
-            aid_type=sched.aid_type,
-            claimed_at__gte=sched.schedule_datetime,
-            claimed_at__lte=sched.end_datetime
+            schedule=sched          #filter by schedule directly
         ).select_related(
             'family',
             'family_member',
             'family__household',
-            'family__household__barangay'
+            'family__household__barangay',
+            'assistance',
+            'assistance__aid_category',
         )
 
     barangays = Barangay.objects.all()
@@ -1252,7 +1276,8 @@ def schedule_status(request):
     def serialize(qs):
         return [{
             'id': s.id,
-            'aid_type': s.aid_type,
+            # NEW: use assistance label instead of aid_type string
+            'aid_type': str(s.assistance) if s.assistance else (s.aid_type or 'N/A'),
             'schedule_datetime': fmt(s.schedule_datetime),
             'end_datetime': fmt(s.end_datetime),
             'location': s.location,
@@ -1264,3 +1289,187 @@ def schedule_status(request):
         'upcoming': serialize(upcoming),
         'expired': serialize(expired),
     })
+# ----------------- Program Management Views -----------------
+#----------------- Program List View -----------------
+@login_required
+@session_protected
+def program_list(request):
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+
+    programs = Program.objects.prefetch_related(
+        'aid_categories',
+        'assistances__aid_category'
+    ).all().order_by('name')
+
+    return render(request, 'accounts/program_list.html', {
+        'programs': programs,
+    })
+
+#----------------- Add Program View -----------------
+@login_required
+@session_protected
+def add_program(request):
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+
+    if request.method == 'POST':
+        form = ProgramForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Program added successfully.")
+            return redirect('program_list')
+    else:
+        form = ProgramForm()
+
+    return render(request, 'accounts/add_program.html', {'form': form})
+
+#----------------- Toggle Program Active/Inactive -----------------
+@login_required
+@session_protected
+def edit_program(request, program_id):
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+
+    program = get_object_or_404(Program, id=program_id)
+
+    if request.method == 'POST':
+        form = ProgramForm(request.POST, instance=program)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Program '{program.name}' updated successfully.")
+            return redirect('program_list')
+    else:
+        form = ProgramForm(instance=program)
+
+    return render(request, 'accounts/edit_program.html', {
+        'form': form,
+        'program': program,
+    })
+
+#----------------- Toggle Program Active/Inactive -----------------
+@login_required
+@session_protected
+def toggle_program(request, program_id):
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+
+    program = get_object_or_404(Program, id=program_id)
+    program.is_active = not program.is_active
+    program.save()
+
+    status = "activated" if program.is_active else "deactivated"
+    messages.success(request, f"Program '{program.name}' {status}.")
+    return redirect('program_list')
+
+#----------------- Add Aid Category to Program View -----------------
+@login_required
+@session_protected
+def add_aid_category(request, program_id):
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+
+    program = get_object_or_404(Program, id=program_id)
+
+    if request.method == 'POST':
+        form = AidCategoryForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Aid category added successfully.")
+            return redirect('program_list')
+    else:
+        form = AidCategoryForm(initial={'program': program})
+
+    return render(request, 'accounts/add_aid_category.html', {
+        'form': form,
+        'program': program,
+    })
+
+#----------------- Add Assistance View -----------------
+@login_required
+@session_protected
+def add_assistance(request):
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+
+    if request.method == 'POST':
+        form = AssistanceForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Assistance entry added successfully.")
+            return redirect('program_list')
+    else:
+        form = AssistanceForm()
+
+    return render(request, 'accounts/add_assistance.html', {'form': form})
+
+#----------------- Toggle Assistance Active/Inactive -----------------
+@login_required
+@session_protected
+def toggle_assistance(request, assistance_id):
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+
+    assistance = get_object_or_404(Assistance, id=assistance_id)
+    assistance.is_active = not assistance.is_active
+    assistance.save()
+
+    status = "activated" if assistance.is_active else "deactivated"
+    messages.success(request, f"Assistance '{assistance}' {status}.")
+    return redirect('program_list')
+
+
+# ----------------- AJAX: Get Aid Categories by Program -----------------
+@login_required
+@session_protected
+def get_aid_categories(request):
+    program_id = request.GET.get('program_id')
+    categories = AidCategory.objects.filter(
+        program_id=program_id,
+        is_active=True
+    ).values('id', 'name')
+    return JsonResponse({'categories': list(categories)})
+
+#----------------- Edit Assistance View -----------------
+@login_required
+@session_protected
+def edit_assistance(request, assistance_id):
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+
+    assistance = get_object_or_404(
+        Assistance.objects.select_related('program', 'aid_category'),
+        id=assistance_id
+    )
+
+    if request.method == 'POST':
+        program_id     = request.POST.get('program')
+        aid_category_id = request.POST.get('aid_category')
+        beneficiary_type = request.POST.get('beneficiary_type')
+        minimum_age    = request.POST.get('minimum_age') or None
+        is_active      = request.POST.get('is_active') == 'on'
+
+        # Validate
+        if not all([program_id, aid_category_id, beneficiary_type]):
+            messages.error(request, "Please fill in all required fields.")
+            return redirect('program_list')
+
+        try:
+            aid_category = AidCategory.objects.get(
+                id=aid_category_id,
+                program_id=program_id
+            )
+        except AidCategory.DoesNotExist:
+            messages.error(request, "Invalid category for the selected program.")
+            return redirect('program_list')
+
+        assistance.aid_category      = aid_category
+        assistance.program_id        = program_id
+        assistance.beneficiary_type  = beneficiary_type
+        assistance.minimum_age       = minimum_age
+        assistance.is_active         = is_active
+        assistance.save()
+
+        messages.success(request, f"Assistance '{assistance}' updated successfully.")
+
+    return redirect('program_list')

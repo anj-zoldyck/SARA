@@ -1,96 +1,436 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Register RFID{% endblock %}
+{% block title %}RFID Registration — SARA{% endblock %}
+{% block navbar_title %}RFID Registration{% endblock %}
 
-{% block navbar_title %}
-RFID REGISTRATION (MSWDO)
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+<link rel="stylesheet" href="{% static 'css/register_rfid.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <div class="row justify-content-center">
-    <div class="col-md-7">
 
-      <div class="card shadow">
-        <div class="card-body">
+<!-- ── Page Header ─────────────────────────────────────────── -->
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">RFID Registration</span>
+    </div>
+    <h1 class="dash-page-title">RFID Registration</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-credit-card-2-front me-1"></i>
+      Overview of registered and unregistered RFID cards across all barangays
+    </p>
+  </div>
+  <div class="dash-header-actions">
+    <a href="{% url 'mswdo_dashboard' %}" class="btn-dash-outline">
+      <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+  </div>
+</div>
 
-          <h4 class="text-center mb-4">
-            {% if selected_family %}
-              {% if selected_family.rfid_uid %}Update{% else %}Register{% endif %} RFID for {{ selected_family.family_name }}
-            {% else %}
-              Register RFID to Family
-            {% endif %}
-          </h4>
-
-          {% if success %}
-            <div class="alert alert-success text-center">
-              {{ success }}
-            </div>
-          {% endif %}
-
-          {% if error %}
-            <div class="alert alert-danger text-center">
-              {{ error }}
-            </div>
-          {% endif %}
-
-          <form method="post">
-            {% csrf_token %}
-
-            {% if not selected_family %}
-              <!-- FAMILY SELECT -->
-              <div class="mb-3">
-                <label class="form-label">Select Family</label>
-                <select name="family" class="form-select" required>
-                  <option value="">-- Select Family --</option>
-                  {% for family in families %}
-                    <option value="{{ family.id }}">
-                      {{ family.family_name }} —
-                      {{ family.household.house_number }},
-                      {{ family.household.zone.name }},
-                      {{ family.household.barangay.name }}
-                      {% if family.rfid_uid %}
-                        (RFID: {{ family.rfid_uid }})
-                      {% endif %}
-                    </option>
-                  {% endfor %}
-                </select>
-              </div>
-            {% else %}
-              <!-- Hidden input to submit the selected family -->
-              <input type="hidden" name="family" value="{{ selected_family.id }}">
-            {% endif %}
-
-            <!-- RFID UID -->
-            <div class="mb-3">
-              <label class="form-label">RFID UID</label>
-              <input
-                type="text"
-                name="rfid_uid"
-                class="form-control"
-                placeholder="Tap RFID card here"
-                autofocus
-                value="{% if selected_family %}{{ selected_family.rfid_uid }}{% endif %}"
-                required
-              >
-              <small class="text-muted">
-                Tap the RFID card — UID will appear automatically.
-              </small>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100">
-              {% if selected_family %}
-                {% if selected_family.rfid_uid %}Update RFID{% else %}Register RFID{% endif %}
-              {% else %}
-                Register RFID
-              {% endif %}
-            </button>
-          </form>
-
-        </div>
+<!-- ── Filters ─────────────────────────────────────────────── -->
+<div class="dash-panel rfid-filter-panel">
+  <div class="dash-panel__body">
+    <div class="rfid-filter-row">
+      <div class="rfid-filter-group">
+        <label class="rfid-filter-label" for="filter-barangay">
+          <i class="bi bi-geo-alt"></i> Barangay
+        </label>
+        <select class="rfid-filter-select" id="filter-barangay">
+          <option value="">All Barangays</option>
+          {% for barangay in barangays %}
+            <option value="{{ barangay.id }}" {% if selected_barangay and selected_barangay.id == barangay.id %}selected{% endif %}>
+              {{ barangay.name }}
+            </option>
+          {% endfor %}
+        </select>
       </div>
 
+      <div class="rfid-filter-group">
+        <label class="rfid-filter-label" for="filter-zone">
+          <i class="bi bi-map"></i> Zone
+        </label>
+        <select class="rfid-filter-select" id="filter-zone">
+          <option value="">All Zones</option>
+          {% for zone in all_zones %}
+            <option value="{{ zone.id }}"
+                    data-barangay="{{ zone.barangay_id }}"
+                    {% if selected_zone and selected_zone.id == zone.id %}selected{% endif %}>
+              {{ zone.name }}{% if not selected_barangay %} — {{ zone.barangay.name }}{% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="rfid-filter-actions">
+        <button class="btn-dash-primary" id="btn-apply-filter">
+          <i class="bi bi-funnel"></i> Apply Filter
+        </button>
+        <a href="{% url 'register_rfid' %}" class="btn-dash-outline">
+          <i class="bi bi-x-circle"></i> Clear
+        </a>
+      </div>
     </div>
   </div>
 </div>
+
+<!-- ── Summary Stats Strip ─────────────────────────────────── -->
+<div class="brgy-info-strip rfid-stats-strip">
+  <div class="brgy-info-item">
+    <div class="brgy-info-icon"><i class="bi bi-people"></i></div>
+    <div>
+      <span class="brgy-info-val" id="stat-total">{{ stats.total }}</span>
+      <span class="brgy-info-label">Total Families</span>
+    </div>
+  </div>
+  <div class="brgy-info-divider"></div>
+  <div class="brgy-info-item">
+    <div class="brgy-info-icon brgy-info-icon--teal"><i class="bi bi-credit-card-2-front"></i></div>
+    <div>
+      <span class="brgy-info-val" id="stat-registered">{{ stats.registered }}</span>
+      <span class="brgy-info-label">Registered</span>
+    </div>
+  </div>
+  <div class="brgy-info-divider"></div>
+  <div class="brgy-info-item">
+    <div class="brgy-info-icon brgy-info-icon--warn"><i class="bi bi-x-circle"></i></div>
+    <div>
+      <span class="brgy-info-val" id="stat-unregistered">{{ stats.unregistered }}</span>
+      <span class="brgy-info-label">Unregistered</span>
+    </div>
+  </div>
+  <div class="brgy-info-divider"></div>
+  <div class="brgy-info-item">
+    <div class="brgy-info-icon brgy-info-icon--navy"><i class="bi bi-percent"></i></div>
+    <div>
+      <span class="brgy-info-val" id="stat-rate">{{ stats.rate }}%</span>
+      <span class="brgy-info-label">Coverage Rate</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Charts Row ──────────────────────────────────────────── -->
+<div class="rfid-charts-row">
+
+  <!-- Donut: Overall -->
+  <div class="dash-panel rfid-chart-panel">
+    <div class="dash-panel__header">
+      <div class="dash-panel__header-left">
+        <i class="bi bi-pie-chart dash-panel__icon"></i>
+        <div>
+          <h2 class="dash-panel__title">Overall RFID Coverage</h2>
+          <p class="dash-panel__sub">Registered vs unregistered families</p>
+        </div>
+      </div>
+    </div>
+    <div class="dash-panel__body rfid-chart-body">
+      <canvas id="donutChart"></canvas>
+      <div class="rfid-donut-legend">
+        <div class="rfid-legend-item">
+          <span class="rfid-legend-dot rfid-legend-dot--registered"></span>
+          <span>Registered</span>
+          <strong>{{ stats.registered }}</strong>
+        </div>
+        <div class="rfid-legend-item">
+          <span class="rfid-legend-dot rfid-legend-dot--unregistered"></span>
+          <span>Unregistered</span>
+          <strong>{{ stats.unregistered }}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bar: Per Barangay -->
+  <div class="dash-panel rfid-chart-panel rfid-chart-panel--wide">
+    <div class="dash-panel__header">
+      <div class="dash-panel__header-left">
+        <i class="bi bi-bar-chart dash-panel__icon"></i>
+        <div>
+          <h2 class="dash-panel__title">RFID Status per Barangay</h2>
+          <p class="dash-panel__sub">Registered vs unregistered breakdown</p>
+        </div>
+      </div>
+    </div>
+    <div class="dash-panel__body rfid-chart-body">
+      <canvas id="barChart"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Barangay Summary Table ──────────────────────────────── -->
+<div class="dash-panel">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-table dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Barangay RFID Summary</h2>
+        <p class="dash-panel__sub">RFID registration status per barangay</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-panel__body p-0">
+    <div class="table-responsive">
+      <table class="acct-table">
+        <thead>
+          <tr>
+            <th class="acct-th">#</th>
+            <th class="acct-th">Barangay</th>
+            <th class="acct-th">Zone Filter</th>
+            <th class="acct-th">Total Families</th>
+            <th class="acct-th">Registered</th>
+            <th class="acct-th">Unregistered</th>
+            <th class="acct-th">Coverage</th>
+            <th class="acct-th acct-th--actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in barangay_summary %}
+          <tr class="acct-row">
+            <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
+            <td class="acct-td">
+              <div class="acct-barangay-cell">
+                <div class="acct-avatar">{{ row.barangay.name|first|upper }}</div>
+                <span>{{ row.barangay.name }}</span>
+              </div>
+            </td>
+            <td class="acct-td">
+              {% if row.zone_filter %}
+                <span class="hh-rfid-tag hh-rfid-tag--registered">
+                  <i class="bi bi-map"></i> {{ row.zone_filter }}
+                </span>
+              {% else %}
+                <span class="rfid-zone-all">All Zones</span>
+              {% endif %}
+            </td>
+            <td class="acct-td">{{ row.total }}</td>
+            <td class="acct-td">
+              <span class="rfid-count rfid-count--reg">{{ row.registered }}</span>
+            </td>
+            <td class="acct-td">
+              <span class="rfid-count rfid-count--unreg">{{ row.unregistered }}</span>
+            </td>
+            <td class="acct-td">
+              <div class="rfid-progress-wrap">
+                <div class="rfid-progress-bar">
+                  <div class="rfid-progress-fill" style="width: {{ row.rate }}%"></div>
+                </div>
+                <span class="rfid-progress-label">{{ row.rate }}%</span>
+              </div>
+            </td>
+            <td class="acct-td acct-td--actions">
+              <div class="acct-actions">
+                <a href="{% url 'barangay_zones' row.barangay.id %}?context=rfid"
+                   class="acct-btn acct-btn--edit">
+                  <i class="bi bi-arrow-right-circle"></i><span>Register</span>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="acct-empty">
+              <div class="acct-empty-state">
+                <i class="bi bi-geo-alt"></i>
+                <p>No barangays match the current filter.</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Barangay Cards Grid ─────────────────────────────────── -->
+<div class="dash-panel__header mt-4 mb-3 px-1">
+  <div class="dash-panel__header-left">
+    <i class="bi bi-buildings dash-panel__icon"></i>
+    <div>
+      <h2 class="dash-panel__title">Browse & Register by Barangay</h2>
+      <p class="dash-panel__sub">Navigate to a barangay to register RFID cards household by household</p>
+    </div>
+  </div>
+</div>
+
+{% if filtered_barangays %}
+<div class="brgy-grid" id="brgy-cards-grid">
+  {% for barangay in filtered_barangays %}
+  <a href="{% url 'barangay_zones' barangay.id %}?context=rfid" class="brgy-card rfid-brgy-card">
+    <div class="brgy-card__icon-wrap">
+      <i class="bi bi-buildings"></i>
+    </div>
+    <div class="brgy-card__body">
+      <h3 class="brgy-card__name">{{ barangay.name }}</h3>
+      <p class="brgy-card__sub">
+        {{ barangay.rfid_registered }} / {{ barangay.rfid_total }} registered
+      </p>
+      <!-- Mini progress bar inside card -->
+      <div class="rfid-card-progress">
+        <div class="rfid-card-progress__fill"
+             style="width: {% if barangay.rfid_total > 0 %}{% widthratio barangay.rfid_registered barangay.rfid_total 100 %}{% else %}0{% endif %}%">
+        </div>
+      </div>
+    </div>
+    <div class="brgy-card__footer">
+      <span class="brgy-card__cta">
+        Register RFID <i class="bi bi-arrow-right"></i>
+      </span>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="dash-panel">
+  <div class="dash-panel__body">
+    <div class="brgy-empty">
+      <i class="bi bi-geo-alt-fill"></i>
+      <h3>No Barangays Found</h3>
+      <p>No barangays match the current filter. Try clearing the filter.</p>
+      <a href="{% url 'register_rfid' %}" class="btn-dash-outline">
+        <i class="bi bi-x-circle"></i> Clear Filter
+      </a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+
+{% block js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+  // ── Chart Data from Django context ──────────────────────────
+  const chartData = {
+    registered: {{ stats.registered }},
+    unregistered: {{ stats.unregistered }},
+    barLabels: {{ bar_labels|safe }},
+    barRegistered: {{ bar_registered|safe }},
+    barUnregistered: {{ bar_unregistered|safe }},
+  };
+
+  // ── Color tokens ────────────────────────────────────────────
+  const COLOR_REG    = '#2db89e';  // teal — registered
+  const COLOR_UNREG  = '#e74c6f';  // rose — unregistered
+  const COLOR_REG_A  = 'rgba(45,184,158,0.15)';
+  const COLOR_UNREG_A= 'rgba(231,76,111,0.15)';
+
+  // ── Donut Chart ─────────────────────────────────────────────
+  const donutCtx = document.getElementById('donutChart').getContext('2d');
+  new Chart(donutCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Registered', 'Unregistered'],
+      datasets: [{
+        data: [chartData.registered, chartData.unregistered],
+        backgroundColor: [COLOR_REG, COLOR_UNREG],
+        borderColor: ['#fff', '#fff'],
+        borderWidth: 3,
+        hoverOffset: 8,
+      }]
+    },
+    options: {
+      cutout: '70%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.label}: ${ctx.parsed} families`
+          }
+        }
+      }
+    }
+  });
+
+  // ── Bar Chart ───────────────────────────────────────────────
+  const barCtx = document.getElementById('barChart').getContext('2d');
+  new Chart(barCtx, {
+    type: 'bar',
+    data: {
+      labels: chartData.barLabels,
+      datasets: [
+        {
+          label: 'Registered',
+          data: chartData.barRegistered,
+          backgroundColor: COLOR_REG,
+          borderRadius: 5,
+          borderSkipped: false,
+        },
+        {
+          label: 'Unregistered',
+          data: chartData.barUnregistered,
+          backgroundColor: COLOR_UNREG,
+          borderRadius: 5,
+          borderSkipped: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { usePointStyle: true, pointStyle: 'circle', padding: 16 }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} families`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 12 } }
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(0,0,0,0.05)' },
+          ticks: { precision: 0 }
+        }
+      }
+    }
+  });
+
+  // ── Filter: cascade zones by barangay ───────────────────────
+  const brgySelect  = document.getElementById('filter-barangay');
+  const zoneSelect  = document.getElementById('filter-zone');
+  const allZoneOpts = Array.from(zoneSelect.options).slice(1); // skip "All Zones"
+
+  function cascadeZones() {
+    const brgyId = brgySelect.value;
+    // Remove all zone options except the first (All Zones)
+    while (zoneSelect.options.length > 1) zoneSelect.remove(1);
+    allZoneOpts.forEach(opt => {
+      if (!brgyId || opt.dataset.barangay === brgyId) {
+        zoneSelect.add(opt.cloneNode(true));
+      }
+    });
+  }
+
+  brgySelect.addEventListener('change', cascadeZones);
+
+  // ── Apply filter → submit as GET params ─────────────────────
+  document.getElementById('btn-apply-filter').addEventListener('click', () => {
+    const params = new URLSearchParams();
+    if (brgySelect.value) params.set('barangay', brgySelect.value);
+    if (zoneSelect.value)  params.set('zone', zoneSelect.value);
+    window.location.href = '{% url "register_rfid" %}?' + params.toString();
+  });
+</script>
 {% endblock %}
