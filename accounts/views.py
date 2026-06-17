@@ -634,47 +634,141 @@ def register_rfid(request, family_id=None):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
 
-    barangays = Barangay.objects.all()
-    households = Household.objects.select_related('barangay', 'zone').all()
-    families = Family.objects.select_related('household').all()
-
-    error = None
-    success = None
-
-    # If family_id is provided, get that specific family
-    selected_family = None
+    # ── If a specific family was linked to, go straight to the
+    #    registration form (your existing behaviour) ────────────
     if family_id:
         selected_family = get_object_or_404(Family, id=family_id)
+        error = success = None
 
-    if request.method == 'POST':
-        # If family_id is passed in POST (from form) or via URL
-        fid = request.POST.get('family') or family_id
-        rfid_uid = request.POST.get('rfid_uid')
-
-        if not fid or not rfid_uid:
-            error = "Please select a family and scan an RFID card."
-        else:
-            family = get_object_or_404(Family, id=fid)
-
-            # Check if RFID already exists
-            existing = Family.objects.filter(
-                rfid_uid=rfid_uid
-            ).exclude(id=family.id).first()
-
-            if existing:
-                error = f"RFID already assigned to {existing.family_name}."
+        if request.method == 'POST':
+            rfid_uid = request.POST.get('rfid_uid')
+            if not rfid_uid:
+                error = "Please scan an RFID card."
             else:
-                family.rfid_uid = rfid_uid
-                family.save()
-                success = f"RFID successfully registered to {family.family_name}."
+                existing = Family.objects.filter(rfid_uid=rfid_uid).exclude(id=selected_family.id).first()
+                if existing:
+                    error = f"RFID already assigned to {existing.family_name}."
+                else:
+                    selected_family.rfid_uid = rfid_uid
+                    selected_family.save()
+                    success = f"RFID successfully registered to {selected_family.family_name}."
+
+        return render(request, 'accounts/register_rfid_form.html', {
+            'selected_family': selected_family,
+            'error': error,
+            'success': success,
+            'requires_auth': True,
+        })
+
+    # ── Overview page (no family_id) ───────────────────────────
+    # Read filter params
+    selected_barangay_id = request.GET.get('barangay')
+    selected_zone_id     = request.GET.get('zone')
+
+    all_barangays = Barangay.objects.all().order_by('name')
+    all_zones     = Zone.objects.select_related('barangay').all().order_by('barangay__name', 'name')
+
+    selected_barangay = None
+    selected_zone     = None
+
+    if selected_barangay_id:
+        selected_barangay = get_object_or_404(Barangay, id=selected_barangay_id)
+    if selected_zone_id:
+        selected_zone = get_object_or_404(Zone, id=selected_zone_id)
+
+    # ── Build a queryset of families matching the filter ───────
+    families_qs = Family.objects.select_related(
+        'household__zone__barangay'
+    )
+
+    if selected_barangay:
+        families_qs = families_qs.filter(
+            household__zone__barangay=selected_barangay
+        )
+    if selected_zone:
+        families_qs = families_qs.filter(
+            household__zone=selected_zone
+        )
+
+    total        = families_qs.count()
+    registered   = families_qs.filter(rfid_uid__isnull=False).exclude(rfid_uid='').count()
+    unregistered = total - registered
+    rate         = round((registered / total * 100), 1) if total else 0
+
+    stats = {
+        'total':        total,
+        'registered':   registered,
+        'unregistered': unregistered,
+        'rate':         rate,
+    }
+
+    # ── Per-barangay summary (for table + bar chart) ───────────
+    #    Always group by barangay within the current filter.
+    barangay_summary = []
+    bar_labels       = []
+    bar_registered   = []
+    bar_unregistered = []
+
+    # Which barangays to show in the summary?
+    if selected_barangay:
+        summary_barangays = [selected_barangay]
+    else:
+        # If only a zone is selected, show only barangays that
+        # have that zone — which may span multiple barangays.
+        if selected_zone:
+            summary_barangays = Barangay.objects.filter(
+                zones=selected_zone
+            ).distinct().order_by('name')
+        else:
+            summary_barangays = all_barangays
+
+    for brgy in summary_barangays:
+        brgy_qs = families_qs.filter(household__zone__barangay=brgy)
+        b_total  = brgy_qs.count()
+        b_reg    = brgy_qs.filter(rfid_uid__isnull=False).exclude(rfid_uid='').count()
+        b_unreg  = b_total - b_reg
+        b_rate   = round((b_reg / b_total * 100), 1) if b_total else 0
+
+        barangay_summary.append({
+            'barangay':    brgy,
+            'zone_filter': selected_zone.name if selected_zone else None,
+            'total':       b_total,
+            'registered':  b_reg,
+            'unregistered': b_unreg,
+            'rate':        b_rate,
+        })
+
+        bar_labels.append(brgy.name)
+        bar_registered.append(b_reg)
+        bar_unregistered.append(b_unreg)
+
+    # ── Barangay cards: annotate with rfid counts ──────────────
+    # We re-use summary_barangays but attach the counts directly
+    # to the object so the template can use barangay.rfid_registered.
+    filtered_barangays = []
+    for row in barangay_summary:
+        brgy = row['barangay']
+        brgy.rfid_total      = row['total']
+        brgy.rfid_registered = row['registered']
+        filtered_barangays.append(brgy)
+
+    import json
 
     context = {
-        'barangays': barangays,
-        'households': households,
-        'families': families,
-        'selected_family': selected_family,  # used in template to show family name if editing
-        'error': error,
-        'success': success,
+        'barangays':         all_barangays,       # for the filter dropdown
+        'all_zones':         all_zones,            # for the zone dropdown
+        'selected_barangay': selected_barangay,
+        'selected_zone':     selected_zone,
+
+        'stats':             stats,
+        'barangay_summary':  barangay_summary,
+        'filtered_barangays': filtered_barangays,
+
+        # JSON-safe lists for Chart.js
+        'bar_labels':        json.dumps(bar_labels),
+        'bar_registered':    json.dumps(bar_registered),
+        'bar_unregistered':  json.dumps(bar_unregistered),
+
         'requires_auth': True,
     }
 

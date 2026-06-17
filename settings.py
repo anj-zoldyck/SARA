@@ -124,3 +124,9 @@ STATIC_URL = '/static/'
 
 AUTH_USER_MODEL = 'accounts.User'
 
+# TO DO before deployment: review and tighten session settings
+# SESSION_COOKIE_AGE = 1800
+# SESSION_COOKIE_SECURE = True
+# SESSION_COOKIE_HTTPONLY = True
+# SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
