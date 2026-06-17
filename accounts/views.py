@@ -264,22 +264,85 @@ def barangay_dashboard(request):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
 
-    barangay_name = request.user.barangay
-    zones = Zone.objects.filter(barangay=barangay_name)  # <-- Here
+    barangay_obj = request.user.barangay  # ForeignKey object or name — adjust below
+    zones = Zone.objects.filter(barangay=barangay_obj)
 
-    now = timezone.now()
-    schedules = AidSchedule.objects.filter(
-        is_active=True,
-        schedule_datetime__gte=now
+    now = timezone.localtime(timezone.now())
+
+    # Auto-deactivate expired schedules
+    AidSchedule.objects.filter(end_datetime__lt=now, is_active=True).update(is_active=False)
+
+    # Active: started but not yet ended
+    active_schedules = AidSchedule.objects.filter(
+        schedule_datetime__lte=now,
+        end_datetime__gte=now,
+        is_active=True
     ).filter(
-        Q(barangay=request.user.barangay) |
-        Q(barangay__isnull=True)
+        Q(barangay=barangay_obj) | Q(barangay__isnull=True)
+    )
+
+    # Upcoming: not yet started
+    upcoming_schedules = AidSchedule.objects.filter(
+        schedule_datetime__gt=now,
+        is_active=True
+    ).filter(
+        Q(barangay=barangay_obj) | Q(barangay__isnull=True)
     )
 
     return render(request, 'barangay/dashboard.html', {
-        'barangay': barangay_name,
+        'barangay': barangay_obj,
         'zones': zones,
-        'schedules': schedules
+        'active_schedules': active_schedules,
+        'upcoming_schedules': upcoming_schedules,
+    })
+
+#----------------- Barangay Schedule Status View -----------------
+@login_required(login_url='login')
+@session_protected
+def barangay_schedule_status(request):
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+
+    barangay_obj = request.user.barangay
+    now = timezone.localtime(timezone.now())
+
+    # Auto-deactivate expired schedules
+    AidSchedule.objects.filter(
+        end_datetime__lt=now, is_active=True
+    ).update(is_active=False)
+
+    active_schedules = AidSchedule.objects.filter(
+        schedule_datetime__lte=now,
+        end_datetime__gte=now,
+        is_active=True
+    ).filter(
+        Q(barangay=barangay_obj) | Q(barangay__isnull=True)
+    ).select_related('assistance', 'assistance__program', 'assistance__aid_category', 'barangay')
+
+    upcoming_schedules = AidSchedule.objects.filter(
+        schedule_datetime__gt=now,
+        is_active=True
+    ).filter(
+        Q(barangay=barangay_obj) | Q(barangay__isnull=True)
+    ).select_related('assistance', 'assistance__program', 'assistance__aid_category', 'barangay')
+
+    def fmt(dt):
+        return timezone.localtime(dt).strftime('%B %d, %Y, %I:%M %p') if dt else None
+
+    def serialize(qs):
+        return [{
+            'id': s.id,
+            'aid_label': str(s.assistance) if s.assistance else 'N/A',
+            'beneficiary_type': s.assistance.beneficiary_type if s.assistance else None,
+            'schedule_datetime': fmt(s.schedule_datetime),
+            'end_datetime': fmt(s.end_datetime),
+            'location': s.location,
+            'barangay': str(s.barangay) if s.barangay else 'All Barangays',
+        } for s in qs]
+
+    return JsonResponse({
+        'active': serialize(active_schedules),
+        'upcoming': serialize(upcoming_schedules),
     })
 
 
@@ -1289,7 +1352,9 @@ def aid_reports(request):
 
     selected_barangay = request.GET.get('barangay')
 
-    schedules = AidSchedule.objects.all().order_by('-schedule_datetime')
+    schedules = AidSchedule.objects.select_related(
+    'assistance', 'assistance__program', 'assistance__aid_category', 'barangay'
+        ).all().order_by('-schedule_datetime')
 
     if selected_barangay:
         schedules = schedules.filter(barangay_id=selected_barangay)

@@ -36,7 +36,7 @@
   </div>
 </div>
 
-<!-- ── Upcoming Distribution ──────────────────────────────── -->
+<!-- ── Distribution Schedules ────────────────────────────── -->
 <div class="dash-panel mb-4">
   <div class="dash-panel__header">
     <div class="dash-panel__header-left">
@@ -49,46 +49,114 @@
   </div>
   <div class="dash-panel__body">
 
-    {% if schedules %}
-    <div class="notif-list">
-      {% for sched in schedules %}
-      <div class="notif-card">
-        <div class="notif-card__icon notif-card__icon--{% if sched.aid_type == 'RELIEF' %}blue{% else %}amber{% endif %}">
-          {% if sched.aid_type == 'RELIEF' %}
-            <i class="bi bi-box-seam"></i>
-          {% else %}
-            <i class="bi bi-heart-pulse"></i>
-          {% endif %}
-        </div>
-        <div class="notif-card__body">
-          <div class="notif-card__top">
-            <span class="notif-card__type">{{ sched.aid_type }} Distribution</span>
-            <span class="notif-card__status">
-              <i class="bi bi-circle-fill"></i> Upcoming
-            </span>
-          </div>
-          <div class="notif-card__meta">
-            <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
-            <span><i class="bi bi-geo-alt"></i> {{ sched.location }}</span>
-            {% if sched.barangay %}
-              <span class="notif-card__brgy notif-card__brgy--specific">
-                <i class="bi bi-buildings"></i> {{ sched.barangay }}
-              </span>
+    <!-- ACTIVE SCHEDULES — populated by JS fetch, seeded by server render -->
+    <div id="active-schedules-section">
+      {% if active_schedules %}
+      <p class="sched-list-label"><i class="bi bi-broadcast-pin"></i> Active Now</p>
+      <div class="notif-list">
+        {% for sched in active_schedules %}
+        <div class="notif-card">
+          <div class="notif-card__icon notif-card__icon--{% if sched.aid_type == 'RELIEF' %}blue{% else %}amber{% endif %}">
+            {% if sched.aid_type == 'RELIEF' %}
+              <i class="bi bi-box-seam"></i>
             {% else %}
-              <span class="notif-card__brgy notif-card__brgy--all">
-                <i class="bi bi-buildings"></i> All Barangays
-              </span>
+              <i class="bi bi-heart-pulse"></i>
             {% endif %}
           </div>
+          <div class="notif-card__body">
+            <div class="notif-card__top">
+              <span class="notif-card__type">
+                {% if sched.assistance %}
+                  {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
+                {% else %}
+                  {{ sched.aid_type }} Distribution
+                {% endif %}
+              </span>
+              <span class="notif-card__status" style="color: var(--clr-success);">
+                <i class="bi bi-circle-fill"></i> Active
+              </span>
+            </div>
+            <div class="notif-card__meta">
+              <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
+              <span><i class="bi bi-geo-alt"></i> {{ sched.location }}</span>
+              {% if sched.barangay %}
+                <span class="notif-card__brgy notif-card__brgy--specific">
+                  <i class="bi bi-buildings"></i> {{ sched.barangay }}
+                </span>
+              {% else %}
+                <span class="notif-card__brgy notif-card__brgy--all">
+                  <i class="bi bi-buildings"></i> All Barangays
+                </span>
+              {% endif %}
+            </div>
+          </div>
         </div>
+        {% endfor %}
       </div>
-      {% endfor %}
+      {% endif %}
     </div>
-    {% else %}
-    <div class="brgy-empty" style="padding: 32px 0 20px;">
+
+    <!-- UPCOMING SCHEDULES — populated by JS fetch, seeded by server render -->
+    <div id="upcoming-schedules-section">
+      {% if upcoming_schedules %}
+      <p class="sched-list-label"><i class="bi bi-calendar-event"></i> Upcoming</p>
+      <div class="notif-list">
+        {% for sched in upcoming_schedules %}
+        <div class="notif-card">
+          <div class="notif-card__icon notif-card__icon--{% if sched.aid_type == 'RELIEF' %}blue{% else %}amber{% endif %}">
+            {% if sched.aid_type == 'RELIEF' %}
+              <i class="bi bi-box-seam"></i>
+            {% else %}
+              <i class="bi bi-heart-pulse"></i>
+            {% endif %}
+          </div>
+          <div class="notif-card__body">
+            <div class="notif-card__top">
+              <span class="notif-card__type">
+                {% if sched.assistance %}
+                  {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
+                {% else %}
+                  {{ sched.aid_type }} Distribution
+                {% endif %}
+              </span>
+              <span class="notif-card__status">
+                <i class="bi bi-circle-fill"></i> Upcoming
+              </span>
+            </div>
+            <div class="notif-card__meta">
+              <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
+              <span><i class="bi bi-geo-alt"></i> {{ sched.location }}</span>
+              {% if sched.barangay %}
+                <span class="notif-card__brgy notif-card__brgy--specific">
+                  <i class="bi bi-buildings"></i> {{ sched.barangay }}
+                </span>
+              {% else %}
+                <span class="notif-card__brgy notif-card__brgy--all">
+                  <i class="bi bi-buildings"></i> All Barangays
+                </span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- EMPTY STATE — shown by JS when both lists are empty -->
+    <div id="schedules-empty" style="display: none;">
+      <div class="brgy-empty" style="padding: 32px 0 20px;">
+        <i class="bi bi-calendar-x"></i>
+        <h3>No Upcoming Schedules</h3>
+        <p>There are currently no active or upcoming distributions scheduled for your barangay.</p>
+      </div>
+    </div>
+
+    {% if not active_schedules and not upcoming_schedules %}
+    <div class="brgy-empty" style="padding: 32px 0 20px;" id="schedules-empty-initial">
       <i class="bi bi-calendar-x"></i>
       <h3>No Upcoming Schedules</h3>
-      <p>There are currently no upcoming distributions scheduled for your barangay.</p>
+      <p>There are currently no active or upcoming distributions scheduled for your barangay.</p>
     </div>
     {% endif %}
 
@@ -141,34 +209,120 @@
 
 {% block js %}
 <script>
+  // ── Live Clock ─────────────────────────────────────────
   function updateClock() {
     const now = new Date();
-
     const time = now.toLocaleTimeString('en-PH', {
       hour:   '2-digit',
       minute: '2-digit',
       second: '2-digit',
       hour12: true
     });
-
     const day  = now.toLocaleDateString('en-PH', { weekday: 'long' });
-
     const date = now.toLocaleDateString('en-PH', {
       month: 'long',
       day:   'numeric',
       year:  'numeric'
     });
-
     const timeEl = document.getElementById('dashTime');
     const dayEl  = document.getElementById('dashDay');
     const dateEl = document.getElementById('dashDate');
-
     if (timeEl) timeEl.textContent = time;
     if (dayEl)  dayEl.textContent  = day;
     if (dateEl) dateEl.textContent = date;
   }
-
   updateClock();
   setInterval(updateClock, 1000);
+
+  // ── Schedule Fetch & Render ────────────────────────────
+  function iconClass(aidType) {
+    return aidType === 'RELIEF' ? 'blue' : 'amber';
+  }
+
+  function iconTag(aidType) {
+    return aidType === 'RELIEF'
+      ? '<i class="bi bi-box-seam"></i>'
+      : '<i class="bi bi-heart-pulse"></i>';
+  }
+
+  function renderCard(sched, statusLabel, statusStyle) {
+    const brgyHtml = sched.barangay
+      ? `<span class="notif-card__brgy notif-card__brgy--specific"><i class="bi bi-buildings"></i> ${sched.barangay}</span>`
+      : `<span class="notif-card__brgy notif-card__brgy--all"><i class="bi bi-buildings"></i> All Barangays</span>`;
+
+    return `
+      <div class="notif-card">
+        <div class="notif-card__icon notif-card__icon--${iconClass(sched.aid_type)}">
+          ${iconTag(sched.aid_type)}
+        </div>
+        <div class="notif-card__body">
+          <div class="notif-card__top">
+            <span class="notif-card__type">${sched.aid_label}</span>
+            <span class="notif-card__status" ${statusStyle}>
+              <i class="bi bi-circle-fill"></i> ${statusLabel}
+            </span>
+          </div>
+          <div class="notif-card__meta">
+            <span><i class="bi bi-clock"></i> ${sched.schedule_datetime}</span>
+            <span><i class="bi bi-geo-alt"></i> ${sched.location}</span>
+            ${brgyHtml}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function refreshSchedules() {
+    fetch("{% url 'barangay_schedule_status' %}")
+      .then(res => {
+        if (!res.ok) throw new Error('Network error');
+        return res.json();
+      })
+      .then(data => {
+        const activeSection   = document.getElementById('active-schedules-section');
+        const upcomingSection = document.getElementById('upcoming-schedules-section');
+        const emptyDiv        = document.getElementById('schedules-empty');
+        const emptyInitial    = document.getElementById('schedules-empty-initial');
+
+        // Hide initial server-rendered empty state once JS takes over
+        if (emptyInitial) emptyInitial.style.display = 'none';
+
+        // Render active
+        if (data.active.length) {
+          activeSection.innerHTML = `
+            <p class="sched-list-label"><i class="bi bi-broadcast-pin"></i> Active Now</p>
+            <div class="notif-list">
+              ${data.active.map(s => renderCard(s, 'Active', 'style="color: var(--clr-success);"')).join('')}
+            </div>`;
+        } else {
+          activeSection.innerHTML = '';
+        }
+
+        // Render upcoming
+        if (data.upcoming.length) {
+          upcomingSection.innerHTML = `
+            <p class="sched-list-label"><i class="bi bi-calendar-event"></i> Upcoming</p>
+            <div class="notif-list">
+              ${data.upcoming.map(s => renderCard(s, 'Upcoming', '')).join('')}
+            </div>`;
+        } else {
+          upcomingSection.innerHTML = '';
+        }
+
+        // Show/hide empty state
+        if (!data.active.length && !data.upcoming.length) {
+          emptyDiv.style.display = 'block';
+        } else {
+          emptyDiv.style.display = 'none';
+        }
+      })
+      .catch(err => {
+        // Silently fail — page still shows server-rendered data
+        console.warn('Schedule refresh failed:', err);
+      });
+  }
+
+  // Run immediately then every 30 seconds
+  refreshSchedules();
+  setInterval(refreshSchedules, 30000);
 </script>
 {% endblock %}

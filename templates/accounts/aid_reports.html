@@ -82,8 +82,8 @@
       <div class="rpt-card__header-left">
 
         <!-- Aid type icon -->
-        <div class="rpt-card__type-icon rpt-card__type-icon--{% if sched.aid_type == 'RELIEF' %}blue{% else %}amber{% endif %}">
-          {% if sched.aid_type == 'RELIEF' %}
+        <div class="rpt-card__type-icon rpt-card__type-icon--{% if sched.assistance.beneficiary_type == 'family' %}blue{% else %}amber{% endif %}">
+          {% if sched.assistance.beneficiary_type == 'family' %}
             <i class="bi bi-box-seam"></i>
           {% else %}
             <i class="bi bi-heart-pulse"></i>
@@ -92,7 +92,13 @@
 
         <div class="rpt-card__header-info">
           <div class="rpt-card__title-row">
-            <h3 class="rpt-card__aid-type">{{ sched.aid_type }} Distribution</h3>
+            <h3 class="rpt-card__aid-type">
+              {% if sched.assistance %}
+                {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
+              {% else %}
+                N/A
+              {% endif %}
+            </h3>
             <!-- Status badge -->
             {% if sched.end_datetime < now %}
               <span class="rpt-status rpt-status--expired">
