@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}User Accounts — SARA{% endblock %}
+
+{% block navbar_title %}User Accounts Management{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Page Header ─────────────────────────────────────────── -->
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">User Accounts</span>
+    </div>
+    <h1 class="dash-page-title">User Accounts</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-people me-1"></i>
+      Manage staff and barangay administrator accounts
+    </p>
+  </div>
+  <div class="dash-header-actions">
+    <a href="{% url 'create_user' %}" class="btn-dash-primary">
+      <i class="bi bi-plus-lg"></i> Add User
+    </a>
+  </div>
+</div>
+
+<!-- ── Summary Strip ──────────────────────────────────────── -->
+<div class="acct-summary-strip">
+  <div class="acct-summary-item">
+    <i class="bi bi-people acct-summary-icon acct-summary-icon--blue"></i>
+    <div>
+      <span class="acct-summary-val">{{ users|length }}</span>
+      <span class="acct-summary-label">Total Accounts</span>
+    </div>
+  </div>
+  <div class="acct-summary-divider"></div>
+  <div class="acct-summary-item">
+    <i class="bi bi-check-circle acct-summary-icon acct-summary-icon--green"></i>
+    <div>
+      <span class="acct-summary-val">
+        {{ active_count }}
+      </span>
+      <span class="acct-summary-label">Active</span>
+    </div>
+  </div>
+  <div class="acct-summary-divider"></div>
+  <div class="acct-summary-item">
+    <i class="bi bi-geo-alt acct-summary-icon acct-summary-icon--navy"></i>
+    <div>
+      <span class="acct-summary-val">Santa Rita</span>
+      <span class="acct-summary-label">Municipality</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Accounts Table Panel ───────────────────────────────── -->
+<div class="dash-panel">
+
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-person-badge dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Account Registry</h2>
+        <p class="dash-panel__sub">All registered MSWDO Staff and Barangay Administrator accounts</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-panel__body p-0">
+    <div class="table-responsive">
+      <table class="acct-table">
+        <thead>
+          <tr>
+            <th class="acct-th">#</th>
+            <th class="acct-th">Role / Assignment</th>
+            <th class="acct-th">Username</th>
+            <th class="acct-th">Status</th>
+            <th class="acct-th acct-th--actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          <tr class="acct-row">
+            <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
+            <td class="acct-td">
+              <div class="acct-barangay-cell">
+                <div class="acct-avatar">
+                  <i class="bi bi-person-badge dash-panel__icon"></i>
+                </div>
+                <span class="acct-barangay-name">
+                  {% if user.role == 'MSWDO_STAFF' %}
+                    MSWDO Staff
+                  {% else %}
+                    {{ user.barangay.name|default:"Unassigned" }}
+                  {% endif %}
+                </span>
+              </div>
+            </td>
+            <td class="acct-td">
+              <span class="acct-username">
+                <i class="bi bi-person me-1"></i>{{ user.username }}
+              </span>
+            </td>
+            <td class="acct-td">
+              {% if user.is_active %}
+                <span class="acct-badge acct-badge--active">
+                  <i class="bi bi-circle-fill"></i> Active
+                </span>
+              {% else %}
+                <span class="acct-badge acct-badge--inactive">
+                  <i class="bi bi-circle-fill"></i> Deactivated
+                </span>
+              {% endif %}
+            </td>
+            <td class="acct-td acct-td--actions">
+              <div class="acct-actions">
+                <a href="{% url 'edit_user' user.id %}" class="acct-btn acct-btn--edit" title="Edit account">
+                  <i class="bi bi-pencil"></i>
+                  <span>Edit</span>
+                </a>
+                {% if user.is_active %}
+                <a href="{% url 'deactivate_user' user.id %}"
+                   class="acct-btn acct-btn--deactivate"
+                   title="Deactivate account"
+                   onclick="return confirm('Deactivate {{ user.username }} account?')">
+                  <i class="bi bi-slash-circle"></i>
+                  <span>Deactivate</span>
+                </a>
+                {% else %}
+                <a href="{% url 'activate_user_account' user.id %}"
+                   class="acct-btn acct-btn--activate"
+                   title="Activate account"
+                   onclick="return confirm('Activate {{ user.username }} account?')">
+                  <i class="bi bi-check-circle"></i>
+                  <span>Activate</span>
+                </a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="acct-empty">
+              <div class="acct-empty-state">
+                <i class="bi bi-people"></i>
+                <p>No user accounts found.</p>
+                <a href="{% url 'create_user' %}" class="btn-dash-primary">
+                  <i class="bi bi-plus-lg"></i> Invite First User
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Back Link ──────────────────────────────────────────── -->
+<div class="page-back-row">
+  <a href="{% url 'mswdo_dashboard' %}" class="btn-dash-outline">
+    <i class="bi bi-arrow-left"></i> Back to Dashboard
+  </a>
+</div>
+
+{% endblock %}

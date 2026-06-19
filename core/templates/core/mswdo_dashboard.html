@@ -1,0 +1,420 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}MSWDO Dashboard — SARA{% endblock %}
+
+{% block navbar_title %}MSWDO ADMIN DASHBOARD{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- ── Django Messages ────────────────────────────────────── -->
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+      <i class="bi bi-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endfor %}
+{% endif %}
+<!-- ======================================================
+     PAGE HEADER
+====================================================== -->
+<div class="dash-page-header">
+  <div>
+    <h1 class="dash-page-title">Dashboard</h1>
+    <p class="dash-page-sub">
+      &nbsp;·&nbsp; Santa Rita, Pampanga MSWDO
+    </p>
+  </div>
+  <div class="dash-header-actions">
+    <!-- Live Clock -->
+    <div class="dash-clock">
+      <i class="bi bi-clock dash-clock__icon"></i>
+      <div class="dash-clock__body">
+        <span class="dash-clock__time" id="dashTime"></span>
+        <span class="dash-clock__date">
+          <span id="dashDay"></span>
+          &nbsp;&middot;&nbsp;
+          <span id="dashDate"></span>
+        </span>
+      </div>
+    </div>
+
+    <div class="dash-clock-sep"></div>
+
+    <a href="{% url 'aid_reports' %}" class="btn-dash-outline">
+      <i class="bi bi-file-earmark-bar-graph"></i> View Reports
+    </a>
+  </div>
+</div>
+
+<!-- ======================================================
+     SUMMARY CARDS
+====================================================== -->
+<div class="dash-grid dash-grid--cards">
+
+  <!-- Barangay Accounts -->
+  <a href="{% url 'user_accounts' %}" class="stat-card stat-card--blue">
+    <div class="stat-card__icon">
+      <i class="bi bi-person-badge"></i>
+    </div>
+    <div class="stat-card__body">
+      <span class="stat-card__label">Barangay Accounts</span>
+      <span class="stat-card__value">{{ barangayAcc_count }}</span>
+    </div>
+    <i class="bi bi-arrow-right-short stat-card__arrow"></i>
+  </a>
+
+  <!-- Barangays -->
+  <a href="{% url 'barangay_list' %}" class="stat-card stat-card--navy">
+    <div class="stat-card__icon">
+      <i class="bi bi-geo-alt"></i>
+    </div>
+    <div class="stat-card__body">
+      <span class="stat-card__label">Barangays</span>
+      <span class="stat-card__value">{{ barangay_count }}</span>
+    </div>
+    <i class="bi bi-arrow-right-short stat-card__arrow"></i>
+  </a>
+
+<!-- Aid Monitoring shortcut -->
+<a href="{% url 'aid_type_list' %}" class="stat-card stat-card--teal">
+  <div class="stat-card__icon">
+    <i class="bi bi-box-seam"></i>
+  </div>
+  <div class="stat-card__body">
+    <span class="stat-card__label">Aid Monitoring</span>
+    <span class="stat-card__value stat-card__value--sm">Manage</span>
+  </div>
+  <i class="bi bi-arrow-right-short stat-card__arrow"></i>
+</a>
+
+<!-- Program Management shortcut -->
+<a href="{% url 'program_list' %}" class="stat-card stat-card--amber">
+  <div class="stat-card__icon">
+    <i class="bi bi-heart-pulse"></i>
+  </div>
+  <div class="stat-card__body">
+    <span class="stat-card__label">Aid Programs</span>
+    <span class="stat-card__value stat-card__value--sm">Manage</span>
+  </div>
+  <i class="bi bi-arrow-right-short stat-card__arrow"></i>
+</a>
+
+</div>
+
+<!-- ======================================================
+     MAIN BODY: Schedule + Quick Actions
+====================================================== -->
+<div class="dash-grid dash-grid--main">
+
+  <!-- ── LEFT: Scheduled Distribution ───────────────────── -->
+  <div class="dash-panel">
+    <div class="dash-panel__header">
+      <div class="dash-panel__header-left">
+        <i class="bi bi-calendar-check dash-panel__icon"></i>
+        <div>
+          <h2 class="dash-panel__title">Scheduled Distribution</h2>
+          <p class="dash-panel__sub">Active and upcoming aid schedules</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Schedule Lists (populated by fetch) -->
+    <div class="dash-panel__body">
+
+      <!-- ACTIVE SCHEDULES -->
+      <p class="sched-list-label">
+        <i class="bi bi-broadcast-pin"></i> Active Schedules
+      </p>
+      <div id="active-schedules-list">
+        {% if active_schedules %}
+          <div class="sched-list">
+            {% for sched in active_schedules %}
+            <div class="sched-item">
+              <div class="sched-item__badge sched-item__badge--active">Active</div>
+              <div class="sched-item__details">
+                <span class="sched-item__aid">
+                  {% if sched.assistance %}
+                    {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
+                  {% else %}
+                    N/A
+                  {% endif %}
+                </span>
+                <div class="sched-item__meta">
+                  <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
+                  <span><i class="bi bi-geo"></i> {{ sched.location }}</span>
+                  <span><i class="bi bi-buildings"></i> {{ sched.barangay|default:"All Barangays" }}</span>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="sched-empty">
+            <i class="bi bi-calendar-x"></i>
+            <p>No active scheduled distribution.</p>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- UPCOMING SCHEDULES -->
+      <p class="sched-list-label" style="margin-top: 1rem;">
+        <i class="bi bi-calendar-event"></i> Upcoming Schedules
+      </p>
+      <div id="upcoming-schedules-list">
+        {% if upcoming_schedules %}
+          <div class="sched-list">
+            {% for sched in upcoming_schedules %}
+            <div class="sched-item">
+              <div class="sched-item__badge sched-item__badge--upcoming">Upcoming</div>
+              <div class="sched-item__details">
+                <span class="sched-item__aid">
+                  {% if sched.assistance %}
+                    {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
+                  {% else %}
+                    N/A
+                  {% endif %}
+                </span>
+                <div class="sched-item__meta">
+                  <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
+                  <span><i class="bi bi-geo"></i> {{ sched.location }}</span>
+                  <span><i class="bi bi-buildings"></i> {{ sched.barangay|default:"All Barangays" }}</span>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="sched-empty">
+            <i class="bi bi-calendar-x"></i>
+            <p>No upcoming scheduled distribution.</p>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Divider -->
+      <div class="dash-divider">
+        <span>Set New Schedule</span>
+      </div>
+
+      <!-- Schedule Form -->
+      <form method="post" action="{% url 'set_aid_schedule' %}" class="sched-form">
+        {% csrf_token %}
+
+        <div class="sched-form__grid">
+
+          <div class="sched-form__field">
+            <label class="sched-form__label">Aid Type</label>
+            <select name="assistance" class="form-select" required>
+              <option value="">-- Select Assistance --</option>
+              {% regroup assistances by program as program_list %}
+              {% for group in program_list %}
+                <optgroup label="{{ group.grouper }}">
+                  {% for a in group.list %}
+                    <option value="{{ a.id }}">
+                      {{ a.aid_category.name }} ({{ a.get_beneficiary_type_display }})
+                    </option>
+                  {% endfor %}
+                </optgroup>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="sched-form__field">
+            <label class="sched-form__label">Start Date & Time</label>
+            <input type="datetime-local" name="schedule_datetime" class="form-control form-control-sm" required>
+          </div>
+
+          <div class="sched-form__field">
+            <label class="sched-form__label">End Date & Time</label>
+            <input type="datetime-local" name="end_datetime" class="form-control form-control-sm" required>
+          </div>
+
+          <div class="sched-form__field">
+            <label class="sched-form__label">Location</label>
+            <input type="text" name="location" class="form-control form-control-sm"
+              placeholder="e.g. Municipal Plaza" required>
+          </div>
+
+          <div class="sched-form__field">
+            <label class="sched-form__label">Barangay</label>
+            <select name="barangay" class="form-select form-select-sm">
+              <option value="">All Barangays</option>
+              {% for b in barangays %}
+                <option value="{{ b.id }}">{{ b.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+        </div>
+
+        <div class="sched-form__footer">
+          <button type="submit" class="btn-dash-primary">
+            <i class="bi bi-calendar-plus me-1"></i> Set Schedule
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ── RIGHT: Quick Actions + Aid Shortcuts ────────────── -->
+  <div class="dash-side">
+
+    <!-- Quick Actions Panel -->
+    <div class="dash-panel">
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-lightning-charge dash-panel__icon"></i>
+          <div>
+            <h2 class="dash-panel__title">Quick Actions</h2>
+            <p class="dash-panel__sub">Frequently used tools</p>
+          </div>
+        </div>
+      </div>
+      <div class="dash-panel__body">
+        <div class="quick-actions">
+
+          <a href="{% url 'register_rfid' %}" class="quick-action quick-action--green">
+            <div class="quick-action__icon">
+              <i class="bi bi-credit-card-2-front"></i>
+            </div>
+            <div class="quick-action__info">
+              <span class="quick-action__label">Register RFID</span>
+              <span class="quick-action__desc">Enroll new RFID card</span>
+            </div>
+            <i class="bi bi-chevron-right quick-action__arrow"></i>
+          </a>
+
+          <a href="{% url 'scan_rfid' %}" class="quick-action quick-action--blue">
+            <div class="quick-action__icon">
+              <i class="bi bi-upc-scan"></i>
+            </div>
+            <div class="quick-action__info">
+              <span class="quick-action__label">RFID Scan</span>
+              <span class="quick-action__desc">Verify beneficiary card</span>
+            </div>
+            <i class="bi bi-chevron-right quick-action__arrow"></i>
+          </a>
+
+          <a href="{% url 'aid_type_list' %}" class="quick-action quick-action--orange">
+            <div class="quick-action__icon">
+              <i class="bi bi-clipboard2-data"></i>
+            </div>
+            <div class="quick-action__info">
+              <span class="quick-action__label">Aid Monitoring</span>
+              <span class="quick-action__desc">Track aid type status</span>
+            </div>
+            <i class="bi bi-chevron-right quick-action__arrow"></i>
+          </a>
+
+          <a href="#" class="quick-action quick-action--indigo">
+            <div class="quick-action__icon">
+              <i class="bi bi-person-vcard"></i>
+            </div>
+            <div class="quick-action__info">
+              <span class="quick-action__label">Resident Profiling</span>
+              <span class="quick-action__desc">View resident records</span>
+            </div>
+            <i class="bi bi-chevron-right quick-action__arrow"></i>
+          </a>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- System Notice -->
+    <div class="dash-notice">
+      <i class="bi bi-shield-check dash-notice__icon"></i>
+      <div>
+        <p class="dash-notice__title">Secure System Access</p>
+        <p class="dash-notice__text">All actions are logged and monitored. Handle beneficiary data with care and in accordance with the Data Privacy Act.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+  // ── Live Clock ─────────────────────────────────────────
+  function updateClock() {
+    const now  = new Date();
+    const time = now.toLocaleTimeString('en-PH', {
+      hour:   '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+    const day  = now.toLocaleDateString('en-PH', { weekday: 'long' });
+    const date = now.toLocaleDateString('en-PH', {
+      month: 'long',
+      day:   'numeric',
+      year:  'numeric'
+    });
+    const timeEl = document.getElementById('dashTime');
+    const dayEl  = document.getElementById('dashDay');
+    const dateEl = document.getElementById('dashDate');
+    if (timeEl) timeEl.textContent = time;
+    if (dayEl)  dayEl.textContent  = day;
+    if (dateEl) dateEl.textContent = date;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // ── Schedule Fetch & Render ────────────────────────────
+  function renderEmpty(label) {
+    return `
+      <div class="sched-empty">
+        <i class="bi bi-calendar-x"></i>
+        <p>No ${label.toLowerCase()} scheduled distribution.</p>
+      </div>`;
+  }
+
+  function renderScheduleList(schedules, badgeClass, badgeLabel) {
+    if (!schedules.length) return renderEmpty(badgeLabel);
+    const items = schedules.map(s => `
+      <div class="sched-item">
+        <div class="sched-item__badge sched-item__badge--${badgeClass}">${badgeLabel}</div>
+        <div class="sched-item__details">
+          <span class="sched-item__aid">${s.aid_type}</span>
+          <div class="sched-item__meta">
+            <span><i class="bi bi-clock"></i> ${s.schedule_datetime}</span>
+            <span><i class="bi bi-geo"></i> ${s.location}</span>
+            <span><i class="bi bi-buildings"></i> ${s.barangay}</span>
+          </div>
+        </div>
+      </div>`).join('');
+    return `<div class="sched-list">${items}</div>`;
+  }
+
+  function refreshSchedules() {
+    fetch("{% url 'schedule_status' %}")
+      .then(res => {
+        if (!res.ok) throw new Error('Network error');
+        return res.json();
+      })
+      .then(data => {
+        const activeEl   = document.getElementById('active-schedules-list');
+        const upcomingEl = document.getElementById('upcoming-schedules-list');
+        if (activeEl)   activeEl.innerHTML   = renderScheduleList(data.active,   'active',   'Active');
+        if (upcomingEl) upcomingEl.innerHTML = renderScheduleList(data.upcoming, 'upcoming', 'Upcoming');
+      })
+      .catch(err => {
+        // Silently fail — page still shows server-rendered data on error
+        console.warn('Schedule refresh failed:', err);
+      });
+  }
+
+  // Run immediately then every 30 seconds
+  refreshSchedules();
+  setInterval(refreshSchedules, 30000);
+</script>
+{% endblock %}

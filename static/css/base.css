@@ -80,6 +80,8 @@ ul {
   align-items: center;
   gap: 12px;
   min-width: 0;
+  flex: 1 1 auto;      /* NEW: allow shrinking */
+  overflow: hidden;    /* NEW: never bleed past its box */
 }
 
 .topbar-brand {
@@ -88,6 +90,8 @@ ul {
   gap: 10px;
   text-decoration: none;
   min-width: 0;
+  flex: 1 1 auto;      /* NEW */
+  overflow: hidden;    /* NEW */
 }
 
 .topbar-logo {
@@ -107,6 +111,7 @@ ul {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow: hidden;    /* NEW */
 }
 
 .topbar-title {
@@ -116,6 +121,9 @@ ul {
   white-space: nowrap;
   letter-spacing: 0.4px;
   line-height: 1.2;
+  overflow: hidden;        /* NEW */
+  text-overflow: ellipsis; /* NEW: safety net for very long titles */
+  max-width: 100%;         /* NEW */
 }
 
 .topbar-subtitle {
@@ -124,6 +132,9 @@ ul {
   white-space: nowrap;
   font-weight: 400;
   letter-spacing: 0.2px;
+  overflow: hidden;        /* NEW */
+  text-overflow: ellipsis; /* NEW */
+  max-width: 100%;         /* NEW */
 }
 
 /* ── Sidebar Toggle (Burger) ────────────────────────────────── */
@@ -678,6 +689,19 @@ main:not(.main-content) {
   .topbar-title {
     font-size: 14px;
   }
+
+    /* NEW: free up horizontal space */
+  .topbar-logo {
+    height: 34px;
+  }
+
+  .topbar-left {
+    gap: 8px;
+  }
+
+  .topbar-brand {
+    gap: 8px;
+  }
 }
 
 @media (max-width: 575.98px) {
@@ -696,6 +720,32 @@ main:not(.main-content) {
 
   .main-content {
     padding: 16px 12px;
+  }
+  /* NEW: reclaim space so the full title fits and is never covered */
+  .topbar-logo {
+    height: 28px;
+  }
+
+  .topbar-title {
+    font-size: 12px;
+    letter-spacing: 0.2px;
+  }
+
+  .topbar-left {
+    gap: 6px;
+  }
+
+  .topbar-brand {
+    gap: 6px;
+  }
+
+  .topbar-user {
+    gap: 0;
+    padding: 6px;
+  }
+
+  .topbar-chevron {
+    display: none; /* dropdown still opens by tapping the avatar */
   }
 }
 

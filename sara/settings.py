@@ -45,6 +45,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'accounts',
+    'core',
+    'households',
+    'programs',
+    'distribution',
+    'rfid',
+    'monitoring',
+    'reports',
     'django_otp',
     'django_otp.plugins.otp_email',
     'django_otp.plugins.otp_totp',  # optional TOTP

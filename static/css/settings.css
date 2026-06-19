@@ -1,0 +1,234 @@
+/* =============================================================
+   SARA — SETTINGS PAGE STYLES
+   Extends base.css + mswdo_dashboard.css + barangay_accounts.css
+   + program_list.css (.sara-modal, .modal-form__* tokens)
+============================================================= */
+
+/* =============================================================
+   LAYOUT — Side profile card + main form, two columns on desktop
+============================================================= */
+.settings-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.settings-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-main {
+  min-width: 0;
+}
+
+/* =============================================================
+   PROFILE SUMMARY CARD
+============================================================= */
+.settings-profile-card__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 28px 20px 22px;
+}
+
+.settings-avatar-wrap {
+  position: relative;
+  margin-bottom: 14px;
+}
+
+.settings-avatar {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background-color: var(--secondary);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--border);
+}
+
+.settings-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.settings-avatar .avatar-initials--lg {
+  font-size: 28px;
+}
+
+.settings-avatar-edit-btn {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--secondary);
+  color: var(--white);
+  border: 2px solid var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background var(--transition), transform var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-avatar-edit-btn:hover {
+  background: var(--primary);
+  transform: scale(1.06);
+}
+
+.settings-profile-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 4px 0 6px;
+}
+
+.settings-role-badge {
+  display: inline-block;
+  background: rgba(19, 78, 213, 0.1);
+  color: var(--secondary);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  margin-bottom: 16px;
+}
+
+.settings-profile-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.settings-profile-meta span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+.settings-profile-meta i {
+  color: var(--secondary);
+  flex-shrink: 0;
+}
+
+/* =============================================================
+   SECURITY CARD
+============================================================= */
+.settings-security-hint {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+.settings-security-hint i {
+  color: var(--secondary);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.settings-full-width-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* =============================================================
+   READ-ONLY FIELDS (username for non-admins, barangay assignment)
+============================================================= */
+.settings-readonly-row {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.settings-readonly-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-readonly-value {
+  padding: 9px 13px;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  font-size: 14px;
+  color: var(--text-muted);
+  background: #f8fafd;
+}
+
+/* =============================================================
+   PHOTO MODAL PREVIEW
+============================================================= */
+.settings-photo-preview-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.settings-avatar--modal {
+  width: 110px;
+  height: 110px;
+}
+
+/* =============================================================
+   RESPONSIVE
+============================================================= */
+@media (max-width: 991.98px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-side {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .settings-side .dash-panel {
+    flex: 1;
+    min-width: 260px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .settings-side {
+    flex-direction: column;
+  }
+
+  .settings-side .dash-panel {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .settings-avatar {
+    width: 80px;
+    height: 80px;
+  }
+
+  .settings-profile-card__body {
+    padding: 22px 16px 18px;
+  }
+}

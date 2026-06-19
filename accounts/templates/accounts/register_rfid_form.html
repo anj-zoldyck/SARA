@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Register RFID — {{ selected_family.family_name }} — SARA{% endblock %}
+{% block navbar_title %}Register RFID — {{ selected_family.family_name }}{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'register_rfid' %}" class="breadcrumb-link">RFID Registration</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">{{ selected_family.family_name }}</span>
+    </div>
+    <h1 class="dash-page-title">Register RFID</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-people me-1"></i>
+      {{ selected_family.family_name }}
+      &nbsp;·&nbsp; {{ selected_family.household.address }}
+    </p>
+  </div>
+  <div class="dash-header-actions">
+    <a href="{% url 'register_rfid' %}" class="btn-dash-outline">
+      <i class="bi bi-arrow-left"></i> Back to Overview
+    </a>
+  </div>
+</div>
+
+{% if error %}
+<div class="form-error-block">
+  <i class="bi bi-exclamation-triangle form-error-block__icon"></i>
+  <div>
+    <p class="form-error-block__title">Unable to register RFID</p>
+    <p class="acct-form__error" style="margin:0;">{{ error }}</p>
+  </div>
+</div>
+{% endif %}
+
+{% if success %}
+<div class="form-error-block" style="background:#f0fdf4; border-color:#bbf7d0;">
+  <i class="bi bi-check-circle form-error-block__icon" style="color:#166534;"></i>
+  <div>
+    <p class="form-error-block__title" style="color:#166534;">Success</p>
+    <p class="acct-form__error" style="margin:0; color:#166534;">{{ success }}</p>
+  </div>
+</div>
+{% endif %}
+
+<div class="form-page-layout">
+
+  <!-- Form Panel -->
+  <div class="dash-panel form-panel">
+    <div class="dash-panel__header">
+      <div class="dash-panel__header-left">
+        <i class="bi bi-credit-card-2-front dash-panel__icon"></i>
+        <div>
+          <h2 class="dash-panel__title">RFID Card Registration</h2>
+          <p class="dash-panel__sub">Scan or enter the RFID UID to link it to this family</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-panel__body">
+      <form method="post" class="acct-form">
+        {% csrf_token %}
+
+        <div class="acct-form__group">
+          <label class="acct-form__label" for="rfid_uid">
+            <i class="bi bi-credit-card-2-front"></i> RFID UID
+            <span class="acct-form__required">*</span>
+          </label>
+          <div class="acct-form__control-wrap">
+            <input
+              type="text"
+              name="rfid_uid"
+              id="rfid_uid"
+              class="form-control"
+              placeholder="Scan or type the RFID UID"
+              autofocus
+              required
+            >
+          </div>
+          <p class="acct-form__hint">
+            <i class="bi bi-info-circle"></i>
+            Tap the RFID card on the reader, or manually type the UID if scanning is unavailable.
+          </p>
+        </div>
+
+        <div class="acct-form__actions">
+          <a href="{% url 'register_rfid' %}" class="btn-dash-outline">Cancel</a>
+          <button type="submit" class="btn-dash-primary">
+            <i class="bi bi-check-circle"></i> Register RFID
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Side Panel: Family Info -->
+  <div class="form-side">
+    <div class="dash-panel">
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-people dash-panel__icon"></i>
+          <div>
+            <h2 class="dash-panel__title">Family Details</h2>
+          </div>
+        </div>
+      </div>
+      <div class="dash-panel__body">
+        <div class="edit-member-info">
+          <div class="edit-member-avatar">
+            {{ selected_family.family_name|first|upper }}
+          </div>
+          <h3 class="edit-member-name">{{ selected_family.family_name }}</h3>
+          <div class="edit-member-details">
+            <div class="edit-member-meta">
+              <span><i class="bi bi-geo-alt"></i> {{ selected_family.household.address }}</span>
+              <span>
+                <i class="bi bi-credit-card-2-front"></i>
+                {% if selected_family.rfid_uid %}
+                  Current UID: {{ selected_family.rfid_uid }}
+                {% else %}
+                  No RFID registered yet
+                {% endif %}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-panel">
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-shield-check dash-panel__icon"></i>
+          <div>
+            <h2 class="dash-panel__title">Guidelines</h2>
+          </div>
+        </div>
+      </div>
+      <div class="dash-panel__body">
+        <ul class="form-guideline-list">
+          <li class="form-guideline-item">
+            <i class="bi bi-check-circle-fill form-guideline-icon form-guideline-icon--blue"></i>
+            Each RFID card can only be linked to one family at a time.
+          </li>
+          <li class="form-guideline-item">
+            <i class="bi bi-check-circle-fill form-guideline-icon form-guideline-icon--blue"></i>
+            Registering a new UID will overwrite this family's previous RFID, if any.
+          </li>
+          <li class="form-guideline-item">
+            <i class="bi bi-check-circle-fill form-guideline-icon form-guideline-icon--blue"></i>
+            Deactivate an RFID first if it needs to be reassigned to a different family.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

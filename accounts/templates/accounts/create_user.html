@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create User Account — SARA{% endblock %}
+{% block navbar_title %}Create User Account{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Page Header ─────────────────────────────────────────── -->
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'user_accounts' %}" class="breadcrumb-link">User Accounts</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Create Account</span>
+    </div>
+    <h1 class="dash-page-title">Create User Account</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-person-plus me-1"></i>
+      Invite a new MSWDO Staff or Barangay Administrator
+    </p>
+  </div>
+</div>
+
+<!-- ── Form Layout ────────────────────────────────────────── -->
+<div class="form-page-layout">
+
+  <!-- Form Panel -->
+  <div class="dash-panel form-panel">
+    <div class="dash-panel__header">
+      <div class="dash-panel__header-left">
+        <i class="bi bi-person-plus dash-panel__icon"></i>
+        <div>
+          <h2 class="dash-panel__title">Account Details</h2>
+          <p class="dash-panel__sub">Fill in all required fields to create the account</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-panel__body">
+
+      <!-- Error Block -->
+      {% if form.errors %}
+      <div class="form-error-block">
+        <div class="form-error-block__icon">
+          <i class="bi bi-exclamation-triangle"></i>
+        </div>
+        <div class="form-error-block__content">
+          <p class="form-error-block__title">Please fix the following errors:</p>
+          <ul class="form-error-block__list">
+            {% for field in form %}
+              {% for error in field.errors %}
+                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+              {% endfor %}
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      {% endif %}
+
+      <form method="post" novalidate class="acct-form">
+        {% csrf_token %}
+
+        <!-- Role Field -->
+        <div class="acct-form__group">
+          <label class="acct-form__label" for="{{ form.role.id_for_label }}">
+            <i class="bi bi-person-badge"></i> Role
+            <span class="acct-form__required">*</span>
+          </label>
+          <div class="acct-form__control-wrap">
+            {{ form.role }}
+          </div>
+          {% if form.role.errors %}
+            <p class="acct-form__error">{{ form.role.errors|join:", " }}</p>
+          {% endif %}
+        </div>
+
+        <!-- Barangay Field (Hidden initially if MSWDO Staff selected) -->
+        <div class="acct-form__group" id="barangay-group">
+          <label class="acct-form__label" for="{{ form.barangay.id_for_label }}">
+            <i class="bi bi-geo-alt"></i> Barangay
+            <span class="acct-form__required" id="barangay-req-star">*</span>
+          </label>
+          <div class="acct-form__control-wrap">
+            {{ form.barangay }}
+          </div>
+          {% if form.barangay.errors %}
+            <p class="acct-form__error">{{ form.barangay.errors|join:", " }}</p>
+          {% endif %}
+        </div>
+
+        <!-- Username Field -->
+        <div class="acct-form__group">
+          <label class="acct-form__label" for="{{ form.username.id_for_label }}">
+            <i class="bi bi-person"></i> Username
+            <span class="acct-form__required">*</span>
+          </label>
+          <div class="acct-form__control-wrap">
+            {{ form.username }}
+          </div>
+          {% if form.username.errors %}
+            <p class="acct-form__error">{{ form.username.errors|join:", " }}</p>
+          {% endif %}
+          <p class="acct-form__hint">Must be unique across the system.</p>
+        </div>
+
+        <!-- Email Field -->
+        <div class="acct-form__group">
+          <label class="acct-form__label" for="{{ form.email.id_for_label }}">
+            <i class="bi bi-envelope"></i> Email Address
+            <span class="acct-form__required">*</span>
+          </label>
+          <div class="acct-form__control-wrap">
+            {{ form.email }}
+          </div>
+          {% if form.email.errors %}
+            <p class="acct-form__error">{{ form.email.errors|join:", " }}</p>
+          {% endif %}
+          <p class="acct-form__hint">An activation link will be sent to this email to set the password.</p>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="acct-form__actions">
+          <a href="{% url 'user_accounts' %}" class="btn-dash-outline">
+            <i class="bi bi-x-lg"></i> Cancel
+          </a>
+          <button type="submit" class="btn-dash-primary">
+            <i class="bi bi-envelope-paper"></i> Send Invitation
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- Side Info Panel -->
+  <div class="form-side">
+    <div class="dash-panel">
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-info-circle dash-panel__icon"></i>
+          <div>
+            <h2 class="dash-panel__title">Guidelines</h2>
+            <p class="dash-panel__sub">Account creation notes</p>
+          </div>
+        </div>
+      </div>
+      <div class="dash-panel__body">
+        <ul class="form-guideline-list">
+          <li class="form-guideline-item">
+            <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
+            <span>Each barangay should have exactly <strong>one</strong> administrator account.</span>
+          </li>
+          <li class="form-guideline-item">
+            <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
+            <span>Usernames and emails must be unique across the system.</span>
+          </li>
+          <li class="form-guideline-item">
+            <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
+            <span>An invitation email with an activation link will be sent to the user.</span>
+          </li>
+          <li class="form-guideline-item">
+            <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
+            <span>The user will set their own password upon clicking the activation link.</span>
+          </li>
+          <li class="form-guideline-item">
+            <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
+            <span>Accounts can be deactivated anytime from the accounts list.</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="dash-notice">
+      <i class="bi bi-shield-lock dash-notice__icon"></i>
+      <div>
+        <p class="dash-notice__title">Data Privacy Reminder</p>
+        <p class="dash-notice__text">Account credentials are sensitive. Only authorized MSWDO personnel should create and manage barangay accounts.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Back Link ──────────────────────────────────────────── -->
+<div class="page-back-row">
+  <a href="{% url 'user_accounts' %}" class="btn-dash-outline">
+    <i class="bi bi-arrow-left"></i> Back to Accounts
+  </a>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+  const roleSelect = document.getElementById('{{ form.role.id_for_label }}');
+  const barangayGroup = document.getElementById('barangay-group');
+
+  function toggleBarangayField() {
+    if (roleSelect.value === 'MSWDO_STAFF') {
+      barangayGroup.style.display = 'none';
+    } else {
+      barangayGroup.style.display = 'block';
+    }
+  }
+
+  if (roleSelect) {
+    roleSelect.addEventListener('change', toggleBarangayField);
+    toggleBarangayField(); // Initial state
+  }
+</script>
+{% endblock %}

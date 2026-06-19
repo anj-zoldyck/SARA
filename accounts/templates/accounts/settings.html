@@ -1,0 +1,409 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Settings — SARA{% endblock %}
+{% block navbar_title %}My Settings{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/program_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/settings.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Django Messages ────────────────────────────────────── -->
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+      <i class="bi bi-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<!-- ── Page Header ─────────────────────────────────────────── -->
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% if user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% elif user.role == 'MSWDO_STAFF' %}{% url 'staff_dashboard' %}{% else %}{% url 'barangay_dashboard' %}{% endif %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">My Settings</span>
+    </div>
+    <h1 class="dash-page-title">My Settings</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-person-gear me-1"></i>
+      Manage your profile information and account security
+    </p>
+  </div>
+</div>
+
+<div class="settings-layout">
+
+  <!-- ════════════════════════════════════════════════════════
+       LEFT: Profile Summary Card
+  ════════════════════════════════════════════════════════ -->
+  <div class="settings-side">
+    <div class="dash-panel settings-profile-card">
+      <div class="settings-profile-card__body">
+
+        <div class="settings-avatar-wrap">
+          <div class="settings-avatar" id="avatarPreviewWrap">
+            {% if user.profile_image %}
+              <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name }}" id="avatarPreviewImg">
+            {% else %}
+              <span class="avatar-initials avatar-initials--lg" id="avatarPreviewInitials">
+                {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+              </span>
+            {% endif %}
+          </div>
+          <button type="button" class="settings-avatar-edit-btn" data-bs-toggle="modal" data-bs-target="#photoModal" title="Change photo">
+            <i class="bi bi-camera-fill"></i>
+          </button>
+        </div>
+
+        <h3 class="settings-profile-name">
+          {{ user.first_name }}
+          {% if user.middle_name %}{{ user.middle_name|first|upper }}.{% endif %}
+          {{ user.last_name }}{% if user.suffix %} {{ user.suffix }}{% endif %}
+        </h3>
+        <span class="sidebar-role-badge settings-role-badge">{{ user.get_role_display }}</span>
+
+        <div class="settings-profile-meta">
+          {% if user.position %}
+            <span><i class="bi bi-briefcase"></i> {{ user.position }}</span>
+          {% endif %}
+          {% if user.barangay %}
+            <span><i class="bi bi-geo-alt"></i> {{ user.barangay.name }}</span>
+          {% endif %}
+          <span><i class="bi bi-envelope"></i> {{ user.email }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-panel">
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-shield-lock dash-panel__icon"></i>
+          <div>
+            <h2 class="dash-panel__title">Security</h2>
+            <p class="dash-panel__sub">Keep your account protected</p>
+          </div>
+        </div>
+      </div>
+      <div class="dash-panel__body">
+        <p class="settings-security-hint">
+          <i class="bi bi-info-circle"></i>
+          It's a good idea to use a strong password you don't use elsewhere.
+        </p>
+        <button type="button" class="btn-dash-outline settings-full-width-btn" data-bs-toggle="modal" data-bs-target="#passwordModal">
+          <i class="bi bi-key"></i> Change Password
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       RIGHT: Profile Edit Form
+  ════════════════════════════════════════════════════════ -->
+  <div class="settings-main">
+    <div class="dash-panel">
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-person-vcard dash-panel__icon"></i>
+          <div>
+            <h2 class="dash-panel__title">Profile Information</h2>
+            <p class="dash-panel__sub">Update your personal and contact details</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-panel__body">
+        <form method="post" enctype="multipart/form-data" class="acct-form" id="profileForm">
+          {% csrf_token %}
+          <input type="hidden" name="form_type" value="profile">
+
+          <!-- Read-only context fields (not part of the form) -->
+          <div class="settings-readonly-row">
+            {% if user.role != 'MSWDO' %}
+              <div class="settings-readonly-field">
+                <label class="acct-form__label"><i class="bi bi-person-badge"></i> Username</label>
+                <div class="settings-readonly-value">{{ user.username }}</div>
+                <p class="acct-form__hint">Only an MSWDO Admin can change this.</p>
+              </div>
+            {% endif %}
+            {% if user.role == 'BARANGAY' %}
+              <div class="settings-readonly-field">
+                <label class="acct-form__label"><i class="bi bi-geo-alt"></i> Assigned Barangay</label>
+                <div class="settings-readonly-value">{{ user.barangay.name|default:"Unassigned" }}</div>
+                <p class="acct-form__hint">Barangay assignment is managed by the MSWDO Admin.</p>
+              </div>
+            {% endif %}
+          </div>
+
+          {% if profile_form.username %}
+          <div class="acct-form__group">
+            <label class="acct-form__label" for="{{ profile_form.username.id_for_label }}">
+              <i class="bi bi-person-badge"></i> Username
+            </label>
+            {{ profile_form.username }}
+            {% if profile_form.username.errors %}
+              <p class="acct-form__error"><i class="bi bi-exclamation-circle"></i> {{ profile_form.username.errors.0 }}</p>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          <div class="hh-form-row">
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ profile_form.first_name.id_for_label }}">
+                <i class="bi bi-person"></i> First Name <span class="acct-form__required">*</span>
+              </label>
+              {{ profile_form.first_name }}
+              {% if profile_form.first_name.errors %}
+                <p class="acct-form__error"><i class="bi bi-exclamation-circle"></i> {{ profile_form.first_name.errors.0 }}</p>
+              {% endif %}
+            </div>
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ profile_form.last_name.id_for_label }}">
+                <i class="bi bi-person"></i> Last Name <span class="acct-form__required">*</span>
+              </label>
+              {{ profile_form.last_name }}
+              {% if profile_form.last_name.errors %}
+                <p class="acct-form__error"><i class="bi bi-exclamation-circle"></i> {{ profile_form.last_name.errors.0 }}</p>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="hh-form-row">
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ profile_form.middle_name.id_for_label }}">
+                <i class="bi bi-person"></i> Middle Name
+              </label>
+              {{ profile_form.middle_name }}
+            </div>
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ profile_form.suffix.id_for_label }}">
+                <i class="bi bi-person"></i> Suffix
+              </label>
+              {{ profile_form.suffix }}
+            </div>
+          </div>
+
+          <div class="acct-form__group">
+            <label class="acct-form__label" for="{{ profile_form.email.id_for_label }}">
+              <i class="bi bi-envelope"></i> Email <span class="acct-form__required">*</span>
+            </label>
+            {{ profile_form.email }}
+            {% if profile_form.email.errors %}
+              <p class="acct-form__error"><i class="bi bi-exclamation-circle"></i> {{ profile_form.email.errors.0 }}</p>
+            {% endif %}
+          </div>
+
+          <div class="acct-form__group">
+            <label class="acct-form__label" for="{{ profile_form.position.id_for_label }}">
+              <i class="bi bi-briefcase"></i> Position
+            </label>
+            {{ profile_form.position }}
+          </div>
+
+          <div class="hh-form-row">
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ profile_form.sex.id_for_label }}">
+                <i class="bi bi-person-fill"></i> Sex
+              </label>
+              {{ profile_form.sex }}
+            </div>
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ profile_form.birthdate.id_for_label }}">
+                <i class="bi bi-calendar-event"></i> Birthdate
+              </label>
+              {{ profile_form.birthdate }}
+              {% if user.birthdate %}
+                <p class="acct-form__hint">Current age: {{ user.age }} years old (updates automatically)</p>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="acct-form__group">
+            <label class="acct-form__label" for="{{ profile_form.contact_number.id_for_label }}">
+              <i class="bi bi-phone"></i> Contact Number
+            </label>
+            {{ profile_form.contact_number }}
+            {% if profile_form.contact_number.errors %}
+              <p class="acct-form__error"><i class="bi bi-exclamation-circle"></i> {{ profile_form.contact_number.errors.0 }}</p>
+            {% else %}
+              <p class="acct-form__hint">Format: 09XXXXXXXXX or +639XXXXXXXXX</p>
+            {% endif %}
+          </div>
+
+          <div class="acct-form__actions">
+            <button type="submit" class="btn-dash-primary">
+              <i class="bi bi-check-circle"></i> Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ================================================================
+     MODAL: Change Photo
+================================================================ -->
+<div class="modal fade sara-modal" id="photoModal" tabindex="-1" aria-labelledby="photoModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="photoModalLabel">
+          <i class="bi bi-camera-fill"></i> Update Profile Photo
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" enctype="multipart/form-data" id="photoForm" action="{% url 'update_profile_photo' %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="settings-photo-preview-wrap">
+            <div class="settings-avatar settings-avatar--modal" id="modalAvatarPreviewWrap">
+              {% if user.profile_image %}
+                <img src="{{ user.profile_image.url }}" alt="" id="modalAvatarPreviewImg">
+              {% else %}
+                <span class="avatar-initials avatar-initials--lg" id="modalAvatarPreviewInitials">
+                  {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+                </span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="photoInput">
+              <i class="bi bi-upload"></i> Choose a new photo
+            </label>
+            <input type="file" id="photoInput" name="profile_image" class="modal-form__control" accept="image/*">
+            <p class="modal-form__hint">JPG or PNG. Square images look best.</p>
+          </div>
+        </div>
+        <div class="modal-footer settings-photo-modal-footer">
+          {% if user.profile_image %}
+            <button type="submit" form="removePhotoForm" class="acct-btn acct-btn--deactivate"
+                    onclick="return confirm('Remove your profile photo?')">
+              <i class="bi bi-trash3"></i><span>Remove Photo</span>
+            </button>
+          {% endif %}
+          <div class="settings-photo-modal-footer__right">
+            <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn-dash-primary">
+              <i class="bi bi-check-lg"></i> Upload Photo
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <!-- Separate, standalone form for the Remove action — submitted via the
+           "form" attribute on the button above, since a button can't belong
+           to two <form> tags at once but CAN reference a different form's id. -->
+      <form method="post" id="removePhotoForm" action="{% url 'remove_profile_photo' %}" class="d-none">
+        {% csrf_token %}
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     MODAL: Change Password
+================================================================ -->
+<div class="modal fade sara-modal" id="passwordModal" tabindex="-1" aria-labelledby="passwordModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="passwordModalLabel">
+          <i class="bi bi-key"></i> Change Password
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" id="passwordForm">
+        {% csrf_token %}
+        <input type="hidden" name="form_type" value="password">
+        <div class="modal-body">
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="{{ password_form.current_password.id_for_label }}">
+              <i class="bi bi-lock"></i> Current Password <span class="modal-form__required">*</span>
+            </label>
+            {{ password_form.current_password }}
+            {% if password_form.current_password.errors %}
+              <p class="acct-form__error"><i class="bi bi-exclamation-circle"></i> {{ password_form.current_password.errors.0 }}</p>
+            {% endif %}
+          </div>
+
+          <div class="modal-divider"></div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="{{ password_form.new_password.id_for_label }}">
+              <i class="bi bi-key"></i> New Password <span class="modal-form__required">*</span>
+            </label>
+            {{ password_form.new_password }}
+            {% if password_form.new_password.errors %}
+              <p class="acct-form__error"><i class="bi bi-exclamation-circle"></i> {{ password_form.new_password.errors.0 }}</p>
+            {% endif %}
+          </div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="{{ password_form.confirm_password.id_for_label }}">
+              <i class="bi bi-key-fill"></i> Confirm New Password <span class="modal-form__required">*</span>
+            </label>
+            {{ password_form.confirm_password }}
+            {% if password_form.confirm_password.errors %}
+              <p class="acct-form__error"><i class="bi bi-exclamation-circle"></i> {{ password_form.confirm_password.errors.0 }}</p>
+            {% endif %}
+          </div>
+
+          <p class="modal-form__hint">
+            <i class="bi bi-info-circle"></i>
+            Forgot your current password instead?
+            <a href="{% url 'password_reset' %}">Reset it via email</a>.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-dash-primary">
+            <i class="bi bi-check-lg"></i> Update Password
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+  // Live preview when a new photo is chosen inside the modal
+  const photoInput = document.getElementById('photoInput');
+  const modalPreviewWrap = document.getElementById('modalAvatarPreviewWrap');
+
+  photoInput?.addEventListener('change', function () {
+    const file = this.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      modalPreviewWrap.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // Re-open password modal automatically if it had validation errors
+  {% if password_form.errors %}
+    document.addEventListener('DOMContentLoaded', function () {
+      const passwordModal = new bootstrap.Modal(document.getElementById('passwordModal'));
+      passwordModal.show();
+    });
+  {% endif %}
+</script>
+{% endblock %}

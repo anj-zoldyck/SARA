@@ -28,7 +28,7 @@ SECRET_KEY = 'django-insecure-tp#n=ywpr!4=ho!7^i3vs68lqm2@m_o&&m)!o+(u_wy-8lt9ui
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*', '192.168.100.130:8000', '127.0.0.1:8000']  # Allow all hosts for development; change this in production
 
 
 # Application definition
@@ -41,6 +41,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'accounts',
+    'core',
+    'households',
+    'programs',
+    'distribution',
+    'rfid',
+    'monitoring',
+    'reports',
 ]
 
 MIDDLEWARE = [
@@ -123,6 +130,10 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 AUTH_USER_MODEL = 'accounts.User'
+
+# Media files (user-uploaded)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # TO DO before deployment: review and tighten session settings
 # SESSION_COOKIE_AGE = 1800

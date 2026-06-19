@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Invalid Link — SARA{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="dash-page-header">
+  <div>
+    <h1 class="dash-page-title">Activation Error</h1>
+  </div>
+</div>
+
+<div class="form-page-layout justify-content-center">
+  <div class="dash-panel form-panel" style="max-width: 600px; margin: 0 auto; text-align: center; padding: 40px;">
+    <i class="bi bi-x-circle text-danger mb-3" style="font-size: 4rem;"></i>
+    <h2 class="dash-panel__title text-danger">Invalid or Expired Link</h2>
+    <p class="dash-panel__sub mt-3" style="font-size: 1.1rem;">
+      The activation link you clicked is invalid or has expired. Activation links are only valid for a limited time and can only be used once.
+    </p>
+    <p class="mt-4">
+      If you need a new activation link, please contact your MSWDO administrator to resend the invitation.
+    </p>
+    <a href="{% url 'login' %}" class="btn-dash-primary mt-4">
+      <i class="bi bi-arrow-left"></i> Back to Login
+    </a>
+  </div>
+</div>
+{% endblock %}

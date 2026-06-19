@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Activate Your S.A.R.A Account</title>
+  <!--[if mso]>
+  <noscript>
+    <xml><o:OfficeDocumentSettings>
+      <o:PixelsPerInch>96</o:PixelsPerInch>
+    </o:OfficeDocumentSettings></xml>
+  </noscript>
+  <![endif]-->
+</head>
+
+<!-- PAGE BACKGROUND -->
+<body style="margin:0;padding:0;background-color:#f0f4f8;">
+
+  <!-- OUTER WRAPPER -->
+  <table width="100%" cellpadding="0" cellspacing="0" border="0"
+    bgcolor="#f0f4f8"
+    style="background-color:#f0f4f8;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+
+        <!-- EMAIL CARD (max 580px) -->
+        <table cellpadding="0" cellspacing="0" border="0"
+          width="100%"
+          style="width:100%; max-width:580px;"
+          align="center">
+
+          <!-- ════════════════════════════════
+               HEADER — dark navy band
+          ════════════════════════════════ -->
+          <tr>
+            <td align="center"
+              bgcolor="#0d2d6b"
+              style="background-color:#0d2d6b;
+                     border-radius:12px 12px 0 0;
+                     padding:30px 32px 26px;
+                     mso-padding-alt:30px 32px 26px;">
+
+              <!-- System label -->
+              <p style="margin:0 0 6px; font-family:Arial,sans-serif;
+                         font-size:11px; font-weight:bold; letter-spacing:2px;
+                         text-transform:uppercase; color:#a8c4f0;">
+                S.A.R.A SYSTEM
+              </p>
+
+              <!-- Email title -->
+              <p style="margin:0; font-family:Arial,sans-serif;
+                         font-size:22px; font-weight:bold; color:#ffffff;
+                         letter-spacing:-0.3px;">
+                Account Invitation
+              </p>
+
+              <!-- Subtitle -->
+              <p style="margin:8px 0 0; font-family:Arial,sans-serif;
+                         font-size:13px; color:#7baee8;">
+                Santa Rita Automated Relief Assistance System
+              </p>
+
+            </td>
+          </tr>
+
+          <!-- ════════════════════════════════
+               BODY — white card
+          ════════════════════════════════ -->
+          <tr>
+            <td bgcolor="#ffffff"
+              style="background-color:#ffffff;
+                     border-left:1px solid #dde6f5;
+                     border-right:1px solid #dde6f5;
+                     border-bottom:1px solid #dde6f5;
+                     border-radius:0 0 12px 12px;
+                     padding:36px 32px 32px;">
+
+              <!-- Greeting -->
+              <p style="margin:0 0 18px; font-family:Arial,sans-serif;
+                         font-size:15px; font-weight:bold; color:#0d2d6b;">
+                Hello {{ user.username }},
+              </p>
+
+              <!-- Body text 1 -->
+              <p style="margin:0 0 14px; font-family:Arial,sans-serif;
+                         font-size:14px; color:#475569; line-height:1.65;">
+                You have been invited to join the
+                <strong style="color:#1a2340;">
+                  S.A.R.A (Santa Rita Automated Relief Assistance System)
+                </strong>
+                as a
+                <strong style="color:#1a2340;">
+                  {% if user.role == 'MSWDO_STAFF' %}MSWDO Staff{% else %}Barangay Admin for {{ user.barangay.name }}{% endif %}
+                </strong>.
+              </p>
+
+              <!-- Body text 2 -->
+              <p style="margin:0 0 30px; font-family:Arial,sans-serif;
+                         font-size:14px; color:#475569; line-height:1.65;">
+                Please click the button below to activate your account and set up your password.
+              </p>
+
+              <!-- ── CTA BUTTON (table method — Gmail-safe) ── -->
+              <table role="presentation" border="0" cellspacing="0" cellpadding="0" align="center">
+                <tr>
+                  <td align="center" bgcolor="#134ed5" style="border-radius:8px;">
+                    <a href="{{ protocol }}://{{ domain }}{% url 'activate_account' uidb64=uid token=token %}"
+                      target="_blank"
+                      style="
+                        font-size:15px;
+                        font-family:Arial,sans-serif;
+                        color:#ffffff;
+                        text-decoration:none;
+                        padding:14px 40px;
+                        border-radius:8px;
+                        display:inline-block;
+                        font-weight:bold;
+                      ">
+                      Activate My Account
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- ── DIVIDER ── -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                style="margin:top:30px; margin-bottom:20px;">
+                <tr>
+                  <td bgcolor="#e2eaf4"
+                    style="background-color:#e2eaf4; height:1px;
+                           font-size:0; line-height:0;">
+                    &nbsp;
+                  </td>
+                </tr>
+              </table>
+
+              <!-- ── FALLBACK URL ── -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                style="margin-bottom:24px;">
+                <tr>
+                  <td bgcolor="#f8fafd"
+                    style="background-color:#f8fafd;
+                           border:1px solid #dde6f5;
+                           border-radius:8px;
+                           padding:14px 16px;">
+
+                    <p style="margin:0 0 6px; font-family:Arial,sans-serif;
+                               font-size:11px; font-weight:bold; color:#64748b;
+                               text-transform:uppercase; letter-spacing:0.6px;">
+                      Or copy this link into your browser:
+                    </p>
+                    <p style="margin:0; font-family:'Courier New',monospace;
+                               font-size:12px; color:#134ed5;
+                               word-break:break-all; line-height:1.5;">
+                      {{ protocol }}://{{ domain }}{% url 'activate_account' uidb64=uid token=token %}
+                    </p>
+
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Closing note -->
+              <p style="margin:0; font-family:Arial,sans-serif;
+                         font-size:12px; color:#94a3b8; line-height:1.6;">
+                This is an automated message from the S.A.R.A system.
+                Please do not reply to this email.
+              </p>
+
+            </td>
+          </tr>
+
+          <!-- ════════════════════════════════
+               FOOTER
+          ════════════════════════════════ -->
+          <tr>
+            <td align="center" style="padding:24px 32px 8px;">
+
+              <p style="margin:0 0 3px; font-family:Arial,sans-serif;
+                         font-size:12.5px; font-weight:bold; color:#475569;">
+                Municipal Social Welfare and Development Office
+              </p>
+              <p style="margin:0 0 8px; font-family:Arial,sans-serif;
+                         font-size:12px; color:#94a3b8;">
+                Santa Rita, Pampanga
+              </p>
+              <p style="margin:0; font-family:Arial,sans-serif;
+                         font-size:11.5px; color:#cbd5e1;">
+                &copy; 2025 S.A.R.A System &mdash; All Rights Reserved
+              </p>
+
+            </td>
+          </tr>
+
+        </table>
+        <!-- /Email card -->
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

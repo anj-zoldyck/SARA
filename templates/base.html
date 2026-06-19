@@ -104,7 +104,7 @@
         <a href="#" class="user-dropdown-item">
           <i class="bi bi-person"></i> My Profile
         </a>
-        <a href="#" class="user-dropdown-item">
+        <a href="{% url 'settings' %}" class="user-dropdown-item">
           <i class="bi bi-gear"></i> Settings
         </a>
         <div class="user-dropdown-divider"></div>
@@ -172,13 +172,13 @@
           </button>
           <ul class="sidebar-submenu" id="householdSubmenu">
             <li>
-              <a href="#" class="sidebar-sublink">
+              <a href="{% url 'barangay_list' %}" class="sidebar-sublink">
                 <i class="bi bi-person-lines-fill"></i>
                 <span>Residents</span>
               </a>
             </li>
             <li>
-              <a href="#" class="sidebar-sublink">
+              <a href="{% url 'register_rfid' %}" class="sidebar-sublink">
                 <i class="bi bi-credit-card-2-front"></i>
                 <span>RFID Registration</span>
               </a>
@@ -202,7 +202,7 @@
               </a>
             </li>
             <li>
-              <a href="#" class="sidebar-sublink">
+              <a href="{% url 'aid_type_list' %}" class="sidebar-sublink">
                 <i class="bi bi-truck"></i>
                 <span>Distribution Monitoring</span>
               </a>
@@ -236,7 +236,7 @@
 
         <!-- Barangays -->
         <li class="sidebar-item">
-          <a href="#" class="sidebar-link">
+          <a href="{% url 'barangay_list' %}" class="sidebar-link">
             <i class="bi bi-geo-alt"></i>
             <span>Barangays</span>
           </a>
@@ -246,7 +246,7 @@
 
         <!-- User Management -->
         <li class="sidebar-item">
-          <a href="{% url 'barangay_accounts' %}" class="sidebar-link">
+          <a href="{% url 'user_accounts' %}" class="sidebar-link">
             <i class="bi bi-people"></i>
             <span>User Management</span>
           </a>
@@ -254,10 +254,66 @@
 
         <!-- Settings -->
         <li class="sidebar-item">
-          <a href="#" class="sidebar-link">
+          <a href="{% url 'settings' %}" class="sidebar-link">
             <i class="bi bi-gear"></i>
             <span>Settings</span>
           </a>
+        </li>
+
+        {% endif %}
+
+        <!-- ========== MSWDO STAFF NAVIGATION ========== -->
+        {% if user.role == 'MSWDO_STAFF' %}
+
+        <li class="sidebar-section-label">Main</li>
+
+        <li class="sidebar-item">
+          <a href="{% url 'staff_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'staff_dashboard' %}active{% endif %}">
+            <i class="bi bi-speedometer2"></i>
+            <span>Dashboard</span>
+          </a>
+        </li>
+
+        <li class="sidebar-section-label">Operations</li>
+
+        <!-- Household Profiling (accordion) -->
+        <li class="sidebar-item sidebar-item--accordion">
+          <button class="sidebar-link sidebar-accordion-btn" data-target="staffHouseholdSubmenu" aria-expanded="false">
+            <i class="bi bi-house-door"></i>
+            <span>Household Profiling</span>
+            <i class="bi bi-chevron-down sidebar-arrow"></i>
+          </button>
+          <ul class="sidebar-submenu" id="staffHouseholdSubmenu">
+            <li>
+              <a href="{% url 'barangay_list' %}" class="sidebar-sublink">
+                <i class="bi bi-person-lines-fill"></i>
+                <span>Residents</span>
+              </a>
+            </li>
+            <li>
+              <a href="{% url 'register_rfid' %}" class="sidebar-sublink">
+                <i class="bi bi-credit-card-2-front"></i>
+                <span>RFID Registration</span>
+              </a>
+            </li>
+          </ul>
+        </li>
+
+        <!-- Aid Programs (accordion) -->
+        <li class="sidebar-item sidebar-item--accordion">
+          <button class="sidebar-link sidebar-accordion-btn" data-target="staffAidSubmenu" aria-expanded="false">
+            <i class="bi bi-gift"></i>
+            <span>Aid Programs</span>
+            <i class="bi bi-chevron-down sidebar-arrow"></i>
+          </button>
+          <ul class="sidebar-submenu" id="staffAidSubmenu">
+            <li>
+              <a href="{% url 'aid_type_list' %}" class="sidebar-sublink">
+                <i class="bi bi-truck"></i>
+                <span>Distribution Monitoring</span>
+              </a>
+            </li>
+          </ul>
         </li>
 
         {% endif %}
