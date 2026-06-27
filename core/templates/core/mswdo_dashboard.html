@@ -127,75 +127,7 @@
     <!-- Schedule Lists (populated by fetch) -->
     <div class="dash-panel__body">
 
-      <!-- ACTIVE SCHEDULES -->
-      <p class="sched-list-label">
-        <i class="bi bi-broadcast-pin"></i> Active Schedules
-      </p>
-      <div id="active-schedules-list">
-        {% if active_schedules %}
-          <div class="sched-list">
-            {% for sched in active_schedules %}
-            <div class="sched-item">
-              <div class="sched-item__badge sched-item__badge--active">Active</div>
-              <div class="sched-item__details">
-                <span class="sched-item__aid">
-                  {% if sched.assistance %}
-                    {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
-                  {% else %}
-                    N/A
-                  {% endif %}
-                </span>
-                <div class="sched-item__meta">
-                  <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
-                  <span><i class="bi bi-geo"></i> {{ sched.location }}</span>
-                  <span><i class="bi bi-buildings"></i> {{ sched.barangay|default:"All Barangays" }}</span>
-                </div>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-        {% else %}
-          <div class="sched-empty">
-            <i class="bi bi-calendar-x"></i>
-            <p>No active scheduled distribution.</p>
-          </div>
-        {% endif %}
-      </div>
-
-      <!-- UPCOMING SCHEDULES -->
-      <p class="sched-list-label" style="margin-top: 1rem;">
-        <i class="bi bi-calendar-event"></i> Upcoming Schedules
-      </p>
-      <div id="upcoming-schedules-list">
-        {% if upcoming_schedules %}
-          <div class="sched-list">
-            {% for sched in upcoming_schedules %}
-            <div class="sched-item">
-              <div class="sched-item__badge sched-item__badge--upcoming">Upcoming</div>
-              <div class="sched-item__details">
-                <span class="sched-item__aid">
-                  {% if sched.assistance %}
-                    {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
-                  {% else %}
-                    N/A
-                  {% endif %}
-                </span>
-                <div class="sched-item__meta">
-                  <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
-                  <span><i class="bi bi-geo"></i> {{ sched.location }}</span>
-                  <span><i class="bi bi-buildings"></i> {{ sched.barangay|default:"All Barangays" }}</span>
-                </div>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-        {% else %}
-          <div class="sched-empty">
-            <i class="bi bi-calendar-x"></i>
-            <p>No upcoming scheduled distribution.</p>
-          </div>
-        {% endif %}
-      </div>
+      {% include "core/_dashboard_schedule_panel.html" %}
 
       <!-- Divider -->
       <div class="dash-divider">
@@ -266,76 +198,7 @@
   <!-- ── RIGHT: Quick Actions + Aid Shortcuts ────────────── -->
   <div class="dash-side">
 
-    <!-- Quick Actions Panel -->
-    <div class="dash-panel">
-      <div class="dash-panel__header">
-        <div class="dash-panel__header-left">
-          <i class="bi bi-lightning-charge dash-panel__icon"></i>
-          <div>
-            <h2 class="dash-panel__title">Quick Actions</h2>
-            <p class="dash-panel__sub">Frequently used tools</p>
-          </div>
-        </div>
-      </div>
-      <div class="dash-panel__body">
-        <div class="quick-actions">
-
-          <a href="{% url 'register_rfid' %}" class="quick-action quick-action--green">
-            <div class="quick-action__icon">
-              <i class="bi bi-credit-card-2-front"></i>
-            </div>
-            <div class="quick-action__info">
-              <span class="quick-action__label">Register RFID</span>
-              <span class="quick-action__desc">Enroll new RFID card</span>
-            </div>
-            <i class="bi bi-chevron-right quick-action__arrow"></i>
-          </a>
-
-          <a href="{% url 'scan_rfid' %}" class="quick-action quick-action--blue">
-            <div class="quick-action__icon">
-              <i class="bi bi-upc-scan"></i>
-            </div>
-            <div class="quick-action__info">
-              <span class="quick-action__label">RFID Scan</span>
-              <span class="quick-action__desc">Verify beneficiary card</span>
-            </div>
-            <i class="bi bi-chevron-right quick-action__arrow"></i>
-          </a>
-
-          <a href="{% url 'aid_type_list' %}" class="quick-action quick-action--orange">
-            <div class="quick-action__icon">
-              <i class="bi bi-clipboard2-data"></i>
-            </div>
-            <div class="quick-action__info">
-              <span class="quick-action__label">Aid Monitoring</span>
-              <span class="quick-action__desc">Track aid type status</span>
-            </div>
-            <i class="bi bi-chevron-right quick-action__arrow"></i>
-          </a>
-
-          <a href="#" class="quick-action quick-action--indigo">
-            <div class="quick-action__icon">
-              <i class="bi bi-person-vcard"></i>
-            </div>
-            <div class="quick-action__info">
-              <span class="quick-action__label">Resident Profiling</span>
-              <span class="quick-action__desc">View resident records</span>
-            </div>
-            <i class="bi bi-chevron-right quick-action__arrow"></i>
-          </a>
-
-        </div>
-      </div>
-    </div>
-
-    <!-- System Notice -->
-    <div class="dash-notice">
-      <i class="bi bi-shield-check dash-notice__icon"></i>
-      <div>
-        <p class="dash-notice__title">Secure System Access</p>
-        <p class="dash-notice__text">All actions are logged and monitored. Handle beneficiary data with care and in accordance with the Data Privacy Act.</p>
-      </div>
-    </div>
+    {% include "core/_dashboard_quick_actions.html" %}
 
   </div>
 </div>
@@ -380,6 +243,7 @@
 
   function renderScheduleList(schedules, badgeClass, badgeLabel) {
     if (!schedules.length) return renderEmpty(badgeLabel);
+    const userRole = "{{ request.user.role }}";
     const items = schedules.map(s => `
       <div class="sched-item">
         <div class="sched-item__badge sched-item__badge--${badgeClass}">${badgeLabel}</div>
@@ -391,6 +255,7 @@
             <span><i class="bi bi-buildings"></i> ${s.barangay}</span>
           </div>
         </div>
+        ${badgeClass === 'active' && userRole === 'MSWDO_STAFF' ? `<a href="{% url 'rfid_claim_monitoring' %}" class="btn-dash-primary ms-auto py-1 px-3" style="font-size: 0.85rem;">Distribute</a>` : ''}
       </div>`).join('');
     return `<div class="sched-list">${items}</div>`;
   }

@@ -10,7 +10,7 @@ from django.utils import timezone
 from datetime import date
 from django.db.models import Count, Q
 
-from accounts.decorators import session_protected
+from accounts.decorators import session_protected, mswdo_or_staff_required
 from accounts.models import User, Barangay
 from households.models import Household, Zone, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
@@ -34,9 +34,8 @@ User = get_user_model()
 
 @login_required
 @session_protected
+@mswdo_or_staff_required
 def aid_type_list(request):
-    if request.user.role != 'MSWDO':
-        return HttpResponseForbidden("Access Denied")
 
     programs = Program.objects.prefetch_related(
         'assistances__aid_category'
@@ -49,9 +48,8 @@ def aid_type_list(request):
 
 @login_required
 @session_protected
+@mswdo_or_staff_required
 def aid_barangay_list(request, assistance_id):
-    if request.user.role != 'MSWDO':
-        return HttpResponseForbidden("Access Denied")
 
     assistance = get_object_or_404(
         Assistance.objects.select_related('program', 'aid_category'),
@@ -67,9 +65,8 @@ def aid_barangay_list(request, assistance_id):
 
 @login_required
 @session_protected
+@mswdo_or_staff_required
 def aid_barangay_detail(request, assistance_id, barangay_id):
-    if request.user.role != 'MSWDO':
-        return HttpResponseForbidden("Access Denied")
 
     assistance = get_object_or_404(
         Assistance.objects.select_related('program', 'aid_category'),
@@ -157,9 +154,8 @@ def aid_barangay_detail(request, assistance_id, barangay_id):
 
 @login_required
 @session_protected
+@mswdo_or_staff_required
 def rfid_claim_monitoring(request):
-    if request.user.role != 'MSWDO':
-        return HttpResponseForbidden("Access Denied")
 
     claims = AidClaim.objects.select_related(
         'family',
@@ -167,8 +163,12 @@ def rfid_claim_monitoring(request):
         'family__household__zone',
         'family__household__barangay',
         'family_member',
-        'created_by'  # ADD this so it doesn't do extra queries
+        'created_by' 
     ).order_by('-claimed_at')
+
+    is_staff_scoped = (request.user.role == 'MSWDO_STAFF')
+    if is_staff_scoped:
+        claims = claims.filter(created_by=request.user)
 
     monitoring_data = []
     for claim in claims:
@@ -189,13 +189,16 @@ def rfid_claim_monitoring(request):
         })
 
     return render(request, 'monitoring/rfid_claim_monitoring.html', {
-        'claims': monitoring_data
+        'claims': monitoring_data,
+        'is_staff_scoped': is_staff_scoped
     })
 
 
 @login_required
 @session_protected
 def rfid_live_claims(request):
+    # Notice: Intentionally NOT applying @mswdo_or_staff_required here 
+    # because BARANGAY role also needs access to this endpoint as seen below.
     now = timezone.now()
 
     today_aid = AidSchedule.objects.select_related('assistance').filter(
@@ -219,6 +222,8 @@ def rfid_live_claims(request):
         claims = claims.filter(
             family__household__barangay=request.user.barangay
         )
+    elif request.user.role == 'MSWDO_STAFF':
+        claims = claims.filter(created_by=request.user)
 
     data = []
     for c in claims:
@@ -289,9 +294,8 @@ def get_aid_categories(request):
 
 @login_required
 @session_protected
+@mswdo_or_staff_required
 def schedule_status(request):
-    if request.user.role != 'MSWDO':
-        return HttpResponseForbidden("Access Denied")
 
     now = timezone.localtime(timezone.now())
 
@@ -336,9 +340,8 @@ def schedule_status(request):
 
 @login_required
 @session_protected
+@mswdo_or_staff_required
 def analytics(request):
-    if request.user.role != 'MSWDO':
-        return HttpResponseForbidden("Access Denied")
 
     # Group by assistance → aid_category name
     aid_data = (

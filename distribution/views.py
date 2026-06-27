@@ -10,7 +10,7 @@ from django.utils import timezone
 from datetime import date
 from django.db.models import Count, Q
 
-from accounts.decorators import session_protected
+from accounts.decorators import session_protected, mswdo_or_staff_required
 from accounts.models import User, Barangay
 from households.models import Household, Zone, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
@@ -89,7 +89,7 @@ def set_aid_schedule(request):
 @login_required
 @session_protected
 def scan_rfid(request):
-    if request.user.role not in ('MSWDO', 'BARANGAY'):
+    if request.user.role not in ('MSWDO', 'MSWDO_STAFF', 'BARANGAY'):
         return HttpResponseForbidden("Access Denied")
 
     error = None

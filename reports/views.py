@@ -10,7 +10,7 @@ from django.utils import timezone
 from datetime import date
 from django.db.models import Count, Q
 
-from accounts.decorators import session_protected
+from accounts.decorators import session_protected, mswdo_or_staff_required
 from accounts.models import User, Barangay
 from households.models import Household, Zone, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
@@ -34,9 +34,8 @@ User = get_user_model()
 
 @login_required
 @session_protected
+@mswdo_or_staff_required
 def aid_reports(request):
-    if request.user.role != 'MSWDO':
-        return HttpResponseForbidden("Access Denied")
 
     selected_barangay = request.GET.get('barangay')
 

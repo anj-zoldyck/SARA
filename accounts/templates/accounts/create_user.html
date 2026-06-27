@@ -96,21 +96,7 @@
           {% if form.barangay.errors %}
             <p class="acct-form__error">{{ form.barangay.errors|join:", " }}</p>
           {% endif %}
-        </div>
-
-        <!-- Username Field -->
-        <div class="acct-form__group">
-          <label class="acct-form__label" for="{{ form.username.id_for_label }}">
-            <i class="bi bi-person"></i> Username
-            <span class="acct-form__required">*</span>
-          </label>
-          <div class="acct-form__control-wrap">
-            {{ form.username }}
-          </div>
-          {% if form.username.errors %}
-            <p class="acct-form__error">{{ form.username.errors|join:", " }}</p>
-          {% endif %}
-          <p class="acct-form__hint">Must be unique across the system.</p>
+          <p class="acct-form__hint">Only barangays without an existing administrator are shown.</p>
         </div>
 
         <!-- Email Field -->
@@ -125,7 +111,7 @@
           {% if form.email.errors %}
             <p class="acct-form__error">{{ form.email.errors|join:", " }}</p>
           {% endif %}
-          <p class="acct-form__hint">An activation link will be sent to this email to set the password.</p>
+          <p class="acct-form__hint">An activation link will be sent to this email. The user will choose their own username and password.</p>
         </div>
 
         <!-- Form Actions -->
@@ -158,11 +144,11 @@
         <ul class="form-guideline-list">
           <li class="form-guideline-item">
             <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
-            <span>Each barangay should have exactly <strong>one</strong> administrator account.</span>
+            <span>Each barangay can have exactly <strong>one</strong> administrator account — barangays with an existing admin won't appear in the dropdown.</span>
           </li>
           <li class="form-guideline-item">
             <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
-            <span>Usernames and emails must be unique across the system.</span>
+            <span>Each MSWDO Staff invitation requires a <strong>unique</strong> email address — one email can only be tied to one staff account.</span>
           </li>
           <li class="form-guideline-item">
             <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
@@ -170,7 +156,7 @@
           </li>
           <li class="form-guideline-item">
             <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
-            <span>The user will set their own password upon clicking the activation link.</span>
+            <span>The user will set their own <strong>username and password</strong> upon clicking the activation link.</span>
           </li>
           <li class="form-guideline-item">
             <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>

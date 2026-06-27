@@ -9,7 +9,7 @@
     {{ assistance.program.name }} › {{ assistance.aid_category.name }} Distribution – Barangay {{ barangay.name }}
   </h3>
 
-  <a href="{% url 'mswdo_dashboard' %}" class="btn btn-secondary mb-4">
+  <a href="{% if request.user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="btn btn-secondary mb-4">
     ← Back to Dashboard
   </a>
 

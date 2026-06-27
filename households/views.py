@@ -10,7 +10,7 @@ from django.utils import timezone
 from datetime import date
 from django.db.models import Count, Q
 
-from accounts.decorators import session_protected
+from accounts.decorators import session_protected, mswdo_or_staff_required
 from accounts.models import User, Barangay
 from households.models import Household, Zone, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
@@ -34,9 +34,8 @@ User = get_user_model()
 
 @login_required
 @session_protected
+@mswdo_or_staff_required
 def barangay_list(request):
-    if request.user.role != 'MSWDO':
-        return HttpResponseForbidden("Access Denied")
 
     barangays = Barangay.objects.all().order_by('name')
 
@@ -47,9 +46,8 @@ def barangay_list(request):
 
 @login_required
 @session_protected
+@mswdo_or_staff_required
 def barangay_zones(request, barangay_id):
-    if request.user.role != 'MSWDO':
-        return HttpResponseForbidden("Access Denied")
 
     barangay = get_object_or_404(Barangay, id=barangay_id)
     zones = Zone.objects.filter(barangay=barangay).order_by('name')
@@ -62,9 +60,8 @@ def barangay_zones(request, barangay_id):
 
 @login_required
 @session_protected
+@mswdo_or_staff_required
 def zone_households(request, zone_id):
-    if request.user.role != 'MSWDO':
-        return HttpResponseForbidden("Access Denied")
 
     zone = get_object_or_404(
         Zone.objects.select_related('barangay'),
@@ -84,9 +81,8 @@ def zone_households(request, zone_id):
 
 @login_required
 @session_protected
+@mswdo_or_staff_required
 def household_info(request, household_id):
-    if request.user.role != 'MSWDO':
-        return HttpResponseForbidden("Access Denied")
 
     household = get_object_or_404(
         Household.objects.select_related('zone', 'barangay'),
@@ -107,9 +103,8 @@ def household_info(request, household_id):
 
 @login_required
 @session_protected
+@mswdo_or_staff_required
 def family_members(request, family_id):
-    if request.user.role != 'MSWDO':
-        return HttpResponseForbidden("Access Denied")
 
     family = get_object_or_404(Family.objects.select_related('household', 'household__zone', 'household__barangay'), id=family_id)
 

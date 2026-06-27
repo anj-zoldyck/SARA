@@ -129,13 +129,6 @@
 
           <!-- Read-only context fields (not part of the form) -->
           <div class="settings-readonly-row">
-            {% if user.role != 'MSWDO' %}
-              <div class="settings-readonly-field">
-                <label class="acct-form__label"><i class="bi bi-person-badge"></i> Username</label>
-                <div class="settings-readonly-value">{{ user.username }}</div>
-                <p class="acct-form__hint">Only an MSWDO Admin can change this.</p>
-              </div>
-            {% endif %}
             {% if user.role == 'BARANGAY' %}
               <div class="settings-readonly-field">
                 <label class="acct-form__label"><i class="bi bi-geo-alt"></i> Assigned Barangay</label>
@@ -145,17 +138,17 @@
             {% endif %}
           </div>
 
-          {% if profile_form.username %}
           <div class="acct-form__group">
             <label class="acct-form__label" for="{{ profile_form.username.id_for_label }}">
               <i class="bi bi-person-badge"></i> Username
+              <span class="acct-form__required">*</span>
             </label>
             {{ profile_form.username }}
             {% if profile_form.username.errors %}
               <p class="acct-form__error"><i class="bi bi-exclamation-circle"></i> {{ profile_form.username.errors.0 }}</p>
             {% endif %}
+            <p class="acct-form__hint">Changing your username will not affect your existing email or password.</p>
           </div>
-          {% endif %}
 
           <div class="hh-form-row">
             <div class="acct-form__group">

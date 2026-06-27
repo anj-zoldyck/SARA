@@ -1,0 +1,70 @@
+<!-- Quick Actions Panel -->
+<div class="dash-panel">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-lightning-charge dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Quick Actions</h2>
+        <p class="dash-panel__sub">Frequently used tools</p>
+      </div>
+    </div>
+  </div>
+  <div class="dash-panel__body">
+    <div class="quick-actions">
+
+      <a href="{% url 'register_rfid' %}" class="quick-action quick-action--green">
+        <div class="quick-action__icon">
+          <i class="bi bi-credit-card-2-front"></i>
+        </div>
+        <div class="quick-action__info">
+          <span class="quick-action__label">Register RFID</span>
+          <span class="quick-action__desc">Enroll new RFID card</span>
+        </div>
+        <i class="bi bi-chevron-right quick-action__arrow"></i>
+      </a>
+
+      <a href="{% url 'scan_rfid' %}" class="quick-action quick-action--blue">
+        <div class="quick-action__icon">
+          <i class="bi bi-upc-scan"></i>
+        </div>
+        <div class="quick-action__info">
+          <span class="quick-action__label">RFID Scan</span>
+          <span class="quick-action__desc">Verify beneficiary card</span>
+        </div>
+        <i class="bi bi-chevron-right quick-action__arrow"></i>
+      </a>
+
+      <a href="{% url 'aid_type_list' %}" class="quick-action quick-action--orange">
+        <div class="quick-action__icon">
+          <i class="bi bi-clipboard2-data"></i>
+        </div>
+        <div class="quick-action__info">
+          <span class="quick-action__label">Aid Monitoring</span>
+          <span class="quick-action__desc">Track aid type status</span>
+        </div>
+        <i class="bi bi-chevron-right quick-action__arrow"></i>
+      </a>
+
+      <a href="{% url 'barangay_list' %}" class="quick-action quick-action--indigo">
+        <div class="quick-action__icon">
+          <i class="bi bi-person-vcard"></i>
+        </div>
+        <div class="quick-action__info">
+          <span class="quick-action__label">Beneficiaries</span>
+          <span class="quick-action__desc">Browse resident records</span>
+        </div>
+        <i class="bi bi-chevron-right quick-action__arrow"></i>
+      </a>
+
+    </div>
+  </div>
+</div>
+
+<!-- System Notice -->
+<div class="dash-notice">
+  <i class="bi bi-shield-check dash-notice__icon"></i>
+  <div>
+    <p class="dash-notice__title">Secure System Access</p>
+    <p class="dash-notice__text">All actions are logged and monitored. Handle beneficiary data with care and in accordance with the Data Privacy Act.</p>
+  </div>
+</div>

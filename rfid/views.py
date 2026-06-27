@@ -10,7 +10,7 @@ from django.utils import timezone
 from datetime import date
 from django.db.models import Count, Q
 
-from accounts.decorators import session_protected
+from accounts.decorators import session_protected, mswdo_or_staff_required
 from accounts.models import User, Barangay
 from households.models import Household, Zone, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
@@ -34,10 +34,8 @@ User = get_user_model()
 
 @login_required
 @session_protected
+@mswdo_or_staff_required
 def register_rfid(request, family_id=None):
-    # MSWDO ONLY
-    if request.user.role != 'MSWDO':
-        return HttpResponseForbidden("Access Denied")
 
     # ── If a specific family was linked to, go straight to the
     #    registration form (your existing behaviour) ────────────
