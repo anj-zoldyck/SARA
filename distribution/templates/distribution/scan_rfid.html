@@ -1,305 +1,412 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}RFID Scan & Monitoring{% endblock %}
+{% block title %}RFID Scan Kiosk{% endblock %}
 {% block navbar_title %}RFID AID CLAIM SCAN{% endblock %}
 
 {% block css %}
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
 <link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
-<style>
-  /* Local overrides for multi-step indicator & spacing */
-  .scan-steps {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 1.5rem;
-    position: relative;
-  }
-  .scan-steps::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 10%;
-    right: 10%;
-    height: 2px;
-    background: var(--bg-soft);
-    z-index: 1;
-    transform: translateY(-50%);
-  }
-  .scan-step {
-    background: var(--bg-body);
-    border: 2px solid var(--bg-soft);
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    z-index: 2;
-    position: relative;
-    transition: all 0.3s ease;
-  }
-  .scan-step.active {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: #fff;
-  }
-  .scan-step.completed {
-    background: var(--primary-light);
-    border-color: var(--primary);
-    color: var(--primary);
-  }
-  .scan-step-label {
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    margin-top: 0.5rem;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    white-space: nowrap;
-  }
-  .scan-step.active .scan-step-label {
-    color: var(--text-main);
-    font-weight: 500;
-  }
-
-  .table-scroll-container {
-    max-height: 450px;
-    overflow-y: auto;
-    border-radius: 6px;
-    border: 1px solid var(--border-color);
-  }
-  .acct-table th {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background: var(--bg-card);
-  }
-
-  .dash-grid--scan {
-    grid-template-columns: 400px 1fr;
-    gap: 1.5rem;
-    margin-top: 1.5rem;
-  }
-  @media (max-width: 991.98px) {
-    .dash-grid--scan {
-      grid-template-columns: 1fr;
-    }
-  }
-  @media (max-width: 575.98px) {
-    .dash-panel__header {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 12px;
-    }
-    .dash-panel__header-right {
-      width: 100%;
-    }
-    .dash-panel__header-right select {
-      width: 100% !important;
-    }
-  }
-</style>
+<link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
 {% endblock %}
 
 {% block content %}
-<!-- ── Breadcrumb & Header ────────────────────────────── -->
-<div class="page-breadcrumb">
-  <a href="{% if request.user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="breadcrumb-link">
-    <i class="bi bi-speedometer2"></i> Dashboard
-  </a>
-  <i class="bi bi-chevron-right breadcrumb-sep"></i>
-  <span class="breadcrumb-current">RFID Scan</span>
-</div>
+<div id="kioskContainer">
+  <!-- Hidden Input for RFID Reader Wedge -->
+  <input type="text" id="rfidHiddenInput" autocomplete="off" autofocus>
 
-<div class="dash-page-header">
-  <div>
-    <h1 class="dash-page-title">RFID Aid Scan</h1>
-    <p class="dash-page-sub">
-      Verify beneficiary cards and process claims
-    </p>
-  </div>
-</div>
-
-<!-- ── Main Content Grid ────────────────────────────── -->
-<div class="dash-grid dash-grid--main dash-grid--scan">
-  
-  <!-- LEFT: Scan Form Panel -->
-  <div class="dash-panel">
-    <div class="dash-panel__header">
-      <div class="dash-panel__header-left">
-        <i class="bi bi-upc-scan dash-panel__icon"></i>
-        <div>
-          <h2 class="dash-panel__title">Process Claim</h2>
-        </div>
-      </div>
+  <div class="dash-page-header kiosk-header">
+    <div>
+      <h1 class="dash-page-title">
+        {% if aid_schedule and aid_schedule.assistance %}
+          {{ aid_schedule.assistance.program.name }} › {{ aid_schedule.assistance.aid_category.name }}
+        {% else %}
+          No Active Schedule
+        {% endif %}
+      </h1>
+      <p class="dash-page-sub">
+        Active Distribution
+      </p>
     </div>
     
-    <div class="dash-panel__body">
-      
-      <!-- Multi-step Visual Indicator -->
-      <div class="scan-steps" id="scanSteps">
-        <div class="scan-step active" id="step1">
-          1<span class="scan-step-label">Scan RFID</span>
-        </div>
-        <div class="scan-step" id="step2">
-          2<span class="scan-step-label">Select Member</span>
-        </div>
-        <div class="scan-step" id="step3">
-          3<span class="scan-step-label">Confirm</span>
-        </div>
+    <div class="d-flex align-items-center gap-3">
+      <a href="{% if user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="btn btn-dash-outline" title="Back to Dashboard">
+        <i class="bi bi-arrow-left"></i> <span class="d-none d-sm-inline">Back to Dashboard</span>
+      </a>
+
+      <div id="statusPill" class="kiosk-status-pill idle">
+        <div class="spinner-border spinner-border-sm d-none" role="status" id="statusSpinner"></div>
+        <i class="bi bi-upc-scan" id="statusIcon"></i>
+        <span id="statusText">Waiting for RFID</span>
       </div>
 
-      {% if success %}
-        <div class="form-error-block form-error-block--success mb-3">
-          <i class="bi bi-check-circle-fill"></i> {{ success }}
-        </div>
-      {% endif %}
-      {% if error %}
-        <div class="form-error-block mb-3">
-          <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
-        </div>
-      {% endif %}
+      <button id="fullscreenToggleBtn" class="btn btn-dash-outline fullscreen-toggle" title="Toggle Fullscreen (Ctrl+Shift+F)">
+        <i class="bi bi-arrows-fullscreen"></i>
+      </button>
+    </div>
+  </div>
 
-      <form method="post" id="rfidForm" class="acct-form">
-        {% csrf_token %}
-        
-        <div class="acct-form__group">
-          <label class="acct-form__label">Active Schedule</label>
-          <input type="text" class="acct-form__input bg-light"
-                 value="{% if aid_schedule and aid_schedule.assistance %}{{ aid_schedule.assistance.program.name }} › {{ aid_schedule.assistance.aid_category.name }}{% else %}No active schedule{% endif %}"
-                 readonly disabled>
-          <div class="acct-form__help text-muted mt-1" style="font-size: 0.8rem;">
-            <i class="bi bi-info-circle"></i> Controlled by MSWDO schedule
+  <div class="dash-panel w-100 mt-4">
+    <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-activity dash-panel__icon" style="color: var(--blue);"></i>
+          <div>
+            <h2 class="dash-panel__title">Live Claims Monitoring</h2>
+            <p class="dash-panel__sub">Real-time claim updates</p>
           </div>
         </div>
-
-        <div class="acct-form__group mt-3">
-          <label class="acct-form__label">RFID UID</label>
-          <input type="text" name="rfid_uid" id="rfidUidInput" class="acct-form__input"
-                 placeholder="Tap card / Enter UID"
-                 value="{{ rfid_uid_value }}" required autofocus>
-        </div>
-
-        <!-- Family member dropdown injected dynamically by JS -->
-        <div id="memberDropdownContainer" class="mt-3">
-          {% if family_members %}
-            <div class="acct-form__group">
-              <label class="acct-form__label">Select Claiming Family Member</label>
-              <select name="family_member" id="familyMemberSelect" class="acct-form__select" required>
-                <option value="">-- Select Member --</option>
-                {% for member in family_members %}
-                  <option value="{{ member.id }}">{{ member.first_name }} {{ member.last_name }}</option>
-                {% endfor %}
-              </select>
-            </div>
-          {% endif %}
-        </div>
-
-        <div class="acct-form__actions mt-4">
-          <button type="submit" class="btn-dash-primary w-100" id="submitBtn">
-            <i class="bi bi-check2-circle"></i> Confirm Claim
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- RIGHT: Live Claims Monitoring -->
-  <div class="dash-panel">
-    <div class="dash-panel__header">
-      <div class="dash-panel__header-left">
-        <i class="bi bi-activity dash-panel__icon" style="color: var(--blue);"></i>
-        <div>
-          <h2 class="dash-panel__title">Live Claims Monitoring</h2>
-          <p class="dash-panel__sub">Real-time claim updates for the current schedule</p>
-        </div>
-      </div>
-      <div class="dash-panel__header-right">
-        <select id="barangayFilter" class="acct-form__select" style="width: auto; py-1">
-          <option value="">All Barangays</option>
-          {% for brgy in barangays %}
-            <option value="{{ brgy.id }}" {% if selected_barangay == brgy.id|stringformat:"s" %}selected{% endif %}>
-              {{ brgy.name }}
-            </option>
-          {% endfor %}
-        </select>
-      </div>
-    </div>
-    
-    <div class="dash-panel__body" style="padding: 0;">
-      <div class="table-responsive table-scroll-container">
-        <table class="acct-table" id="claimsTable" style="margin: 0;">
-          <thead>
-            <tr>
-              <th class="acct-th">#</th>
-              <th class="acct-th">RFID UID</th>
-              <th class="acct-th">Family Name</th>
-              <th class="acct-th">Member</th>
-              <th class="acct-th">Address</th>
-              <th class="acct-th">Aid Type</th>
-              <th class="acct-th">Claimed At</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for claim in recent_claims %}
-              <tr data-claim-id="{{ claim.id }}" class="acct-row">
-                <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
-                <td class="acct-td"><span class="acct-badge acct-badge--gray">{{ claim.family.rfid_uid }}</span></td>
-                <td class="acct-td">
-                  <div class="acct-barangay-cell">
-                    <div class="acct-avatar"><i class="bi bi-people dash-panel__icon"></i></div>
-                    <span class="acct-barangay-name">{{ claim.family.family_name }}</span>
-                  </div>
-                </td>
-                <td class="acct-td">
-                  {% if claim.family_member %}
-                    {{ claim.family_member.first_name }} {{ claim.family_member.last_name }}
-                  {% else %}
-                    <span class="text-muted">All Members</span>
-                  {% endif %}
-                </td>
-                <td class="acct-td text-muted small">{{ claim.family.household.address }}</td>
-                <td class="acct-td">
-                  {% if claim.assistance %}
-                    {{ claim.assistance.program.name }} › {{ claim.assistance.aid_category.name }}
-                  {% else %}
-                    —
-                  {% endif %}
-                </td>
-                <td class="acct-td text-muted small">{{ claim.claimed_at|date:"M d, Y h:i a" }}</td>
-              </tr>
-            {% empty %}
-              <tr>
-                <td colspan="7" class="acct-empty">
-                  <div class="acct-empty-state">
-                    <i class="bi bi-inbox fs-4 d-block mb-2"></i>
-                    <p>No claims processed yet for this schedule.</p>
-                  </div>
-                </td>
-              </tr>
+        {% if user.role == 'MSWDO' %}
+        <div class="dash-panel__header-right">
+          <select id="barangayFilter" class="acct-form__select" style="width: auto; padding-top: 4px; padding-bottom: 4px;">
+            <option value="">All Barangays</option>
+            {% for brgy in barangays %}
+              <option value="{{ brgy.id }}" {% if selected_barangay == brgy.id|stringformat:"s" %}selected{% endif %}>
+                {{ brgy.name }}
+              </option>
             {% endfor %}
-          </tbody>
-        </table>
+          </select>
+        </div>
+        {% endif %}
+      </div>
+      
+      <div class="dash-panel__body" style="padding: 0;">
+        <div class="table-responsive table-scroll-container">
+          <table class="acct-table" id="claimsTable" style="margin: 0;">
+            <thead>
+              <tr>
+                <th class="acct-th">#</th>
+                <th class="acct-th">RFID UID</th>
+                <th class="acct-th">Family Name</th>
+                <th class="acct-th">Member</th>
+                <th class="acct-th">Address</th>
+                <th class="acct-th">Aid Type</th>
+                <th class="acct-th">Claimed At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for claim in recent_claims %}
+                <tr data-claim-id="{{ claim.id }}" class="acct-row">
+                  <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
+                  <td class="acct-td"><span class="acct-badge acct-badge--gray">{{ claim.family.rfid_uid }}</span></td>
+                  <td class="acct-td">
+                    <div class="acct-barangay-cell">
+                      <div class="acct-avatar"><i class="bi bi-people dash-panel__icon" style="font-size: 1rem; margin-right:0;"></i></div>
+                      <span class="acct-barangay-name">{{ claim.family.family_name }}</span>
+                    </div>
+                  </td>
+                  <td class="acct-td">
+                    {% if claim.family_member %}
+                      {{ claim.family_member.first_name }} {{ claim.family_member.last_name }}
+                    {% else %}
+                      <span class="text-muted">All Members</span>
+                    {% endif %}
+                  </td>
+                  <td class="acct-td text-muted small">{{ claim.family.household.address }}</td>
+                  <td class="acct-td">
+                    {% if claim.assistance %}
+                      {{ claim.assistance.program.name }} › {{ claim.assistance.aid_category.name }}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
+                  <td class="acct-td text-muted small">{{ claim.claimed_at|date:"M d, Y h:i a" }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="7" class="acct-empty">
+                    <div class="acct-empty-state">
+                      <i class="bi bi-inbox fs-4 d-block mb-2"></i>
+                      <p>No claims processed yet for this schedule.</p>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
+</div>
 
+<!-- Member Selection Modal -->
+<div class="modal-overlay" id="memberModal">
+  <div class="kiosk-modal">
+    <div class="kiosk-modal-header">
+      <h2 class="kiosk-modal-title" id="modalFamilyName">Family detected</h2>
+      <p class="kiosk-modal-subtitle" id="modalAddress">Address details</p>
+      <div class="mt-2 text-primary" style="font-size: 0.85rem; font-weight: 500;">
+        <i class="bi bi-info-circle me-1"></i> <span id="modalCriteria">Eligibility criteria</span>
+      </div>
+    </div>
+    <div class="kiosk-modal-body" id="modalMembersList">
+      <!-- Injected dynamically -->
+    </div>
+    <div class="kiosk-modal-footer">
+      Eligible members are highlighted. Tap a name to confirm.
+      <br><small><a href="#" id="cancelModalBtn" class="text-muted mt-2 d-inline-block">Cancel</a></small>
+    </div>
+  </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal-overlay" id="successModal">
+  <div class="kiosk-modal success-modal">
+    <div class="success-avatar-container">
+      <div class="success-avatar" id="successAvatar">
+        <!-- Initials or Image -->
+      </div>
+      <div class="success-badge">
+        <i class="bi bi-check-lg"></i>
+      </div>
+    </div>
+    <h2 class="success-title" id="successTitle">Name</h2>
+    <p class="success-subtitle" id="successSubtitle">Successfully claimed assistance</p>
+    <div class="mt-4 text-muted" style="font-size: 0.85rem;">
+      <div class="spinner-border spinner-border-sm me-1" role="status" style="width: 12px; height: 12px; border-width: 2px;"></div>
+      Returning to scan in a moment
+    </div>
+  </div>
+</div>
+
+<!-- Error Modal -->
+<div class="modal-overlay" id="errorModal">
+  <div class="kiosk-modal success-modal">
+    <div class="error-modal-icon">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+    </div>
+    <h2 class="success-title">Notice</h2>
+    <p class="error-modal-message" id="errorModalMsg">Something went wrong.</p>
+    <button class="btn btn-dash-primary w-100 mt-3" id="closeErrorBtn">OK</button>
+  </div>
 </div>
 
 {% endblock %}
 
 {% block js %}
 <script>
-  // ---------------- Auto-refresh every 5s ----------------
+  // Elements
+  const rfidInput = document.getElementById('rfidHiddenInput');
+  const statusPill = document.getElementById('statusPill');
+  const statusIcon = document.getElementById('statusIcon');
+  const statusSpinner = document.getElementById('statusSpinner');
+  const statusText = document.getElementById('statusText');
+  
+  const memberModal = document.getElementById('memberModal');
+  const successModal = document.getElementById('successModal');
+  const cancelModalBtn = document.getElementById('cancelModalBtn');
+  
+  const csrfToken = '{{ csrf_token }}';
+  let currentUid = '';
+
+  // ---------------- Focus Management ----------------
+  function focusRfidInput() {
+    if (!memberModal.classList.contains('active') && !successModal.classList.contains('active') && !document.getElementById('errorModal').classList.contains('active')) {
+      rfidInput.focus();
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    const interactive = e.target.closest('select, button, a, input, .modal-overlay');
+    if (!interactive) focusRfidInput();
+  });
+
+  function shouldRefocus() {
+    if (document.activeElement) {
+      const tag = document.activeElement.tagName;
+      if (['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].includes(tag)) {
+        if (document.activeElement.id !== 'rfidHiddenInput') return false;
+      }
+    }
+    return true;
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && shouldRefocus()) {
+      focusRfidInput();
+    }
+  });
+
+  window.addEventListener('blur', () => {
+    if (shouldRefocus()) {
+      setTimeout(focusRfidInput, 100);
+    }
+  });
+  focusRfidInput();
+
+  // ---------------- UI State Helpers ----------------
+  function setStatusProcessing() {
+    statusPill.classList.remove('idle');
+    statusPill.classList.add('processing');
+    statusIcon.classList.add('d-none');
+    statusSpinner.classList.remove('d-none');
+    statusText.textContent = "Processing...";
+  }
+
+  function setStatusIdle() {
+    statusPill.classList.add('idle');
+    statusPill.classList.remove('processing');
+    statusIcon.classList.remove('d-none');
+    statusSpinner.classList.add('d-none');
+    statusText.textContent = "Waiting for RFID";
+    rfidInput.value = '';
+    focusRfidInput();
+  }
+
+  function showError(msg) {
+    document.getElementById('errorModalMsg').textContent = msg;
+    document.getElementById('errorModal').classList.add('active');
+    setStatusIdle();
+  }
+
+  document.getElementById('closeErrorBtn').addEventListener('click', () => {
+    document.getElementById('errorModal').classList.remove('active');
+    focusRfidInput();
+  });
+
+  function getInitials(name) {
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  }
+
+  // ---------------- AJAX Form Submission ----------------
+  async function processClaim(uid, memberId = null) {
+    try {
+      const data = new FormData();
+      data.append('csrfmiddlewaretoken', csrfToken);
+      data.append('rfid_uid', uid);
+      if (memberId) data.append('family_member', memberId);
+
+      const response = await fetch("{% url 'scan_rfid' %}", {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: data
+      });
+
+      const result = await response.json();
+      return result;
+    } catch (e) {
+      console.error(e);
+      return { status: 'error', message: 'Network or server error.' };
+    }
+  }
+
+  // ---------------- Main Flow ----------------
+  rfidInput.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const uid = rfidInput.value.trim();
+      if (!uid) return;
+      
+      currentUid = uid;
+      setStatusProcessing();
+
+      const result = await processClaim(uid);
+
+      if (result.status === 'error') {
+        showError(result.message);
+      } 
+      else if (result.status === 'success') {
+        // Family based success (or individual if configured that way somehow)
+        showSuccessModal(result);
+      } 
+      else if (result.status === 'needs_selection') {
+        // Show Member Selection Modal
+        showMemberModal(result);
+      }
+    }
+  });
+
+  function showMemberModal(data) {
+    document.getElementById('modalFamilyName').textContent = data.family_name;
+    document.getElementById('modalAddress').textContent = data.address;
+    document.getElementById('modalCriteria').textContent = data.criteria;
+    
+    const list = document.getElementById('modalMembersList');
+    list.innerHTML = '';
+
+    data.members.forEach(m => {
+      const div = document.createElement('div');
+      div.className = `member-item ${m.status}`;
+      
+      let badgeHtml = '';
+      if (m.status === 'eligible_unclaimed') {
+        badgeHtml = `<div class="acct-badge acct-badge--green"><i class="bi bi-check-circle"></i> Eligible</div>`;
+      } else if (m.status === 'eligible_claimed') {
+        badgeHtml = `<div class="acct-badge acct-badge--gray"><i class="bi bi-check-circle-fill"></i> ${m.reason}</div>`;
+      } else {
+        badgeHtml = `<div class="member-status text-muted"><i class="bi bi-x-circle"></i> ${m.reason}</div>`;
+      }
+
+      let avatarHtml = '';
+      if (m.profile_image) {
+        avatarHtml = `<img src="${m.profile_image}" alt="Profile">`;
+      } else {
+        avatarHtml = getInitials(m.name);
+      }
+
+      div.innerHTML = `
+        <div class="member-info">
+          <div class="member-avatar">${avatarHtml}</div>
+          <div class="member-name">${m.name}</div>
+        </div>
+        <div>${badgeHtml}</div>
+      `;
+
+      if (m.status === 'eligible_unclaimed') {
+        div.addEventListener('click', async () => {
+          memberModal.classList.remove('active');
+          setStatusProcessing();
+          const res = await processClaim(currentUid, m.id);
+          if (res.status === 'success') {
+            showSuccessModal(res);
+          } else {
+            showError(res.message);
+          }
+        });
+      }
+      
+      list.appendChild(div);
+    });
+
+    memberModal.classList.add('active');
+  }
+
+  function showSuccessModal(data) {
+    const avatar = document.getElementById('successAvatar');
+    if (data.profile_image) {
+      avatar.innerHTML = `<img src="${data.profile_image}" alt="Profile">`;
+    } else {
+      avatar.innerHTML = getInitials(data.name);
+    }
+
+    document.getElementById('successTitle').textContent = data.name;
+    document.getElementById('successSubtitle').textContent = `Successfully claimed ${data.assistance_label}`;
+    
+    successModal.classList.add('active');
+
+    // Auto dismiss
+    setTimeout(() => {
+      successModal.classList.remove('active');
+      setStatusIdle();
+      refreshTable(); // immediately trigger table update
+    }, 2500);
+  }
+
+  cancelModalBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    memberModal.classList.remove('active');
+    setStatusIdle();
+  });
+
+  // ---------------- Auto-refresh Table ----------------
   function refreshTable() {
     const brgy = document.getElementById('barangayFilter').value;
-    fetch("{% url 'scan_rfid' %}?barangay=" + brgy)
+    fetch("{% url 'scan_rfid' %}?barangay=" + brgy, {
+      headers: { 'Accept': 'text/html' }
+    })
       .then(response => response.text())
       .then(html => {
         const parser = new DOMParser();
@@ -320,103 +427,43 @@
       });
   }
   setInterval(refreshTable, 5000);
-
-  // ---------------- Barangay Filter ----------------
   document.getElementById('barangayFilter').addEventListener('change', refreshTable);
 
-  // ---------------- Dynamic Family Members & Steps ----------------
-  const rfidInput = document.getElementById('rfidUidInput');
-  const aidSelect = "{{ aid_schedule.assistance.id|default:'' }}"; 
-  const memberDropdownContainer = document.getElementById('memberDropdownContainer');
-  const step1 = document.getElementById('step1');
-  const step2 = document.getElementById('step2');
-  const step3 = document.getElementById('step3');
-  const isIndividual = "{{ aid_schedule.assistance.beneficiary_type }}" === "individual";
+  // ---------------- Fullscreen Toggle ----------------
+  const fullscreenBtn = document.getElementById('fullscreenToggleBtn');
+  const kioskContainer = document.documentElement; // Typically fullscreen the whole page to hide browser UI
 
-  function updateSteps(hasUid, hasMemberOptions, memberSelected) {
-    // Reset steps
-    step1.className = 'scan-step active';
-    step2.className = 'scan-step';
-    step3.className = 'scan-step';
-
-    if (hasUid) {
-      step1.className = 'scan-step completed';
-      if (isIndividual) {
-        step2.className = 'scan-step active';
-        if (memberSelected) {
-          step2.className = 'scan-step completed';
-          step3.className = 'scan-step active';
-        }
-      } else {
-        // Family-based skips step 2 visually
-        step2.className = 'scan-step completed';
-        step3.className = 'scan-step active';
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      kioskContainer.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
       }
     }
   }
 
-  function fetchMembers() {
-    const uid = rfidInput.value.trim();
+  fullscreenBtn.addEventListener('click', toggleFullscreen);
 
-    if (!uid || !isIndividual || !aidSelect) {
-      memberDropdownContainer.innerHTML = '';
-      updateSteps(uid.length > 0, false, false);
-      return;
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && (e.key === 'f' || e.key === 'F')) {
+      e.preventDefault();
+      toggleFullscreen();
     }
-
-    fetch("{% url 'get_family_members' %}?rfid_uid=" + encodeURIComponent(uid) + "&assistance_id=" + encodeURIComponent(aidSelect))
-      .then(res => res.json())
-      .then(data => {
-        if (!data.members.length) {
-          memberDropdownContainer.innerHTML = '';
-          updateSteps(true, false, false);
-          return;
-        }
-
-        let html = `<div class="acct-form__group mt-3 fade-in">
-                      <label class="acct-form__label">Select Claiming Family Member</label>
-                      <select name="family_member" id="familyMemberSelect" class="acct-form__select" required>
-                        <option value="">-- Select Member --</option>`;
-        data.members.forEach(m => {
-          html += `<option value="${m.id}">${m.name}</option>`;
-        });
-        html += '</select></div>';
-        memberDropdownContainer.innerHTML = html;
-
-        updateSteps(true, true, false);
-
-        document.getElementById('familyMemberSelect').addEventListener('change', function() {
-          updateSteps(true, true, this.value !== '');
-        });
-      });
-  }
-
-  rfidInput.addEventListener('input', fetchMembers);
-
-  // Initialize steps if server rendered with family members (validation error case)
-  const initialSelect = document.getElementById('familyMemberSelect');
-  if (initialSelect) {
-    updateSteps(true, true, initialSelect.value !== '');
-    initialSelect.addEventListener('change', function() {
-      updateSteps(true, true, this.value !== '');
-    });
-  } else if (rfidInput.value.trim()) {
-      updateSteps(true, false, false);
-  }
-
-  // ---------------- Form Submission UX ----------------
-  const rfidForm = document.getElementById('rfidForm');
-  rfidForm.addEventListener('submit', () => {
-    const btn = document.getElementById('submitBtn');
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
-    btn.classList.add('disabled');
-    
-    // Slight delay to allow DOM update before reloading
-    setTimeout(() => {
-      rfidInput.value = '';
-      memberDropdownContainer.innerHTML = '';
-      updateSteps(false, false, false);
-    }, 150);
   });
+
+  document.addEventListener('fullscreenchange', () => {
+    if (document.fullscreenElement) {
+      fullscreenBtn.innerHTML = '<i class="bi bi-fullscreen-exit"></i>';
+      fullscreenBtn.setAttribute('title', 'Exit Fullscreen (Ctrl+Shift+F)');
+    } else {
+      fullscreenBtn.innerHTML = '<i class="bi bi-arrows-fullscreen"></i>';
+      fullscreenBtn.setAttribute('title', 'Toggle Fullscreen (Ctrl+Shift+F)');
+    }
+    focusRfidInput(); // re-focus just in case
+  });
+
 </script>
 {% endblock %}

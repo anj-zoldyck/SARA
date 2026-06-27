@@ -180,7 +180,7 @@ def rfid_claim_monitoring(request):
                 if claim.family_member else "ALL MEMBERS"
             ),
             'address': claim.family.household.address,
-            'aid_type': claim.aid_type,
+            'aid_type': str(claim.assistance) if claim.assistance else 'N/A',
             'claimed_at': claim.claimed_at,
             'processed_by': (
                 claim.created_by.username

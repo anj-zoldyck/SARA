@@ -81,6 +81,8 @@ class Assistance(models.Model):
         blank=True,
         help_text="Leave blank if no age requirement."
     )
+    requires_pwd = models.BooleanField(default=False)
+    requires_solo_parent = models.BooleanField(default=False)
 
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

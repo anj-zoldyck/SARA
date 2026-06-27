@@ -62,7 +62,7 @@
     <!-- LEFT: Burger (mobile, authenticated only) + Brand -->
     <div class="topbar-left">
 
-      {% if user.is_authenticated %}
+      {% if user.is_authenticated and not hide_sidebar %}
       <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
         <i class="bi bi-list"></i>
       </button>
@@ -118,7 +118,7 @@
   </nav>
 
   <!-- ==================== SIDEBAR OVERLAY (mobile) ==================== -->
-  {% if user.is_authenticated %}
+  {% if user.is_authenticated and not hide_sidebar %}
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
   <!-- ==================== SIDEBAR ==================== -->
@@ -378,7 +378,7 @@
   {% endif %}
 
   <!-- ==================== MAIN CONTENT ==================== -->
-  <main class="{% if user.is_authenticated %}main-content{% endif %}">
+  <main class="{% if user.is_authenticated and not hide_sidebar %}main-content{% endif %}">
       <!-- ── Django Messages (global) ──────────────────────────── 
       {% if messages %}
         <div style="padding: 1rem 1rem 0;">
@@ -396,7 +396,7 @@
   </main>
 
   <!-- ==================== FOOTER ==================== -->
-  <footer class="{% if user.is_authenticated %}footer footer--dashboard{% else %}footer{% endif %}">
+  <footer class="{% if user.is_authenticated and not hide_sidebar %}footer footer--dashboard{% else %}footer{% endif %}">
     <div class="footer-content">
       <p>&copy; 2025 SARA &mdash; Santa Rita Automated Relief Assistance System. All Rights Reserved.</p>
     </div>

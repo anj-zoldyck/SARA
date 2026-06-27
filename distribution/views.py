@@ -111,15 +111,29 @@ def scan_rfid(request):
     ).order_by('-schedule_datetime').first()
 
     if not aid_schedule:
-        error = "No active aid schedule right now."
+        error = "No active distribution schedule right now."
     elif not aid_schedule.assistance:
         error = "Active schedule has no assistance type configured. Please contact admin."
+
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Accept') == 'application/json' or 'application/json' in request.content_type
+
+    if error and is_ajax and request.method == 'POST':
+        return JsonResponse({'status': 'error', 'message': error})
 
     # ----------------- Handle RFID SCAN -----------------
     if request.method == 'POST' and aid_schedule and aid_schedule.assistance:
         uid = request.POST.get('rfid_uid')
         member_id = request.POST.get('family_member')
         assistance = aid_schedule.assistance
+
+        if not uid and not member_id and is_ajax:
+            # Handle standard json body just in case
+            try:
+                data = json.loads(request.body)
+                uid = data.get('rfid_uid')
+                member_id = data.get('family_member')
+            except:
+                pass
 
         # Get family by RFID
         try:
@@ -133,6 +147,8 @@ def scan_rfid(request):
                 family = Family.objects.get(rfid_uid=uid, is_active=True)
         except Family.DoesNotExist:
             error = "Invalid RFID UID."
+            if is_ajax:
+                return JsonResponse({'status': 'error', 'message': error})
             return render(request, 'distribution/scan_rfid.html', {'error': error, 'aid_schedule': aid_schedule})
 
         # -------- FAMILY-BASED assistance --------
@@ -145,6 +161,8 @@ def scan_rfid(request):
 
             if already_claimed:
                 error = f"{family.family_name} has already claimed {assistance.aid_category.name} for this schedule."
+                if is_ajax:
+                    return JsonResponse({'status': 'error', 'message': error})
             else:
                 AidClaim.objects.create(
                     family=family,
@@ -153,24 +171,16 @@ def scan_rfid(request):
                     created_by=request.user,
                 )
                 success = f"{family.family_name} successfully claimed {assistance.aid_category.name}."
+                if is_ajax:
+                    return JsonResponse({
+                        'status': 'success',
+                        'message': success,
+                        'name': family.family_name,
+                        'assistance_label': f"{assistance.program.name} › {assistance.aid_category.name}"
+                    })
 
         # -------- INDIVIDUAL-BASED assistance --------
         elif assistance.beneficiary_type == 'individual':
-            # Get already claimed member IDs for this schedule
-            claimed_member_ids = AidClaim.objects.filter(
-                family=family,
-                assistance=assistance,
-                schedule=aid_schedule,
-                family_member__isnull=False
-            ).values_list('family_member_id', flat=True)
-
-            # Build eligible members queryset
-            eligible_members = family.members.exclude(id__in=claimed_member_ids)
-
-            # Apply minimum age filter if configured on this assistance
-            if assistance.minimum_age:
-                eligible_members = eligible_members.filter(age__gte=assistance.minimum_age)
-
             if member_id:
                 # A member was selected — process the claim
                 member = get_object_or_404(FamilyMember, id=member_id, family=family)
@@ -184,6 +194,8 @@ def scan_rfid(request):
 
                 if already_claimed:
                     error = f"{member.first_name} {member.last_name} already claimed {assistance.aid_category.name} for this schedule."
+                    if is_ajax:
+                        return JsonResponse({'status': 'error', 'message': error})
                 else:
                     AidClaim.objects.create(
                         family=family,
@@ -193,22 +205,96 @@ def scan_rfid(request):
                         created_by=request.user,
                     )
                     success = f"{member.first_name} {member.last_name} successfully claimed {assistance.aid_category.name}."
+                    if is_ajax:
+                        return JsonResponse({
+                            'status': 'success',
+                            'message': success,
+                            'name': f"{member.first_name} {member.last_name}",
+                            'profile_image': member.profile_image.url if member.profile_image else None,
+                            'assistance_label': f"{assistance.program.name} › {assistance.aid_category.name}"
+                        })
                     eligible_members = None
 
             else:
-                # No member selected yet — show member selection step
-                if not eligible_members.exists():
-                    error = f"All eligible members have already claimed {assistance.aid_category.name} for this schedule."
-                else:
-                    return render(request, 'distribution/scan_rfid.html', {
-                        'family': family,
-                        'family_members': eligible_members,
-                        'assistance': assistance,
-                        'aid_schedule': aid_schedule,
-                        'rfid_uid_value': uid,
+                # No member selected yet — return members list for AJAX modal
+                all_members = family.members.all()
+                claimed_member_ids = AidClaim.objects.filter(
+                    family=family,
+                    assistance=assistance,
+                    schedule=aid_schedule,
+                    family_member__isnull=False
+                ).values_list('family_member_id', flat=True)
+
+                member_data = []
+                for m in all_members:
+                    reasons = []
+                    if assistance.minimum_age and m.age < assistance.minimum_age:
+                        reasons.append(f"Under {assistance.minimum_age}")
+                    if assistance.requires_pwd and not m.is_pwd:
+                        reasons.append("Not registered PWD")
+                    if assistance.requires_solo_parent and not m.is_solo_parent:
+                        reasons.append("Not registered Solo Parent")
+
+                    if reasons:
+                        status = 'ineligible'
+                        reason_str = ", ".join(reasons)
+                    elif m.id in claimed_member_ids:
+                        status = 'eligible_claimed'
+                        reason_str = "Already Claimed"
+                    else:
+                        status = 'eligible_unclaimed'
+                        reason_str = "Eligible"
+
+                    member_data.append({
+                        'id': m.id,
+                        'name': f"{m.first_name} {m.last_name}",
+                        'status': status,
+                        'reason': reason_str,
+                        'profile_image': m.profile_image.url if m.profile_image else None
                     })
 
-            family_members = eligible_members if 'eligible_members' in dir() else None
+                if is_ajax:
+                    has_eligible = any(m['status'] == 'eligible_unclaimed' for m in member_data)
+                    if not has_eligible:
+                        return JsonResponse({
+                            'status': 'error', 
+                            'message': f"All eligible members of this family have already claimed {assistance.aid_category.name} today."
+                        })
+
+                    criteria = []
+                    if assistance.minimum_age: criteria.append(f"{assistance.minimum_age}+")
+                    if assistance.requires_pwd: criteria.append("PWD")
+                    if assistance.requires_solo_parent: criteria.append("Solo Parent")
+                    criteria_str = " + ".join(criteria) if criteria else "No specific criteria"
+
+                    return JsonResponse({
+                        'status': 'needs_selection',
+                        'family_name': family.family_name,
+                        'address': family.household.address,
+                        'criteria': f"{assistance.program.name} › {assistance.aid_category.name} — {criteria_str}",
+                        'members': member_data
+                    })
+                else:
+                    # fallback for non-ajax
+                    eligible_members = all_members.exclude(id__in=claimed_member_ids)
+                    if assistance.minimum_age:
+                        eligible_members = eligible_members.filter(age__gte=assistance.minimum_age)
+                    if assistance.requires_pwd:
+                        eligible_members = eligible_members.filter(is_pwd=True)
+                    if assistance.requires_solo_parent:
+                        eligible_members = eligible_members.filter(is_solo_parent=True)
+                        
+                    if not eligible_members.exists():
+                        error = f"All eligible members have already claimed {assistance.aid_category.name} for this schedule."
+                    else:
+                        return render(request, 'distribution/scan_rfid.html', {
+                            'family': family,
+                            'family_members': eligible_members,
+                            'assistance': assistance,
+                            'aid_schedule': aid_schedule,
+                            'rfid_uid_value': uid,
+                        })
+                    family_members = eligible_members if 'eligible_members' in dir() else None
 
     # ----------------- FILTERS (GET) -----------------
     selected_barangay = request.GET.get('barangay')
@@ -230,6 +316,9 @@ def scan_rfid(request):
     if selected_barangay:
         claims = claims.filter(family__household__barangay__id=selected_barangay)
 
+    if request.user.role == 'MSWDO_STAFF':
+        claims = claims.filter(created_by=request.user)
+
     recent_claims = claims.order_by('-claimed_at')[:20]
     barangays = Barangay.objects.all()
 
@@ -244,6 +333,7 @@ def scan_rfid(request):
         'selected_barangay': selected_barangay,
         'aid_schedule': aid_schedule,
         'rfid_uid_value': '',
+        'hide_sidebar': True,
     })
 
 
