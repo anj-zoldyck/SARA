@@ -270,9 +270,13 @@ def get_family_members(request):
 
     members = family.members.exclude(id__in=claimed_member_ids)
 
-    # Apply minimum age if set on this assistance
     if assistance.minimum_age:
-        members = members.filter(age__gte=assistance.minimum_age)
+        today = date.today()
+        try:
+            threshold_date = today.replace(year=today.year - assistance.minimum_age)
+        except ValueError:
+            threshold_date = today.replace(year=today.year - assistance.minimum_age, day=28)
+        members = members.filter(birthdate__lte=threshold_date)
 
     members_data = [
         {'id': m.id, 'name': f'{m.first_name} {m.last_name}'}
@@ -326,6 +330,7 @@ def schedule_status(request):
             # NEW: use assistance label instead of aid_type string
             'aid_type': str(s.assistance) if s.assistance else (s.aid_type or 'N/A'),
             'schedule_datetime': fmt(s.schedule_datetime),
+            'iso_datetime': s.schedule_datetime.isoformat() if s.schedule_datetime else None,
             'end_datetime': fmt(s.end_datetime),
             'location': s.location,
             'barangay': str(s.barangay) if s.barangay else 'All Barangays',
@@ -445,6 +450,7 @@ def barangay_schedule_status(request):
             'aid_label': str(s.assistance) if s.assistance else 'N/A',
             'beneficiary_type': s.assistance.beneficiary_type if s.assistance else None,
             'schedule_datetime': fmt(s.schedule_datetime),
+            'iso_datetime': s.schedule_datetime.isoformat() if s.schedule_datetime else None,
             'end_datetime': fmt(s.end_datetime),
             'location': s.location,
             'barangay': str(s.barangay) if s.barangay else 'All Barangays',

@@ -35,11 +35,18 @@ class FamilyForm(forms.ModelForm):
 class FamilyMemberForm(forms.ModelForm):
     class Meta:
         model = FamilyMember
-        fields = ['first_name', 'last_name', 'relationship', 'age']
+        fields = [
+            'first_name', 'last_name', 'relationship', 'birthdate',
+            'is_pwd', 'is_solo_parent', 'is_senior_citizen', 'profile_image'
+        ]
 
         widgets = {
             'first_name': forms.TextInput(attrs={'class': 'form-control'}),
             'last_name': forms.TextInput(attrs={'class': 'form-control'}),
             'relationship': forms.TextInput(attrs={'class': 'form-control'}),
-            'age': forms.NumberInput(attrs={'class': 'form-control'}),
+            'birthdate': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'is_pwd': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'is_solo_parent': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'is_senior_citizen': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'profile_image': forms.FileInput(attrs={'class': 'd-none', 'id': 'profile_image_input', 'accept': 'image/*'}),
         }

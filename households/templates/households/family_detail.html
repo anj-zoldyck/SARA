@@ -76,7 +76,13 @@
             <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
             <td class="acct-td">
               <div class="acct-barangay-cell">
-                <div class="acct-avatar">{{ member.first_name|first|upper }}</div>
+                <div class="acct-avatar">
+                  {% if member.profile_image %}
+                    <img src="{{ member.profile_image.url }}" alt="Photo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                  {% else %}
+                    {{ member.first_name|first|upper }}{{ member.last_name|first|upper }}
+                  {% endif %}
+                </div>
                 <span class="acct-barangay-name">{{ member.first_name }} {{ member.last_name }}</span>
               </div>
             </td>

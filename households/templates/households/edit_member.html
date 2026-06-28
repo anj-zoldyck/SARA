@@ -8,6 +8,11 @@
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
 <link rel="stylesheet" href="{% static 'css/households.css' %}">
+<style>
+  .camera-preview--mirrored {
+    transform: scaleX(-1);
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -75,7 +80,7 @@
       </div>
       {% endif %}
 
-      <form method="post" class="acct-form">
+      <form method="post" class="acct-form" enctype="multipart/form-data">
         {% csrf_token %}
 
         <!-- Name Row -->
@@ -118,13 +123,91 @@
 
           <div class="acct-form__group">
             <label class="acct-form__label">
-              <i class="bi bi-calendar3"></i> Age
+              <i class="bi bi-calendar3"></i> Birthdate
               <span class="acct-form__required">*</span>
             </label>
-            <div class="acct-form__control-wrap">{{ form.age }}</div>
-            {% if form.age.errors %}
-              <p class="acct-form__error">{{ form.age.errors|join:", " }}</p>
+            <div class="acct-form__control-wrap">{{ form.birthdate }}</div>
+            {% if form.birthdate.errors %}
+              <p class="acct-form__error">{{ form.birthdate.errors|join:", " }}</p>
             {% endif %}
+          </div>
+        </div>
+
+        <!-- Profile Image Row -->
+        <div class="hh-form-row">
+          <div class="acct-form__group" style="grid-column: 1 / -1;">
+            <label class="acct-form__label">
+              <i class="bi bi-camera"></i> Profile Image (Optional)
+            </label>
+            <div class="camera-container" style="display: flex; flex-direction: column; gap: 10px; max-width: 400px; margin: 0 auto; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
+              
+              <div id="camera_preview_area" style="position: relative; width: 100%; aspect-ratio: 1; background: #e2e8f0; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                <!-- Video for live feed -->
+                <video id="camera_video" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
+                <!-- Img for captured snapshot or existing photo -->
+                <img id="camera_snapshot" 
+                     src="{% if member.profile_image %}{{ member.profile_image.url }}{% endif %}"
+                     style="width: 100%; height: 100%; object-fit: cover; {% if not member.profile_image %}display: none;{% endif %}" alt="Snapshot">
+                <!-- Placeholder when neither is active -->
+                <div id="camera_placeholder" style="color: #64748b; {% if member.profile_image %}display: none;{% endif %}">
+                  <i class="bi bi-person-bounding-box" style="font-size: 3rem;"></i>
+                  <p class="mb-0 mt-2" style="font-size: 0.9rem;">No photo taken</p>
+                </div>
+              </div>
+              
+              <div class="camera-actions" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button type="button" id="btn_open_camera" class="btn-dash-primary" style="flex: 1; padding: 6px 12px; font-size: 0.9rem; {% if member.profile_image %}display: none;{% endif %}">
+                  <i class="bi bi-camera"></i> Open Camera
+                </button>
+                <button type="button" id="btn_switch_camera" class="btn-dash-outline" style="padding: 6px 12px; font-size: 0.9rem; display: none;" title="Switch Camera">
+                  <i class="bi bi-arrow-repeat"></i>
+                </button>
+                <button type="button" id="btn_capture" class="btn btn-success" style="flex: 1; padding: 6px 12px; font-size: 0.9rem; display: none; border: none; background: #10b981; color: white;">
+                  <i class="bi bi-record-circle"></i> Capture
+                </button>
+                <button type="button" id="btn_retake" class="btn-dash-outline" style="flex: 1; padding: 6px 12px; font-size: 0.9rem; {% if not member.profile_image %}display: none;{% endif %}">
+                  <i class="bi bi-arrow-counterclockwise"></i> Retake
+                </button>
+              </div>
+
+              <!-- Fallback file upload -->
+              <div style="margin-top: 10px; font-size: 0.85rem; color: #64748b;">
+                Or <label for="profile_image_input" style="color: var(--clr-primary); cursor: pointer; text-decoration: underline; margin: 0;">upload manually</label>
+              </div>
+              {{ form.profile_image }}
+              <canvas id="camera_canvas" style="display: none;"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="hh-form-row">
+          <div class="acct-form__group" style="grid-column: 1 / -1;">
+            <label class="acct-form__label">
+              <i class="bi bi-card-checklist"></i> Special Categories
+            </label>
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 5px;">
+              <div class="modal-form__check-row" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px;">
+                {{ form.is_senior_citizen }}
+                <div>
+                  <label class="modal-form__check-label" for="{{ form.is_senior_citizen.id_for_label }}" style="font-weight: 500; color: #334155; margin-bottom: 2px;">Senior Citizen</label>
+                  <p class="modal-form__check-sub" style="margin: 0; font-size: 0.8rem; color: #64748b;">Must be 60+ years old and have a valid OSCA ID.</p>
+                </div>
+              </div>
+              <div class="modal-form__check-row" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px;">
+                {{ form.is_pwd }}
+                <div>
+                  <label class="modal-form__check-label" for="{{ form.is_pwd.id_for_label }}" style="font-weight: 500; color: #334155; margin-bottom: 2px;">PWD (Person with Disability)</label>
+                  <p class="modal-form__check-sub" style="margin: 0; font-size: 0.8rem; color: #64748b;">Must have a valid PWD ID.</p>
+                </div>
+              </div>
+              <div class="modal-form__check-row" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px;">
+                {{ form.is_solo_parent }}
+                <div>
+                  <label class="modal-form__check-label" for="{{ form.is_solo_parent.id_for_label }}" style="font-weight: 500; color: #334155; margin-bottom: 2px;">Solo Parent</label>
+                  <p class="modal-form__check-sub" style="margin: 0; font-size: 0.8rem; color: #64748b;">Must have a valid Solo Parent ID.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -159,7 +242,11 @@
       <div class="dash-panel__body">
         <div class="edit-member-info">
           <div class="edit-member-avatar">
-            {{ member.first_name|first|upper }}{{ member.last_name|first|upper }}
+            {% if member.profile_image %}
+              <img src="{{ member.profile_image.url }}" alt="Photo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+            {% else %}
+              {{ member.first_name|first|upper }}{{ member.last_name|first|upper }}
+            {% endif %}
           </div>
           <div class="edit-member-details">
             <p class="edit-member-name">{{ member.first_name }} {{ member.last_name }}</p>
@@ -201,4 +288,153 @@
   </a>
 </div>
 
+{% endblock %}
+
+{% block js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const video = document.getElementById('camera_video');
+  const canvas = document.getElementById('camera_canvas');
+  const snapshot = document.getElementById('camera_snapshot');
+  const placeholder = document.getElementById('camera_placeholder');
+  const fileInput = document.getElementById('profile_image_input');
+
+  const btnOpen = document.getElementById('btn_open_camera');
+  const btnSwitch = document.getElementById('btn_switch_camera');
+  const btnCapture = document.getElementById('btn_capture');
+  const btnRetake = document.getElementById('btn_retake');
+
+  let stream = null;
+  let currentFacingMode = 'environment'; // Default to rear camera on mobile
+
+  async function startCamera() {
+    try {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: currentFacingMode } 
+      });
+      video.srcObject = stream;
+      
+      const track = stream.getVideoTracks()[0];
+      if (track) {
+        const settings = track.getSettings();
+        if (settings && settings.facingMode) {
+          currentFacingMode = settings.facingMode;
+        }
+      }
+      
+      if (currentFacingMode === 'user') {
+        video.classList.add('camera-preview--mirrored');
+      } else {
+        video.classList.remove('camera-preview--mirrored');
+      }
+      
+      // UI states
+      placeholder.style.display = 'none';
+      snapshot.style.display = 'none';
+      video.style.display = 'block';
+      
+      btnOpen.style.display = 'none';
+      btnRetake.style.display = 'none';
+      btnCapture.style.display = 'block';
+      
+      // Only show switch button if multiple cameras might exist
+      navigator.mediaDevices.enumerateDevices().then(devices => {
+        const videoInputs = devices.filter(d => d.kind === 'videoinput');
+        if (videoInputs.length > 1) {
+          btnSwitch.style.display = 'block';
+        } else {
+          btnSwitch.style.display = 'none';
+        }
+      });
+
+    } catch (err) {
+      console.error("Error accessing camera: ", err.name, err.message, err);
+      if (!window.isSecureContext) {
+        alert("Camera access requires a secure (HTTPS) connection. Please use the manual upload option for now.");
+      } else {
+        alert("Could not access camera (" + err.name + "). Please check permissions or use manual file upload.");
+      }
+    }
+  }
+
+  function stopCamera() {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
+    }
+  }
+
+  btnOpen.addEventListener('click', startCamera);
+
+  btnSwitch.addEventListener('click', () => {
+    currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+    startCamera();
+  });
+
+  btnCapture.addEventListener('click', () => {
+    if (!stream) return;
+    
+    // Set canvas size to video size
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Draw frame
+    const ctx = canvas.getContext('2d');
+    
+    if (currentFacingMode === 'user') {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+    
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Stop camera
+    stopCamera();
+    
+    // Convert to Blob and set FileInput
+    canvas.toBlob((blob) => {
+      const file = new File([blob], "camera_capture.png", { type: "image/png" });
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      fileInput.files = dataTransfer.files;
+      
+      // Show snapshot
+      snapshot.src = URL.createObjectURL(blob);
+      video.style.display = 'none';
+      snapshot.style.display = 'block';
+      
+      // UI states
+      btnCapture.style.display = 'none';
+      btnSwitch.style.display = 'none';
+      btnRetake.style.display = 'block';
+    }, 'image/png');
+  });
+
+  btnRetake.addEventListener('click', startCamera);
+
+  // Handle manual file selection preview
+  fileInput.addEventListener('change', function(e) {
+    if (this.files && this.files[0]) {
+      stopCamera();
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        snapshot.src = e.target.result;
+        
+        placeholder.style.display = 'none';
+        video.style.display = 'none';
+        snapshot.style.display = 'block';
+        
+        btnOpen.style.display = 'none';
+        btnSwitch.style.display = 'none';
+        btnCapture.style.display = 'none';
+        btnRetake.style.display = 'block';
+      }
+      reader.readAsDataURL(this.files[0]);
+    }
+  });
+});
+</script>
 {% endblock %}

@@ -1,6 +1,7 @@
 from django.db import models
 from accounts.models import Barangay
 from accounts.utils import resident_profile_image_path
+import datetime
 
 # ----------------- Zone Model -----------------
 class Zone(models.Model):
@@ -51,10 +52,18 @@ class FamilyMember(models.Model):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     relationship = models.CharField(max_length=50)
-    age = models.PositiveIntegerField()
+    birthdate = models.DateField(null=True, blank=True)
     is_pwd = models.BooleanField(default=False)
     is_solo_parent = models.BooleanField(default=False)
+    is_senior_citizen = models.BooleanField(default=False)
     profile_image = models.ImageField(upload_to=resident_profile_image_path, blank=True, null=True)
+
+    @property
+    def age(self):
+        if self.birthdate:
+            today = datetime.date.today()
+            return today.year - self.birthdate.year - ((today.month, today.day) < (self.birthdate.month, self.birthdate.day))
+        return None
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"

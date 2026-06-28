@@ -20,18 +20,19 @@
     <div>
       <h1 class="dash-page-title">
         {% if aid_schedule and aid_schedule.assistance %}
-          {{ aid_schedule.assistance.program.name }} › {{ aid_schedule.assistance.aid_category.name }}
+        {{ aid_schedule.assistance.program.name }} › {{ aid_schedule.assistance.aid_category.name }}
         {% else %}
-          No Active Schedule
+        No Active Schedule
         {% endif %}
       </h1>
       <p class="dash-page-sub">
         Active Distribution
       </p>
     </div>
-    
+
     <div class="d-flex align-items-center gap-3">
-      <a href="{% if user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="btn btn-dash-outline" title="Back to Dashboard">
+      <a href="{% if user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}"
+        class="btn btn-dash-outline" title="Back to Dashboard">
         <i class="bi bi-arrow-left"></i> <span class="d-none d-sm-inline">Back to Dashboard</span>
       </a>
 
@@ -41,7 +42,8 @@
         <span id="statusText">Waiting for RFID</span>
       </div>
 
-      <button id="fullscreenToggleBtn" class="btn btn-dash-outline fullscreen-toggle" title="Toggle Fullscreen (Ctrl+Shift+F)">
+      <button id="fullscreenToggleBtn" class="btn btn-dash-outline fullscreen-toggle"
+        title="Toggle Fullscreen (Ctrl+Shift+F)">
         <i class="bi bi-arrows-fullscreen"></i>
       </button>
     </div>
@@ -49,85 +51,87 @@
 
   <div class="dash-panel w-100 mt-4">
     <div class="dash-panel__header">
-        <div class="dash-panel__header-left">
-          <i class="bi bi-activity dash-panel__icon" style="color: var(--blue);"></i>
-          <div>
-            <h2 class="dash-panel__title">Live Claims Monitoring</h2>
-            <p class="dash-panel__sub">Real-time claim updates</p>
-          </div>
+      <div class="dash-panel__header-left">
+        <i class="bi bi-activity dash-panel__icon" style="color: var(--blue);"></i>
+        <div>
+          <h2 class="dash-panel__title">Live Claims Monitoring</h2>
+          <p class="dash-panel__sub">Real-time claim updates</p>
         </div>
-        {% if user.role == 'MSWDO' %}
-        <div class="dash-panel__header-right">
-          <select id="barangayFilter" class="acct-form__select" style="width: auto; padding-top: 4px; padding-bottom: 4px;">
-            <option value="">All Barangays</option>
-            {% for brgy in barangays %}
-              <option value="{{ brgy.id }}" {% if selected_barangay == brgy.id|stringformat:"s" %}selected{% endif %}>
-                {{ brgy.name }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-        {% endif %}
       </div>
-      
-      <div class="dash-panel__body" style="padding: 0;">
-        <div class="table-responsive table-scroll-container">
-          <table class="acct-table" id="claimsTable" style="margin: 0;">
-            <thead>
-              <tr>
-                <th class="acct-th">#</th>
-                <th class="acct-th">RFID UID</th>
-                <th class="acct-th">Family Name</th>
-                <th class="acct-th">Member</th>
-                <th class="acct-th">Address</th>
-                <th class="acct-th">Aid Type</th>
-                <th class="acct-th">Claimed At</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for claim in recent_claims %}
-                <tr data-claim-id="{{ claim.id }}" class="acct-row">
-                  <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
-                  <td class="acct-td"><span class="acct-badge acct-badge--gray">{{ claim.family.rfid_uid }}</span></td>
-                  <td class="acct-td">
-                    <div class="acct-barangay-cell">
-                      <div class="acct-avatar"><i class="bi bi-people dash-panel__icon" style="font-size: 1rem; margin-right:0;"></i></div>
-                      <span class="acct-barangay-name">{{ claim.family.family_name }}</span>
-                    </div>
-                  </td>
-                  <td class="acct-td">
-                    {% if claim.family_member %}
-                      {{ claim.family_member.first_name }} {{ claim.family_member.last_name }}
-                    {% else %}
-                      <span class="text-muted">All Members</span>
-                    {% endif %}
-                  </td>
-                  <td class="acct-td text-muted small">{{ claim.family.household.address }}</td>
-                  <td class="acct-td">
-                    {% if claim.assistance %}
-                      {{ claim.assistance.program.name }} › {{ claim.assistance.aid_category.name }}
-                    {% else %}
-                      —
-                    {% endif %}
-                  </td>
-                  <td class="acct-td text-muted small">{{ claim.claimed_at|date:"M d, Y h:i a" }}</td>
-                </tr>
-              {% empty %}
-                <tr>
-                  <td colspan="7" class="acct-empty">
-                    <div class="acct-empty-state">
-                      <i class="bi bi-inbox fs-4 d-block mb-2"></i>
-                      <p>No claims processed yet for this schedule.</p>
-                    </div>
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+      {% if user.role == 'MSWDO' %}
+      <div class="dash-panel__header-right">
+        <select id="barangayFilter" class="acct-form__select"
+          style="width: auto; padding-top: 4px; padding-bottom: 4px;">
+          <option value="">All Barangays</option>
+          {% for brgy in barangays %}
+          <option value="{{ brgy.id }}" {% if selected_barangay == brgy.id|stringformat:"s" %}selected{% endif %}>
+            {{ brgy.name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="dash-panel__body" style="padding: 0;">
+      <div class="table-responsive table-scroll-container">
+        <table class="acct-table" id="claimsTable" style="margin: 0;">
+          <thead>
+            <tr>
+              <th class="acct-th">#</th>
+              <th class="acct-th">RFID UID</th>
+              <th class="acct-th">Family Name</th>
+              <th class="acct-th">Member</th>
+              <th class="acct-th">Address</th>
+              <th class="acct-th">Aid Type</th>
+              <th class="acct-th">Claimed At</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for claim in recent_claims %}
+            <tr data-claim-id="{{ claim.id }}" class="acct-row">
+              <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
+              <td class="acct-td"><span class="acct-badge acct-badge--gray">{{ claim.family.rfid_uid }}</span></td>
+              <td class="acct-td">
+                <div class="acct-barangay-cell">
+                  <div class="acct-avatar"><i class="bi bi-people dash-panel__icon"
+                      style="font-size: 1rem; margin-right:0;"></i></div>
+                  <span class="acct-barangay-name">{{ claim.family.family_name }}</span>
+                </div>
+              </td>
+              <td class="acct-td">
+                {% if claim.family_member %}
+                {{ claim.family_member.first_name }} {{ claim.family_member.last_name }}
+                {% else %}
+                <span class="text-muted">All Members</span>
+                {% endif %}
+              </td>
+              <td class="acct-td text-muted small">{{ claim.family.household.address }}</td>
+              <td class="acct-td">
+                {% if claim.assistance %}
+                {{ claim.assistance.program.name }} › {{ claim.assistance.aid_category.name }}
+                {% else %}
+                —
+                {% endif %}
+              </td>
+              <td class="acct-td text-muted small">{{ claim.claimed_at|date:"M d, Y h:i a" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7" class="acct-empty">
+                <div class="acct-empty-state">
+                  <i class="bi bi-inbox fs-4 d-block mb-2"></i>
+                  <p>No claims processed yet for this schedule.</p>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
+</div>
 </div>
 
 <!-- Member Selection Modal -->
@@ -164,7 +168,8 @@
     <h2 class="success-title" id="successTitle">Name</h2>
     <p class="success-subtitle" id="successSubtitle">Successfully claimed assistance</p>
     <div class="mt-4 text-muted" style="font-size: 0.85rem;">
-      <div class="spinner-border spinner-border-sm me-1" role="status" style="width: 12px; height: 12px; border-width: 2px;"></div>
+      <div class="spinner-border spinner-border-sm me-1" role="status"
+        style="width: 12px; height: 12px; border-width: 2px;"></div>
       Returning to scan in a moment
     </div>
   </div>
@@ -192,11 +197,11 @@
   const statusIcon = document.getElementById('statusIcon');
   const statusSpinner = document.getElementById('statusSpinner');
   const statusText = document.getElementById('statusText');
-  
+
   const memberModal = document.getElementById('memberModal');
   const successModal = document.getElementById('successModal');
   const cancelModalBtn = document.getElementById('cancelModalBtn');
-  
+
   const csrfToken = '{{ csrf_token }}';
   let currentUid = '';
 
@@ -299,7 +304,7 @@
       e.preventDefault();
       const uid = rfidInput.value.trim();
       if (!uid) return;
-      
+
       currentUid = uid;
       setStatusProcessing();
 
@@ -307,11 +312,11 @@
 
       if (result.status === 'error') {
         showError(result.message);
-      } 
+      }
       else if (result.status === 'success') {
         // Family based success (or individual if configured that way somehow)
         showSuccessModal(result);
-      } 
+      }
       else if (result.status === 'needs_selection') {
         // Show Member Selection Modal
         showMemberModal(result);
@@ -323,14 +328,14 @@
     document.getElementById('modalFamilyName').textContent = data.family_name;
     document.getElementById('modalAddress').textContent = data.address;
     document.getElementById('modalCriteria').textContent = data.criteria;
-    
+
     const list = document.getElementById('modalMembersList');
     list.innerHTML = '';
 
     data.members.forEach(m => {
       const div = document.createElement('div');
       div.className = `member-item ${m.status}`;
-      
+
       let badgeHtml = '';
       if (m.status === 'eligible_unclaimed') {
         badgeHtml = `<div class="acct-badge acct-badge--green"><i class="bi bi-check-circle"></i> Eligible</div>`;
@@ -367,7 +372,7 @@
           }
         });
       }
-      
+
       list.appendChild(div);
     });
 
@@ -384,7 +389,7 @@
 
     document.getElementById('successTitle').textContent = data.name;
     document.getElementById('successSubtitle').textContent = `Successfully claimed ${data.assistance_label}`;
-    
+
     successModal.classList.add('active');
 
     // Auto dismiss
@@ -403,7 +408,8 @@
 
   // ---------------- Auto-refresh Table ----------------
   function refreshTable() {
-    const brgy = document.getElementById('barangayFilter').value;
+    const barangayFilterEl = document.getElementById('barangayFilter');
+    const brgy = barangayFilterEl ? barangayFilterEl.value : '';
     fetch("{% url 'scan_rfid' %}?barangay=" + brgy, {
       headers: { 'Accept': 'text/html' }
     })
@@ -417,7 +423,7 @@
         if (newTbody && table) {
           newTbody.querySelectorAll('tr[data-claim-id]').forEach(row => {
             if (!table.querySelector(`tr[data-claim-id="${row.dataset.claimId}"]`)) {
-              row.style.backgroundColor = 'var(--green-light)'; 
+              row.style.backgroundColor = 'var(--green-light)';
               row.style.transition = 'background-color 2s ease';
               setTimeout(() => row.style.backgroundColor = '', 4000);
             }
@@ -427,7 +433,8 @@
       });
   }
   setInterval(refreshTable, 5000);
-  document.getElementById('barangayFilter').addEventListener('change', refreshTable);
+  const bFilter = document.getElementById('barangayFilter');
+  if (bFilter) bFilter.addEventListener('change', refreshTable);
 
   // ---------------- Fullscreen Toggle ----------------
   const fullscreenBtn = document.getElementById('fullscreenToggleBtn');

@@ -42,16 +42,34 @@ def mswdo_dashboard(request):
     # Summary counts
     barangay_accounts = User.objects.filter(role='BARANGAY')
     barangayAcc_count = barangay_accounts.count()
-    barangay_count = Barangay.objects.count()
-    barangays = Barangay.objects.all()
+    
+    # Leaderboard & per-barangay profiling progress
+    barangays = Barangay.objects.annotate(
+        household_count=Count('households', distinct=True),
+        family_count=Count('households__families', distinct=True),
+        rfid_count=Count('households__families', filter=Q(households__families__rfid_uid__isnull=False) & ~Q(households__families__rfid_uid=""), distinct=True)
+    )
+    barangay_count = barangays.count()
 
 
     household_count = Household.objects.count()  # Total households
     family_count = Family.objects.count()        # Total families
 
-    # RFID stats (assumes you track claimed/unclaimed in AidClaim model)
-    rfid_claimed = AidClaim.objects.filter(claimed_at__isnull=False).count()
-    rfid_unclaimed = AidClaim.objects.filter(claimed_at__isnull=True).count()
+    # Demographics
+    pwd_count = FamilyMember.objects.filter(is_pwd=True).count()
+    solo_parent_count = FamilyMember.objects.filter(is_solo_parent=True).count()
+    senior_count = FamilyMember.objects.filter(is_senior_citizen=True).count()
+
+    # RFID Registration Rate
+    total_families_rfid = Family.objects.filter(rfid_uid__isnull=False).exclude(rfid_uid="").count()
+    rfid_completion_percent = round((total_families_rfid / family_count) * 100) if family_count > 0 else 0
+
+    # User Accounts Activity
+    pending_invitations = User.objects.filter(is_active=False).count()
+
+    # Today's claim activity
+    now_local = timezone.localtime(timezone.now())
+    today_claims = AidClaim.objects.filter(claimed_at__date=now_local.date()).count()
 
     # NEW: pass active assistance options for the schedule form
     assistances = Assistance.objects.select_related(
@@ -90,13 +108,20 @@ def mswdo_dashboard(request):
         'barangays': barangays,
         'barangay_accounts': barangay_accounts,  # For table
         'barangay_count': barangay_count,
-        'household_count': household_count,
+        
+        'pwd_count': pwd_count,
+        'solo_parent_count': solo_parent_count,
+        'senior_count': senior_count,
+        
+        'rfid_completion_percent': rfid_completion_percent,
+        'total_families_rfid': total_families_rfid,
         'family_count': family_count,
-        'rfid_claimed': rfid_claimed,
-        'rfid_unclaimed': rfid_unclaimed,
-       'assistances': assistances,
+        
+        'pending_invitations': pending_invitations,
+        'today_claims': today_claims,
+
+        'assistances': assistances,
         'barangayAcc_count': barangayAcc_count,
-        #'schedules': schedules,
 
         'active_schedules': active_schedules,
         'upcoming_schedules': upcoming_schedules,
@@ -137,11 +162,26 @@ def barangay_dashboard(request):
         Q(barangay=barangay_obj) | Q(barangay__isnull=True)
     )
 
+    # Local Demographics & Stats
+    pwd_count = FamilyMember.objects.filter(family__household__barangay=barangay_obj, is_pwd=True).count()
+    solo_parent_count = FamilyMember.objects.filter(family__household__barangay=barangay_obj, is_solo_parent=True).count()
+    senior_count = FamilyMember.objects.filter(family__household__barangay=barangay_obj, is_senior_citizen=True).count()
+    
+    total_families = Family.objects.filter(household__barangay=barangay_obj).count()
+    total_families_rfid = Family.objects.filter(household__barangay=barangay_obj, rfid_uid__isnull=False).exclude(rfid_uid="").count()
+    rfid_completion_percent = round((total_families_rfid / total_families) * 100) if total_families > 0 else 0
+
     return render(request, 'core/barangay_dashboard.html', {
         'barangay': barangay_obj,
         'zones': zones,
         'active_schedules': active_schedules,
         'upcoming_schedules': upcoming_schedules,
+        'pwd_count': pwd_count,
+        'solo_parent_count': solo_parent_count,
+        'senior_count': senior_count,
+        'total_families': total_families,
+        'total_families_rfid': total_families_rfid,
+        'rfid_completion_percent': rfid_completion_percent,
     })
 
 @login_required(login_url='login')
@@ -154,10 +194,8 @@ def staff_dashboard(request):
     household_count = Household.objects.count()
     family_count = Family.objects.count()
 
-    rfid_claimed = AidClaim.objects.filter(claimed_at__isnull=False).count()
-    rfid_unclaimed = AidClaim.objects.filter(claimed_at__isnull=True).count()
-
     now = timezone.localtime(timezone.now())
+    today_claims = AidClaim.objects.filter(claimed_at__date=now.date()).count()
 
     # Auto-deactivate expired schedules
     AidSchedule.objects.filter(end_datetime__lt=now, is_active=True).update(is_active=False)
@@ -178,8 +216,7 @@ def staff_dashboard(request):
     context = {
         'household_count': household_count,
         'family_count': family_count,
-        'rfid_claimed': rfid_claimed,
-        'rfid_unclaimed': rfid_unclaimed,
+        'today_claims': today_claims,
         'active_schedules': active_schedules,
         'upcoming_schedules': upcoming_schedules,
     }

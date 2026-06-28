@@ -242,7 +242,7 @@ def add_family_member(request, family_id):
     )
 
     if request.method == 'POST':
-        form = FamilyMemberForm(request.POST)
+        form = FamilyMemberForm(request.POST, request.FILES)
         if form.is_valid():
             member = form.save(commit=False)
             member.family = family
@@ -270,7 +270,7 @@ def edit_family_member(request, member_id):
     )
 
     if request.method == 'POST':
-        form = FamilyMemberForm(request.POST, instance=member)
+        form = FamilyMemberForm(request.POST, request.FILES, instance=member)
         if form.is_valid():
             form.save()
             return redirect('family_detail', family_id=member.family.id)

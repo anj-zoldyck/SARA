@@ -228,7 +228,7 @@ def scan_rfid(request):
                 member_data = []
                 for m in all_members:
                     reasons = []
-                    if assistance.minimum_age and m.age < assistance.minimum_age:
+                    if assistance.minimum_age and (m.age is None or m.age < assistance.minimum_age):
                         reasons.append(f"Under {assistance.minimum_age}")
                     if assistance.requires_pwd and not m.is_pwd:
                         reasons.append("Not registered PWD")
@@ -278,7 +278,12 @@ def scan_rfid(request):
                     # fallback for non-ajax
                     eligible_members = all_members.exclude(id__in=claimed_member_ids)
                     if assistance.minimum_age:
-                        eligible_members = eligible_members.filter(age__gte=assistance.minimum_age)
+                        today = date.today()
+                        try:
+                            threshold_date = today.replace(year=today.year - assistance.minimum_age)
+                        except ValueError:
+                            threshold_date = today.replace(year=today.year - assistance.minimum_age, day=28)
+                        eligible_members = eligible_members.filter(birthdate__lte=threshold_date)
                     if assistance.requires_pwd:
                         eligible_members = eligible_members.filter(is_pwd=True)
                     if assistance.requires_solo_parent:
