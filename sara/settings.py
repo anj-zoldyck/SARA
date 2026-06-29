@@ -120,6 +120,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+LOGIN_URL = '/login/'
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
@@ -163,3 +164,8 @@ DEFAULT_FROM_EMAIL = 'SRC Capstone System<dizonjelo50@gmail.com>'
 #OTP_EMAIL_SUBJECT = 'Your login verification code'
 #OTP_EMAIL_TOKEN_VALIDITY = 300  # 5 minutes
 
+# TO DO before deployment: review and tighten session settings
+# SESSION_COOKIE_AGE = 1800
+# SESSION_COOKIE_SECURE = True
+# SESSION_COOKIE_HTTPONLY = True
+# SESSION_EXPIRE_AT_BROWSER_CLOSE = False
