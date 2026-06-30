@@ -53,12 +53,74 @@
           <div class="acct-form__control-wrap">{{ form.house_number }}</div>
         </div>
 
+        <!-- Household Location Section -->
+        <h5 class="mt-4 mb-3" style="font-size: 1.1rem; color: #1e293b; font-weight: 600; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+          <i class="bi bi-geo-alt"></i> Household Location
+        </h5>
+
         <div class="acct-form__group">
-          <label class="acct-form__label">
-            <i class="bi bi-people"></i> Family Name
-            <span class="acct-form__required">*</span>
-          </label>
-          <div class="acct-form__control-wrap">{{ form.family_name }}</div>
+          <label class="acct-form__label">Land Use <span class="acct-form__required">*</span></label>
+          <div class="mt-2 d-flex flex-wrap gap-3">
+            {% for radio in form.land_use %}
+              <div class="form-check form-check-inline">
+                {{ radio.tag }}
+                <label class="form-check-label" for="{{ radio.id_for_label }}">
+                  {{ radio.choice_label }}
+                </label>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="acct-form__group">
+          <label class="acct-form__label">Hazard Exposure <span class="acct-form__required">*</span></label>
+          <div class="mt-2 d-flex flex-wrap gap-3">
+            {% for radio in form.hazard_exposure %}
+              <div class="form-check form-check-inline">
+                {{ radio.tag }}
+                <label class="form-check-label" for="{{ radio.id_for_label }}">
+                  {{ radio.choice_label }}
+                </label>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div id="flood_fields_container" style="display: none; background-color: #f8fafc; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; border: 1px solid #e2e8f0;">
+          <div class="row">
+            <div class="col-md-6">
+              <label class="acct-form__label">Flood Depth</label>
+              {{ form.flood_depth }}
+            </div>
+            <div class="col-md-6">
+              <label class="acct-form__label">Flood Frequency</label>
+              {{ form.flood_frequency }}
+            </div>
+          </div>
+        </div>
+
+        <div id="hazard_other_container" style="display: none; background-color: #f8fafc; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; border: 1px solid #e2e8f0;">
+          <label class="acct-form__label">Specify Other Hazard</label>
+          {{ form.hazard_other_description }}
+        </div>
+
+        <div class="acct-form__group">
+          <label class="acct-form__label">Accessible by</label>
+          <div class="mt-2 d-flex flex-wrap gap-3">
+            {% for checkbox in form.accessibility %}
+              <div class="form-check form-check-inline">
+                {{ checkbox.tag }}
+                <label class="form-check-label" for="{{ checkbox.id_for_label }}">
+                  {{ checkbox.choice_label }}
+                </label>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="acct-form__group">
+          <label class="acct-form__label">House Location (Please specify)</label>
+          <div class="acct-form__control-wrap">{{ form.location_notes }}</div>
         </div>
 
         <div class="acct-form__actions">
@@ -84,4 +146,89 @@
   </div>
 </div>
 
+{% endblock %}
+{% block js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const hazardRadios = document.querySelectorAll('input[name="hazard_exposure"]');
+    const floodContainer = document.getElementById('flood_fields_container');
+    const floodDepth = document.getElementById('{{ form.flood_depth.id_for_label }}');
+    const floodFreq = document.getElementById('{{ form.flood_frequency.id_for_label }}');
+
+    const hazardOtherContainer = document.getElementById('hazard_other_container');
+    const hazardOtherInput = document.getElementById('{{ form.hazard_other_description.id_for_label }}');
+
+    function toggleHazardFields() {
+        let isFlood = false;
+        let isOther = false;
+        hazardRadios.forEach(radio => {
+            if (radio.checked) {
+                if (radio.value === 'FLOOD') isFlood = true;
+                if (radio.value === 'OTHER') isOther = true;
+            }
+        });
+
+        if (isFlood) {
+            floodContainer.style.display = 'block';
+        } else {
+            floodContainer.style.display = 'none';
+            if(floodDepth) floodDepth.value = '';
+            if(floodFreq) floodFreq.value = '';
+        }
+
+        if (isOther) {
+            hazardOtherContainer.style.display = 'block';
+        } else {
+            hazardOtherContainer.style.display = 'none';
+            if(hazardOtherInput) hazardOtherInput.value = '';
+        }
+    }
+
+    hazardRadios.forEach(radio => {
+        radio.addEventListener('change', toggleHazardFields);
+    });
+
+    // Initial check
+    toggleHazardFields();
+});
+    const hazardOtherContainer = document.getElementById('hazard_other_container');
+    const hazardOtherInput = document.getElementById('{{ form.hazard_other_description.id_for_label }}');
+
+    const hazardOtherContainer = document.getElementById('hazard_other_container');
+    const hazardOtherInput = document.getElementById('{{ form.hazard_other_description.id_for_label }}');
+
+    function toggleHazardFields() {
+        let isFlood = false;
+        let isOther = false;
+        hazardRadios.forEach(radio => {
+            if (radio.checked) {
+                if (radio.value === 'FLOOD') isFlood = true;
+                if (radio.value === 'OTHER') isOther = true;
+            }
+        });
+
+        if (isFlood) {
+            floodContainer.style.display = 'block';
+        } else {
+            floodContainer.style.display = 'none';
+            if(floodDepth) floodDepth.value = '';
+            if(floodFreq) floodFreq.value = '';
+        }
+
+        if (isOther) {
+            hazardOtherContainer.style.display = 'block';
+        } else {
+            hazardOtherContainer.style.display = 'none';
+            if(hazardOtherInput) hazardOtherInput.value = '';
+        }
+    }
+
+    hazardRadios.forEach(radio => {
+        radio.addEventListener('change', toggleHazardFields);
+    });
+
+    // Initial check
+    toggleHazardFields();
+});
+</script>
 {% endblock %}

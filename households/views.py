@@ -16,8 +16,8 @@ from households.models import Household, Zone, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
 from distribution.models import AidSchedule, AidClaim
 
-from accounts.forms import UserEditForm, UserInvitationForm
-from households.forms import HouseholdForm, FamilyForm, FamilyMemberForm
+from django.db import transaction
+from households.forms import HouseholdForm, FamilyForm, FamilyMemberForm, SeniorCitizenProfileForm, SoloParentProfileForm, PWDProfileForm
 from programs.forms import ProgramForm, AidCategoryForm, AssistanceForm
 # from distribution.forms import AidScheduleForm  # if any
 
@@ -243,17 +243,75 @@ def add_family_member(request, family_id):
 
     if request.method == 'POST':
         form = FamilyMemberForm(request.POST, request.FILES)
-        if form.is_valid():
-            member = form.save(commit=False)
-            member.family = family
-            member.save()
-            return redirect('family_detail', family_id=family.id)
+        senior_form = SeniorCitizenProfileForm(request.POST, prefix='senior')
+        solo_parent_form = SoloParentProfileForm(request.POST, prefix='solo')
+        pwd_form = PWDProfileForm(request.POST, prefix='pwd')
+
+        valid = form.is_valid()
+        if valid:
+            member_temp = form.save(commit=False)
+            if member_temp.is_senior_citizen and not senior_form.is_valid():
+                valid = False
+            if member_temp.is_solo_parent and not solo_parent_form.is_valid():
+                valid = False
+            if member_temp.is_pwd and not pwd_form.is_valid():
+                valid = False
+
+        if valid:
+            with transaction.atomic():
+                member = form.save(commit=False)
+                member.family = family
+                member.save()
+                
+                if member.is_senior_citizen:
+                    senior_profile = senior_form.save(commit=False)
+                    senior_profile.member = member
+                    senior_profile.registered_by = request.user
+                    senior_profile.save()
+                
+                if member.is_solo_parent:
+                    solo_profile = solo_parent_form.save(commit=False)
+                    solo_profile.member = member
+                    solo_profile.registered_by = request.user
+                    solo_profile.save()
+
+                if member.is_pwd:
+                    pwd_profile = pwd_form.save(commit=False)
+                    pwd_profile.member = member
+                    pwd_profile.registered_by = request.user
+                    pwd_profile.save()
+                    
+                return redirect('family_detail', family_id=family.id)
     else:
         form = FamilyMemberForm()
+        senior_form = SeniorCitizenProfileForm(prefix='senior')
+        solo_parent_form = SoloParentProfileForm(prefix='solo')
+        pwd_form = PWDProfileForm(prefix='pwd')
+
+    family_members = family.members.all()
+    children_0_6 = []
+    children_7_22 = []
+    children_22_plus = []
+
+    for fm in family_members:
+        if fm.relationship in ['SON', 'DAUGHTER'] and fm.age is not None:
+            if fm.age <= 6:
+                children_0_6.append(fm)
+            elif fm.age <= 22:
+                children_7_22.append(fm)
+            else:
+                children_22_plus.append(fm)
 
     return render(request, 'households/add_member.html', {
         'form': form,
-        'family': family
+        'senior_form': senior_form,
+        'solo_parent_form': solo_parent_form,
+        'pwd_form': pwd_form,
+        'family': family,
+        'family_members': family_members,
+        'children_0_6': children_0_6,
+        'children_7_22': children_7_22,
+        'children_22_plus': children_22_plus,
     })
 
 
@@ -268,18 +326,114 @@ def edit_family_member(request, member_id):
         id=member_id,
         family__household__barangay=request.user.barangay
     )
+    
+    senior_instance = getattr(member, 'senior_profile', None)
+    solo_instance = getattr(member, 'solo_parent_profile', None)
+    pwd_instance = getattr(member, 'pwd_profile', None)
 
     if request.method == 'POST':
         form = FamilyMemberForm(request.POST, request.FILES, instance=member)
-        if form.is_valid():
-            form.save()
-            return redirect('family_detail', family_id=member.family.id)
+        senior_form = SeniorCitizenProfileForm(request.POST, prefix='senior', instance=senior_instance)
+        solo_parent_form = SoloParentProfileForm(request.POST, prefix='solo', instance=solo_instance)
+        pwd_form = PWDProfileForm(request.POST, prefix='pwd', instance=pwd_instance)
+
+        valid = form.is_valid()
+        if valid:
+            member_temp = form.save(commit=False)
+            if member_temp.is_senior_citizen and not senior_form.is_valid():
+                valid = False
+            if member_temp.is_solo_parent and not solo_parent_form.is_valid():
+                valid = False
+            if member_temp.is_pwd and not pwd_form.is_valid():
+                valid = False
+
+        if valid:
+            with transaction.atomic():
+                updated_member = form.save()
+
+                if updated_member.is_senior_citizen:
+                    senior_profile = senior_form.save(commit=False)
+                    senior_profile.member = updated_member
+                    if not senior_profile.registered_by_id:
+                        senior_profile.registered_by = request.user
+                    senior_profile.save()
+                else:
+                    if hasattr(updated_member, 'senior_profile'):
+                        updated_member.senior_profile.delete()
+                
+                if updated_member.is_solo_parent:
+                    solo_profile = solo_parent_form.save(commit=False)
+                    solo_profile.member = updated_member
+                    if not solo_profile.registered_by_id:
+                        solo_profile.registered_by = request.user
+                    solo_profile.save()
+                else:
+                    if hasattr(updated_member, 'solo_parent_profile'):
+                        updated_member.solo_parent_profile.delete()
+
+                if updated_member.is_pwd:
+                    pwd_profile = pwd_form.save(commit=False)
+                    pwd_profile.member = updated_member
+                    if not pwd_profile.registered_by_id:
+                        pwd_profile.registered_by = request.user
+                    pwd_profile.save()
+                else:
+                    if hasattr(updated_member, 'pwd_profile'):
+                        updated_member.pwd_profile.delete()
+
+                return redirect('family_detail', family_id=updated_member.family.id)
     else:
         form = FamilyMemberForm(instance=member)
+        senior_form = SeniorCitizenProfileForm(prefix='senior', instance=senior_instance)
+        solo_parent_form = SoloParentProfileForm(prefix='solo', instance=solo_instance)
+        pwd_form = PWDProfileForm(prefix='pwd', instance=pwd_instance)
+
+    family_members = member.family.members.exclude(id=member.id)
+    children_0_6 = []
+    children_7_22 = []
+    children_22_plus = []
+
+    for fm in family_members:
+        if fm.relationship in ['SON', 'DAUGHTER'] and fm.age is not None:
+            if fm.age <= 6:
+                children_0_6.append(fm)
+            elif fm.age <= 22:
+                children_7_22.append(fm)
+            else:
+                children_22_plus.append(fm)
 
     return render(request, 'households/edit_member.html', {
         'form': form,
-        'member': member
+        'senior_form': senior_form,
+        'solo_parent_form': solo_parent_form,
+        'pwd_form': pwd_form,
+        'member': member,
+        'family_members': family_members,
+        'children_0_6': children_0_6,
+        'children_7_22': children_7_22,
+        'children_22_plus': children_22_plus,
     })
 
 
+
+
+@login_required
+@session_protected
+def member_details_modal(request, member_id):
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden('Access Denied')
+
+    member = get_object_or_404(
+        FamilyMember,
+        id=member_id,
+        family__household__barangay=request.user.barangay
+    )
+
+    claims = AidClaim.objects.filter(
+        Q(family_member=member) | Q(family=member.family, family_member__isnull=True)
+    ).select_related('assistance__program', 'assistance__aid_category').order_by('-claimed_at')
+
+    return render(request, 'households/partials/member_detail_modal.html', {
+        'member': member,
+        'claims': claims
+    })

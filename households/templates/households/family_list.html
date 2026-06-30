@@ -37,7 +37,7 @@ Family Management
           {% for family in families %}
           <tr>
             <td>{{ family.full_name }}</td>
-            <td>{{ family.household.family_name }}</td>
+            <td>House {{ family.household.house_number }}</td>
             <td>{{ family.members.count }}</td>
             <td>
               <a href="#" class="btn btn-sm btn-warning">Edit</a>

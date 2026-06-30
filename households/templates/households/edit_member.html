@@ -5,6 +5,7 @@
 {% block navbar_title %}Edit Family Member{% endblock %}
 
 {% block css %}
+<link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
 <link rel="stylesheet" href="{% static 'css/households.css' %}">
@@ -84,56 +85,197 @@
         {% csrf_token %}
 
         <!-- Name Row -->
+        
+        
         <div class="hh-form-row">
+
           <div class="acct-form__group">
             <label class="acct-form__label">
-              <i class="bi bi-person"></i> First Name
-              <span class="acct-form__required">*</span>
+              <i class="bi bi-card-text"></i> PhilSys Card No.
+            </label>
+            <div class="acct-form__control-wrap">{{ form.philsys_card_no }}</div>
+            {% if form.philsys_card_no.errors %}
+              <p class="acct-form__error">{{ form.philsys_card_no.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+        </div>
+<div class="hh-form-row" style="grid-template-columns: 1fr 1fr 1fr 80px;">
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-person"></i> First Name <span class="acct-form__required">*</span>
             </label>
             <div class="acct-form__control-wrap">{{ form.first_name }}</div>
             {% if form.first_name.errors %}
               <p class="acct-form__error">{{ form.first_name.errors|join:", " }}</p>
             {% endif %}
           </div>
-
           <div class="acct-form__group">
             <label class="acct-form__label">
-              <i class="bi bi-person"></i> Last Name
-              <span class="acct-form__required">*</span>
+              <i class="bi bi-person"></i> Middle Name
+            </label>
+            <div class="acct-form__control-wrap">{{ form.middle_name }}</div>
+            {% if form.middle_name.errors %}
+              <p class="acct-form__error">{{ form.middle_name.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-person"></i> Last Name <span class="acct-form__required">*</span>
             </label>
             <div class="acct-form__control-wrap">{{ form.last_name }}</div>
             {% if form.last_name.errors %}
               <p class="acct-form__error">{{ form.last_name.errors|join:", " }}</p>
             {% endif %}
           </div>
-        </div>
-
-        <!-- Relationship & Age Row -->
-        <div class="hh-form-row">
           <div class="acct-form__group">
             <label class="acct-form__label">
-              <i class="bi bi-diagram-3"></i> Relationship
-              <span class="acct-form__required">*</span>
+              Suffix
+            </label>
+            <div class="acct-form__control-wrap">{{ form.suffix }}</div>
+            {% if form.suffix.errors %}
+              <p class="acct-form__error">{{ form.suffix.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="hh-form-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-diagram-3"></i> Relationship <span class="acct-form__required">*</span>
             </label>
             <div class="acct-form__control-wrap">{{ form.relationship }}</div>
             {% if form.relationship.errors %}
               <p class="acct-form__error">{{ form.relationship.errors|join:", " }}</p>
             {% endif %}
           </div>
-
           <div class="acct-form__group">
             <label class="acct-form__label">
-              <i class="bi bi-calendar3"></i> Birthdate
-              <span class="acct-form__required">*</span>
+              <i class="bi bi-calendar3"></i> Birth Date
             </label>
             <div class="acct-form__control-wrap">{{ form.birthdate }}</div>
             {% if form.birthdate.errors %}
               <p class="acct-form__error">{{ form.birthdate.errors|join:", " }}</p>
             {% endif %}
           </div>
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-geo-alt"></i> Birth Place
+            </label>
+            <div class="acct-form__control-wrap">{{ form.birthplace }}</div>
+            {% if form.birthplace.errors %}
+              <p class="acct-form__error">{{ form.birthplace.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-gender-ambiguous"></i> Sex
+            </label>
+            <div class="acct-form__control-wrap">{{ form.sex }}</div>
+            {% if form.sex.errors %}
+              <p class="acct-form__error">{{ form.sex.errors|join:", " }}</p>
+            {% endif %}
+          </div>
         </div>
 
-        <!-- Profile Image Row -->
+        <div class="hh-form-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-heart"></i> Civil Status
+            </label>
+            <div class="acct-form__control-wrap">{{ form.civil_status }}</div>
+            {% if form.civil_status.errors %}
+              <p class="acct-form__error">{{ form.civil_status.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-book"></i> Religion
+            </label>
+            <div class="acct-form__control-wrap">{{ form.religion }}</div>
+            {% if form.religion.errors %}
+              <p class="acct-form__error">{{ form.religion.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-globe"></i> Citizenship
+            </label>
+            <div class="acct-form__control-wrap">{{ form.citizenship }}</div>
+            {% if form.citizenship.errors %}
+              <p class="acct-form__error">{{ form.citizenship.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+        </div>
+        
+        <div class="hh-form-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-briefcase"></i> Occupation/Profession
+            </label>
+            <div class="acct-form__control-wrap">{{ form.occupation }}</div>
+            {% if form.occupation.errors %}
+              <p class="acct-form__error">{{ form.occupation.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-cash-stack"></i> Monthly Income <span class="acct-form__required">*</span>
+            </label>
+            <div class="acct-form__control-wrap">{{ form.monthly_income }}</div>
+            {% if form.monthly_income.errors %}
+              <p class="acct-form__error">{{ form.monthly_income.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-telephone"></i> Contact Number
+            </label>
+            <div class="acct-form__control-wrap">{{ form.contact_number }}</div>
+            {% if form.contact_number.errors %}
+              <p class="acct-form__error">{{ form.contact_number.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-envelope"></i> Email
+            </label>
+            <div class="acct-form__control-wrap">{{ form.email }}</div>
+            {% if form.email.errors %}
+              <p class="acct-form__error">{{ form.email.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="hh-form-row">
+          <div class="acct-form__group" style="grid-column: 1 / -1;">
+            <label class="acct-form__label"><i class="bi bi-house"></i> Residence Address (Household)</label>
+            <div class="acct-form__control-wrap">
+              <input type="text" class="form-control" value="{% if member %}{{ member.family.household.address }}{% else %}{{ family.household.address }}{% endif %}" disabled>
+            </div>
+          </div>
+        </div>
+
+        <div class="hh-form-row" style="grid-template-columns: 1fr 1fr;">
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-mortarboard"></i> Highest Educational Attainment
+            </label>
+            <div class="acct-form__control-wrap">{{ form.educational_attainment }}</div>
+            {% if form.educational_attainment.errors %}
+              <p class="acct-form__error">{{ form.educational_attainment.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+          <div class="acct-form__group" id="educationStatusContainer" style="display: none;">
+            <label class="acct-form__label">
+              <i class="bi bi-check-circle"></i> Education Status
+            </label>
+            <div class="acct-form__control-wrap">{{ form.education_status }}</div>
+            {% if form.education_status.errors %}
+              <p class="acct-form__error">{{ form.education_status.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+        </div>
+
         <div class="hh-form-row">
           <div class="acct-form__group" style="grid-column: 1 / -1;">
             <label class="acct-form__label">
@@ -210,6 +352,149 @@
             </div>
           </div>
         </div>
+
+        <!-- MODALS -->
+        <!-- Senior Citizen Modal -->
+
+        <div class="modal-overlay" id="seniorCitizenModalOverlay">
+          <div class="kiosk-modal">
+            <div class="kiosk-modal-header">
+              <h5 class="kiosk-modal-title">Senior Citizen Registration</h5>
+            </div>
+            <div class="kiosk-modal-body">
+              <div class="row">
+                   <div class="col-md-6 mb-3"><label>Educational Attainment</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_senior_educational_attainment" style="min-height: 38px;"></div></div>
+                   <div class="col-md-6 mb-3"><label>Civil Status</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_senior_civil_status" style="min-height: 38px;"></div></div>
+                   <div class="col-md-6 mb-3"><label>Occupation</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_senior_occupation" style="min-height: 38px;"></div></div>
+                   <div class="col-md-6 mb-3"><label>Other Skills</label>{{ senior_form.other_skills }}</div>
+                   <div class="col-md-6 mb-3"><label>CTC No.</label>{{ senior_form.ctc_no }}</div>
+                 </div>
+                 
+                 <h6 class="mt-4">Family Composition</h6>
+                 <div class="table-responsive">
+                 <table class="table table-bordered table-sm">
+                   <thead><tr><th>Name</th><th>Relationship</th><th>Age</th></tr></thead>
+                   <tbody>
+                     {% for fm in family_members %}
+                     <tr>
+                       <td>{{ fm.first_name }} {{ fm.last_name }}</td>
+                       <td>{{ fm.get_relationship_display }}</td>
+                       <td>{{ fm.age|default:'-' }}</td>
+                     </tr>
+                     {% empty %}
+                     <tr><td colspan="3" class="text-center">No other family members.</td></tr>
+                     {% endfor %}
+                   </tbody>
+                 </table>
+                 </div>
+            </div>
+            <div class="kiosk-modal-footer" style="display:flex; justify-content:flex-end; gap:10px;">
+              <button type="button" class="btn-dash-outline modal-close-btn" data-target-modal="seniorCitizenModalOverlay" data-target-checkbox="id_is_senior_citizen">Cancel</button>
+              <button type="button" class="btn-dash-primary modal-close-btn" data-target-modal="seniorCitizenModalOverlay">Confirm Details</button>
+            </div>
+          </div>
+        </div>
+        
+
+        <!-- Solo Parent Modal -->
+
+        <div class="modal-overlay" id="soloParentModalOverlay">
+          <div class="kiosk-modal">
+            <div class="kiosk-modal-header">
+              <h5 class="kiosk-modal-title">Solo Parent Registration</h5>
+            </div>
+            <div class="kiosk-modal-body">
+              <div class="row">
+                   <div class="col-md-6 mb-3"><label>ID Number</label>{{ solo_parent_form.id_number }}</div>
+                   <div class="col-md-6 mb-3"><label>Contact Number</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_solo_contact_number" style="min-height: 38px;"></div></div>
+                   <div class="col-md-6 mb-3"><label>Civil Status</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_solo_civil_status" style="min-height: 38px;"></div></div>
+                   <div class="col-md-6 mb-3"><label>Educational Attainment</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_solo_educational_attainment" style="min-height: 38px;"></div></div>
+                   <div class="col-md-6 mb-3"><label>Occupation</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_solo_occupation" style="min-height: 38px;"></div></div>
+                   
+                   <div class="col-md-6 mb-3"><label>Religion</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_solo_religion" style="min-height: 38px;"></div></div>
+                   <div class="col-md-6 mb-3"><label>Category</label>{{ solo_parent_form.category }}</div>
+                   <div class="col-md-6 mb-3"><label>Date of Application</label>{{ solo_parent_form.date_of_application }}</div>
+                   <div class="col-md-4 mb-3 d-flex align-items-center gap-2">{{ solo_parent_form.is_4ps_member }} <label>4Ps Member</label></div>
+                   <div class="col-md-4 mb-3 d-flex align-items-center gap-2">{{ solo_parent_form.is_indigenous }} <label>Indigenous</label></div>
+                   <div class="col-md-4 mb-3 d-flex align-items-center gap-2">{{ solo_parent_form.is_lgbtq }} <label>LGBTQ+</label></div>
+                   <div class="col-md-4 mb-3 d-flex align-items-center gap-2">{{ solo_parent_form.is_pwd }} <label>PWD</label></div>
+                 </div>
+                 
+                 <h6 class="mt-4">Emergency Contact</h6>
+                 <div class="row">
+                    <div class="col-md-12 mb-3"><label>Name</label>{{ solo_parent_form.emergency_contact_name }}</div>
+                    <div class="col-md-12 mb-3"><label>Address</label>{{ solo_parent_form.emergency_contact_address }}</div>
+                    <div class="col-md-12 mb-3"><label>Number</label>{{ solo_parent_form.emergency_contact_number }}</div>
+                 </div>
+
+                 <h6 class="mt-4">Children (Auto-populated from Family)</h6>
+                 <div class="table-responsive mb-3">
+                 <strong>0-6 Years Old</strong>
+                 <table class="table table-bordered table-sm">
+                   <thead><tr><th>Name</th><th>Age</th></tr></thead>
+                   <tbody>
+                     {% for child in children_0_6 %}<tr><td>{{ child.first_name }} {{ child.last_name }}</td><td>{{ child.age }}</td></tr>{% empty %}<tr><td colspan="2" class="text-center">None</td></tr>{% endfor %}
+                   </tbody>
+                 </table>
+                 </div>
+                 
+                 <div class="table-responsive mb-3">
+                 <strong>7-22 Years Old</strong>
+                 <table class="table table-bordered table-sm">
+                   <thead><tr><th>Name</th><th>Age</th></tr></thead>
+                   <tbody>
+                     {% for child in children_7_22 %}<tr><td>{{ child.first_name }} {{ child.last_name }}</td><td>{{ child.age }}</td></tr>{% empty %}<tr><td colspan="2" class="text-center">None</td></tr>{% endfor %}
+                   </tbody>
+                 </table>
+                 </div>
+                 
+                 <div class="table-responsive">
+                 <strong>22+ Years Old</strong>
+                 <table class="table table-bordered table-sm">
+                   <thead><tr><th>Name</th><th>Age</th></tr></thead>
+                   <tbody>
+                     {% for child in children_22_plus %}<tr><td>{{ child.first_name }} {{ child.last_name }}</td><td>{{ child.age }}</td></tr>{% empty %}<tr><td colspan="2" class="text-center">None</td></tr>{% endfor %}
+                   </tbody>
+                 </table>
+                 </div>
+            </div>
+            <div class="kiosk-modal-footer" style="display:flex; justify-content:flex-end; gap:10px;">
+              <button type="button" class="btn-dash-outline modal-close-btn" data-target-modal="soloParentModalOverlay" data-target-checkbox="id_is_solo_parent">Cancel</button>
+              <button type="button" class="btn-dash-primary modal-close-btn" data-target-modal="soloParentModalOverlay">Confirm Details</button>
+            </div>
+          </div>
+        </div>
+        
+
+        <!-- PWD Modal -->
+
+        <div class="modal-overlay" id="pwdModalOverlay">
+          <div class="kiosk-modal">
+            <div class="kiosk-modal-header">
+              <h5 class="kiosk-modal-title">PWD Registration</h5>
+            </div>
+            <div class="kiosk-modal-body">
+              <p class="text-muted small mb-4"><i class="bi bi-info-circle"></i> Based on DOH/NCDA PWD-RF (Form 1) standard requirements.</p>
+                 <div class="row">
+                   <div class="col-md-6 mb-3"><label>PWD ID Number</label>{{ pwd_form.pwd_id_number }}</div>
+                   <div class="col-md-6 mb-3"><label>Date Issued</label>{{ pwd_form.date_issued }}</div>
+                   <div class="col-md-6 mb-3"><label>Disability Type</label>{{ pwd_form.disability_type }}</div>
+                   <div class="col-md-6 mb-3"><label>Cause of Disability</label>{{ pwd_form.cause_of_disability }}</div>
+                   <div class="col-md-6 mb-3"><label>Civil Status</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_pwd_civil_status" style="min-height: 38px;"></div></div>
+                   <div class="col-md-6 mb-3"><label>Educational Attainment</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_pwd_educational_attainment" style="min-height: 38px;"></div></div>
+                   <div class="col-md-6 mb-3"><label>Occupation</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_pwd_occupation" style="min-height: 38px;"></div></div>
+                   <div class="col-md-6 mb-3"><label>Employment Status</label>{{ pwd_form.employment_status }}</div>
+                   <div class="col-md-12 mb-3"><label>Certifying Physician</label>{{ pwd_form.certifying_physician }}</div>
+                 </div>
+            </div>
+            <div class="kiosk-modal-footer" style="display:flex; justify-content:flex-end; gap:10px;">
+              <button type="button" class="btn-dash-outline modal-close-btn" data-target-modal="pwdModalOverlay" data-target-checkbox="id_is_pwd">Cancel</button>
+              <button type="button" class="btn-dash-primary modal-close-btn" data-target-modal="pwdModalOverlay">Confirm Details</button>
+            </div>
+          </div>
+        </div>
+        
+
 
         <!-- Actions -->
         <div class="acct-form__actions">
@@ -415,6 +700,82 @@ document.addEventListener("DOMContentLoaded", function() {
 
   btnRetake.addEventListener('click', startCamera);
 
+  
+  const educAttainment = document.getElementById('id_educational_attainment');
+  const educStatusContainer = document.getElementById('educationStatusContainer');
+  
+  function toggleEducStatus() {
+    if (educAttainment.value === 'College' || educAttainment.value === 'Post Grad') {
+      educStatusContainer.style.display = 'block';
+    } else {
+      educStatusContainer.style.display = 'none';
+      const statusInput = document.getElementById('id_education_status');
+      if (statusInput) statusInput.value = '';
+    }
+  }
+
+  if(educAttainment) {
+    educAttainment.addEventListener('change', toggleEducStatus);
+    toggleEducStatus();
+  }
+
+
+  // Modal Logic
+  const seniorCheck = document.getElementById('id_is_senior_citizen');
+  const pwdCheck = document.getElementById('id_is_pwd');
+  const soloCheck = document.getElementById('id_is_solo_parent');
+
+  const seniorModal = document.getElementById('seniorCitizenModalOverlay');
+  const pwdModal = document.getElementById('pwdModalOverlay');
+  const soloModal = document.getElementById('soloParentModalOverlay');
+
+  function showModal(modalEl) {
+      if(modalEl) modalEl.classList.add('active');
+  }
+  function hideModal(modalEl) {
+      if(modalEl) modalEl.classList.remove('active');
+  }
+
+  if(seniorCheck) seniorCheck.addEventListener('change', function() { if (this.checked) showModal(seniorModal); });
+  if(pwdCheck) pwdCheck.addEventListener('change', function() { if (this.checked) showModal(pwdModal); });
+  if(soloCheck) soloCheck.addEventListener('change', function() { if (this.checked) showModal(soloModal); });
+
+  // Handle Edit page label clicks (if they exist)
+  document.querySelectorAll('.modal-form__check-row label').forEach(label => {
+      label.style.cursor = 'pointer';
+      label.addEventListener('click', function(e) {
+          const inputId = this.getAttribute('for');
+          if (inputId === 'id_is_senior_citizen' && seniorCheck && seniorCheck.checked) showModal(seniorModal);
+          if (inputId === 'id_is_pwd' && pwdCheck && pwdCheck.checked) showModal(pwdModal);
+          if (inputId === 'id_is_solo_parent' && soloCheck && soloCheck.checked) showModal(soloModal);
+      });
+  });
+
+  // Handle closing via Cancel or Confirm
+  document.querySelectorAll('.modal-close-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+          const targetModalId = this.getAttribute('data-target-modal');
+          const modalEl = document.getElementById(targetModalId);
+          hideModal(modalEl);
+          
+          const targetId = this.getAttribute('data-target-checkbox');
+          if (targetId) {
+              const cb = document.getElementById(targetId);
+              if(cb) cb.checked = false;
+          }
+      });
+  });
+
+  // Handle clicking outside to close
+  window.addEventListener('click', function(e) {
+      if (e.target.classList.contains('modal-overlay')) {
+          hideModal(e.target);
+          // Optional: we don't uncheck the checkbox here because it's ambiguous if they canceled or just clicked away, 
+          // but to be safe we can leave the checkbox checked and just close. Or uncheck it if they didn't hit confirm. 
+          // The user specifically asked the Cancel button to uncheck.
+      }
+  });
+
   // Handle manual file selection preview
   fileInput.addEventListener('change', function(e) {
     if (this.files && this.files[0]) {
@@ -437,4 +798,64 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 });
 </script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function getDisplayValue(elementId) {
+        const el = document.getElementById(elementId);
+        if (!el) return '-';
+        if (el.tagName === 'SELECT') {
+            return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '-';
+        }
+        return el.value || '-';
+    }
+
+    function updateSyncFields() {
+        const edAtt = getDisplayValue('id_educational_attainment');
+        const civStat = getDisplayValue('id_civil_status');
+        const occ = getDisplayValue('id_occupation');
+        const cont = getDisplayValue('id_contact_number');
+        const rel = getDisplayValue('id_religion');
+        
+        // Senior Citizen
+        if(document.getElementById('sync_senior_educational_attainment')) document.getElementById('sync_senior_educational_attainment').textContent = edAtt;
+        if(document.getElementById('sync_senior_civil_status')) document.getElementById('sync_senior_civil_status').textContent = civStat;
+        if(document.getElementById('sync_senior_occupation')) document.getElementById('sync_senior_occupation').textContent = occ;
+        
+        // Solo Parent
+        if(document.getElementById('sync_solo_contact_number')) document.getElementById('sync_solo_contact_number').textContent = cont;
+        if(document.getElementById('sync_solo_civil_status')) document.getElementById('sync_solo_civil_status').textContent = civStat;
+        if(document.getElementById('sync_solo_educational_attainment')) document.getElementById('sync_solo_educational_attainment').textContent = edAtt;
+        if(document.getElementById('sync_solo_occupation')) document.getElementById('sync_solo_occupation').textContent = occ;
+        if(document.getElementById('sync_solo_religion')) document.getElementById('sync_solo_religion').textContent = rel;
+        
+        // PWD
+        if(document.getElementById('sync_pwd_civil_status')) document.getElementById('sync_pwd_civil_status').textContent = civStat;
+        if(document.getElementById('sync_pwd_educational_attainment')) document.getElementById('sync_pwd_educational_attainment').textContent = edAtt;
+        if(document.getElementById('sync_pwd_occupation')) document.getElementById('sync_pwd_occupation').textContent = occ;
+    }
+
+    // Attach listeners to main form inputs
+    const mainInputs = ['id_educational_attainment', 'id_civil_status', 'id_occupation', 'id_contact_number', 'id_religion'];
+    mainInputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', updateSyncFields);
+            el.addEventListener('change', updateSyncFields);
+        }
+    });
+
+    // Also trigger on modal open buttons (checkboxes that show modals)
+    document.querySelectorAll('.btn-show-modal').forEach(btn => {
+        btn.addEventListener('click', updateSyncFields);
+    });
+    document.querySelectorAll('.form-check-input').forEach(chk => {
+        chk.addEventListener('change', updateSyncFields);
+    });
+    
+    // Initial sync
+    updateSyncFields();
+});
+</script>
+
 {% endblock %}
