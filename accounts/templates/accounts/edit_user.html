@@ -7,6 +7,22 @@
 {% block css %}
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+<style>
+  .edit-member-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+  .edit-member-avatar .avatar-initials {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -23,10 +39,10 @@
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
       <span class="breadcrumb-current">Edit Account</span>
     </div>
-    <h1 class="dash-page-title">Edit User Account</h1>
+    <h1 class="dash-page-title">Edit Email Address</h1>
     <p class="dash-page-sub">
-      <i class="bi bi-pencil-square me-1"></i>
-      Updating account for <strong>{{ user_obj.username }}</strong>
+      <i class="bi bi-envelope me-1"></i>
+      Correcting email for <strong>{{ user_obj.username }}</strong>
     </p>
   </div>
 </div>
@@ -40,8 +56,8 @@
       <div class="dash-panel__header-left">
         <i class="bi bi-pencil-square dash-panel__icon"></i>
         <div>
-          <h2 class="dash-panel__title">Account Details</h2>
-          <p class="dash-panel__sub">Update the fields you want to change</p>
+          <h2 class="dash-panel__title">Email Correction</h2>
+          <p class="dash-panel__sub">Correct typos or update the user's email</p>
         </div>
       </div>
     </div>
@@ -70,47 +86,6 @@
       <form method="post" novalidate class="acct-form">
         {% csrf_token %}
 
-        <!-- Role Field (Disabled) -->
-        <div class="acct-form__group">
-          <label class="acct-form__label" for="{{ form.role.id_for_label }}">
-            <i class="bi bi-person-badge"></i> Role
-          </label>
-          <div class="acct-form__control-wrap">
-            {{ form.role }}
-          </div>
-        </div>
-
-        <!-- Barangay Field -->
-        {% if user_obj.role == 'BARANGAY' %}
-        <div class="acct-form__group">
-          <label class="acct-form__label" for="{{ form.barangay.id_for_label }}">
-            <i class="bi bi-geo-alt"></i> Barangay
-            <span class="acct-form__required">*</span>
-          </label>
-          <div class="acct-form__control-wrap">
-            {{ form.barangay }}
-          </div>
-          {% if form.barangay.errors %}
-            <p class="acct-form__error">{{ form.barangay.errors|join:", " }}</p>
-          {% endif %}
-        </div>
-        {% endif %}
-
-        <!-- Username Field -->
-        <div class="acct-form__group">
-          <label class="acct-form__label" for="{{ form.username.id_for_label }}">
-            <i class="bi bi-person"></i> Username
-            <span class="acct-form__required">*</span>
-          </label>
-          <div class="acct-form__control-wrap">
-            {{ form.username }}
-          </div>
-          {% if form.username.errors %}
-            <p class="acct-form__error">{{ form.username.errors|join:", " }}</p>
-          {% endif %}
-          <p class="acct-form__hint">Must be unique across the system.</p>
-        </div>
-
         <!-- Email Field -->
         <div class="acct-form__group">
           <label class="acct-form__label" for="{{ form.email.id_for_label }}">
@@ -124,41 +99,6 @@
             <p class="acct-form__error">{{ form.email.errors|join:", " }}</p>
           {% endif %}
           <p class="acct-form__hint">Used for login, password reset, and 2FA verification.</p>
-        </div>
-
-        <!-- Password Field -->
-        <div class="acct-form__group">
-          <label class="acct-form__label" for="{{ form.password.id_for_label }}">
-            <i class="bi bi-lock"></i> New Password
-          </label>
-          <div class="acct-form__control-wrap acct-form__control-wrap--password">
-            {{ form.password }}
-            <button type="button" class="acct-form__pw-toggle" id="pwToggle"
-              aria-label="Toggle password visibility">
-              <i class="bi bi-eye" id="pwToggleIcon"></i>
-            </button>
-          </div>
-          {% if form.password.errors %}
-            <p class="acct-form__error">{{ form.password.errors|join:", " }}</p>
-          {% endif %}
-          <p class="acct-form__hint">Leave blank to keep the current password unchanged.</p>
-        </div>
-
-        <!-- Confirm Password Field -->
-        <div class="acct-form__group">
-          <label class="acct-form__label" for="{{ form.confirm_password.id_for_label }}">
-            <i class="bi bi-lock-fill"></i> Confirm New Password
-          </label>
-          <div class="acct-form__control-wrap acct-form__control-wrap--password">
-            {{ form.confirm_password }}
-            <button type="button" class="acct-form__pw-toggle" id="pwToggle2"
-              aria-label="Toggle confirm password visibility">
-              <i class="bi bi-eye" id="pwToggleIcon2"></i>
-            </button>
-          </div>
-          {% if form.confirm_password.errors %}
-            <p class="acct-form__error">{{ form.confirm_password.errors|join:", " }}</p>
-          {% endif %}
         </div>
 
         <!-- Form Actions -->
@@ -192,7 +132,13 @@
       <div class="dash-panel__body">
         <div class="edit-member-info">
           <div class="edit-member-avatar">
-            {{ user_obj.username|first|upper }}
+            {% if user_obj.profile_image %}
+              <img src="{{ user_obj.profile_image.url }}" alt="{{ user_obj.username }}">
+            {% else %}
+              <span class="avatar-initials avatar-initials--lg">
+                {{ user_obj.first_name|first|upper }}{{ user_obj.last_name|first|upper }}
+              </span>
+            {% endif %}
           </div>
           <div class="edit-member-details">
             <p class="edit-member-name">{{ user_obj.username }}</p>
@@ -241,19 +187,11 @@
         <ul class="form-guideline-list">
           <li class="form-guideline-item">
             <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
-            <span>Usernames must remain unique across the system.</span>
-          </li>
-          <li class="form-guideline-item">
-            <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
             <span>Email must be valid and unique — it is used for login and 2FA.</span>
           </li>
           <li class="form-guideline-item">
             <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
-            <span>Leave the password field <strong>blank</strong> to keep the current password.</span>
-          </li>
-          <li class="form-guideline-item">
-            <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
-            <span>If changing the password, ensure to notify the user securely.</span>
+            <span>This form is for email correction only. Users can update their other details from their settings page.</span>
           </li>
           <li class="form-guideline-item">
             <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
@@ -285,32 +223,3 @@
 
 {% endblock %}
 
-{% block js %}
-<script>
-  // Password toggle
-  const pwToggle = document.getElementById('pwToggle');
-  const pwIcon   = document.getElementById('pwToggleIcon');
-  const pwField  = document.querySelector('[name="password"]');
-
-  if (pwToggle && pwField) {
-    pwToggle.addEventListener('click', () => {
-      const isText = pwField.type === 'text';
-      pwField.type = isText ? 'password' : 'text';
-      pwIcon.className = isText ? 'bi bi-eye' : 'bi bi-eye-slash';
-    });
-  }
-
-  // Confirm password toggle
-  const pwToggle2 = document.getElementById('pwToggle2');
-  const pwIcon2   = document.getElementById('pwToggleIcon2');
-  const pwField2  = document.querySelector('[name="confirm_password"]');
-
-  if (pwToggle2 && pwField2) {
-    pwToggle2.addEventListener('click', () => {
-      const isText = pwField2.type === 'text';
-      pwField2.type = isText ? 'password' : 'text';
-      pwIcon2.className = isText ? 'bi bi-eye' : 'bi bi-eye-slash';
-    });
-  }
-</script>
-{% endblock %}

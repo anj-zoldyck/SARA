@@ -210,12 +210,8 @@ def edit_user(request, user_id):
     if request.method == 'POST':
         form = UserEditForm(request.POST, instance=user_obj)
         if form.is_valid():
-            user = form.save(commit=False)
-            new_password = form.cleaned_data.get('password')
-            if new_password:
-                user.set_password(new_password)
-            user.save()
-            messages.success(request, f"User {user.username} updated successfully.")
+            form.save()
+            messages.success(request, f"Email for {user_obj.username} updated successfully.")
             return redirect('user_accounts')
     else:
         form = UserEditForm(instance=user_obj)
@@ -258,11 +254,30 @@ def user_accounts(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
     
-    users = User.objects.filter(role__in=['BARANGAY', 'MSWDO_STAFF']).order_by('-date_joined')
+    # Base queryset excluding MSWDO Admin
+    users = User.objects.filter(role__in=['BARANGAY', 'MSWDO_STAFF'])
+    
+    # Filtering logic
+    role_filter = request.GET.get('role', '')
+    barangay_filter = request.GET.get('barangay', '')
+
+    if role_filter in ['MSWDO_STAFF', 'BARANGAY']:
+        users = users.filter(role=role_filter)
+        if role_filter == 'BARANGAY' and barangay_filter:
+            users = users.filter(barangay_id=barangay_filter)
+
+    users = users.order_by('-date_joined')
     active_count = users.filter(is_active=True).count()
+    
+    # We need all barangays for the filter dropdown
+    barangays = Barangay.objects.all().order_by('name')
+
     return render(request, 'accounts/user_accounts.html', {
         'users': users,
-        'active_count': active_count
+        'active_count': active_count,
+        'barangays': barangays,
+        'selected_role': role_filter,
+        'selected_barangay': barangay_filter,
     })
 
 

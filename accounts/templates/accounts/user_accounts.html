@@ -64,6 +64,51 @@
   </div>
 </div>
 
+<!-- ── Filters ─────────────────────────────────────────────── -->
+<div class="dash-panel">
+  <div class="dash-panel__body">
+    <form method="get" id="filterForm" class="d-flex align-items-end gap-3 flex-wrap">
+      
+      <div class="acct-form__group mb-0" style="min-width: 200px;">
+        <label class="acct-form__label" for="roleFilter">
+          <i class="bi bi-person-badge"></i> Role
+        </label>
+        <div class="acct-form__control-wrap">
+          <select name="role" class="form-control" id="roleFilter" onchange="toggleBarangayFilter()">
+            <option value="" {% if not selected_role %}selected{% endif %}>All Roles</option>
+            <option value="MSWDO_STAFF" {% if selected_role == 'MSWDO_STAFF' %}selected{% endif %}>MSWDO Staff</option>
+            <option value="BARANGAY" {% if selected_role == 'BARANGAY' %}selected{% endif %}>Barangay Admin</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="acct-form__group mb-0" style="min-width: 200px; display: {% if selected_role == 'BARANGAY' %}block{% else %}none{% endif %};" id="barangayFilterContainer">
+        <label class="acct-form__label" for="barangayFilter">
+          <i class="bi bi-geo-alt"></i> Barangay
+        </label>
+        <div class="acct-form__control-wrap">
+          <select name="barangay" class="form-control" id="barangayFilter">
+            <option value="">All Barangays</option>
+            {% for brgy in barangays %}
+              <option value="{{ brgy.id }}" {% if selected_barangay == brgy.id|stringformat:"s" %}selected{% endif %}>{{ brgy.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn-dash-primary">
+          <i class="bi bi-funnel"></i> Apply Filter
+        </button>
+        <a href="{% url 'user_accounts' %}" class="btn-dash-outline">
+          <i class="bi bi-x-circle"></i> Clear
+        </a>
+      </div>
+      
+    </form>
+  </div>
+</div>
+
 <!-- ── Accounts Table Panel ───────────────────────────────── -->
 <div class="dash-panel">
 
@@ -83,8 +128,13 @@
         <thead>
           <tr>
             <th class="acct-th">#</th>
-            <th class="acct-th">Role / Assignment</th>
-            <th class="acct-th">Username</th>
+            <th class="acct-th">Full Name</th>
+            <th class="acct-th">Email</th>
+            <th class="acct-th">Role</th>
+            <th class="acct-th">Barangay</th>
+            <th class="acct-th">Position</th>
+            <th class="acct-th">Sex</th>
+            <th class="acct-th">Contact Number</th>
             <th class="acct-th">Status</th>
             <th class="acct-th acct-th--actions">Actions</th>
           </tr>
@@ -94,24 +144,23 @@
           <tr class="acct-row">
             <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
             <td class="acct-td">
-              <div class="acct-barangay-cell">
-                <div class="acct-avatar">
-                  <i class="bi bi-person-badge dash-panel__icon"></i>
-                </div>
-                <span class="acct-barangay-name">
-                  {% if user.role == 'MSWDO_STAFF' %}
-                    MSWDO Staff
-                  {% else %}
-                    {{ user.barangay.name|default:"Unassigned" }}
-                  {% endif %}
-                </span>
-              </div>
+                {{ user.first_name }} 
+                {% if user.middle_name %}{{ user.middle_name|make_list|first|upper }}. {% endif %}
+                {{ user.last_name }} 
+                {% if user.suffix %}{{ user.suffix }}{% endif %}
             </td>
+            <td class="acct-td">{{ user.email }}</td>
+            <td class="acct-td">{{ user.get_role_display }}</td>
             <td class="acct-td">
-              <span class="acct-username">
-                <i class="bi bi-person me-1"></i>{{ user.username }}
-              </span>
+                {% if user.role == 'BARANGAY' and user.barangay %}
+                    {{ user.barangay.name }}
+                {% else %}
+                    -
+                {% endif %}
             </td>
+            <td class="acct-td">{{ user.position|default:"-" }}</td>
+            <td class="acct-td">{{ user.get_sex_display|default:"-" }}</td>
+            <td class="acct-td">{{ user.contact_number|default:"-" }}</td>
             <td class="acct-td">
               {% if user.is_active %}
                 <span class="acct-badge acct-badge--active">
@@ -125,9 +174,9 @@
             </td>
             <td class="acct-td acct-td--actions">
               <div class="acct-actions">
-                <a href="{% url 'edit_user' user.id %}" class="acct-btn acct-btn--edit" title="Edit account">
-                  <i class="bi bi-pencil"></i>
-                  <span>Edit</span>
+                <a href="{% url 'edit_user' user.id %}" class="acct-btn acct-btn--edit" title="Edit Email">
+                  <i class="bi bi-envelope"></i>
+                  <span>Edit Email</span>
                 </a>
                 {% if user.is_active %}
                 <a href="{% url 'deactivate_user' user.id %}"
@@ -151,7 +200,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="5" class="acct-empty">
+            <td colspan="10" class="acct-empty">
               <div class="acct-empty-state">
                 <i class="bi bi-people"></i>
                 <p>No user accounts found.</p>
@@ -176,4 +225,21 @@
   </a>
 </div>
 
+{% endblock %}
+
+{% block js %}
+<script>
+  function toggleBarangayFilter() {
+    const roleFilter = document.getElementById('roleFilter');
+    const barangayFilterContainer = document.getElementById('barangayFilterContainer');
+    const barangayFilter = document.getElementById('barangayFilter');
+    
+    if (roleFilter.value === 'BARANGAY') {
+      barangayFilterContainer.style.display = 'block';
+    } else {
+      barangayFilterContainer.style.display = 'none';
+      barangayFilter.value = ''; // Reset when hidden
+    }
+  }
+</script>
 {% endblock %}

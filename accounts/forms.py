@@ -30,19 +30,7 @@ class UserInvitationForm(forms.ModelForm):
  
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
- 
-        # Only offer barangays that do NOT already have an assigned
-        # admin (active OR still-pending-activation). This makes it
-        # impossible to even select a taken barangay from the dropdown,
-        # rather than relying solely on the clean() error message below.
-        taken_barangay_ids = User.objects.filter(
-            role='BARANGAY',
-            barangay__isnull=False
-        ).values_list('barangay_id', flat=True)
- 
-        self.fields['barangay'].queryset = Barangay.objects.exclude(
-            id__in=taken_barangay_ids
-        )
+        self.fields['barangay'].queryset = Barangay.objects.all()
  
     def clean(self):
         cleaned_data = super().clean()
@@ -53,12 +41,6 @@ class UserInvitationForm(forms.ModelForm):
         if role == 'BARANGAY':
             if not barangay:
                 self.add_error('barangay', "Barangay is required for Barangay Admin role.")
-            else:
-                # Re-check here too (not just the filtered queryset above) —
-                # protects against a race condition where two invitations
-                # are submitted for the same barangay at nearly the same time.
-                if User.objects.filter(role='BARANGAY', barangay=barangay).exclude(pk=self.instance.pk).exists():
-                    self.add_error('barangay', f"{barangay.name} already has an assigned Barangay Admin account.")
  
         elif role == 'MSWDO_STAFF':
             cleaned_data['barangay'] = None
@@ -70,52 +52,20 @@ class UserInvitationForm(forms.ModelForm):
 
 class UserEditForm(forms.ModelForm):
     """
-    Edit form for an existing user account from the admin side.
-    Password is optional — leave blank to keep the current password.
+    Edit form for correcting an existing user's email from the admin side.
     """
     email = forms.EmailField(widget=forms.EmailInput(attrs={'class': 'form-control'}))
-    username = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control'}))
-    role = forms.CharField(disabled=True, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
-    barangay = forms.ModelChoiceField(
-        queryset=Barangay.objects.all(),
-        empty_label="Unassigned",
-        required=False,
-        widget=forms.Select(attrs={'class': 'form-control'})
-    )
-    
-    password = forms.CharField(
-        required=False,
-        widget=forms.PasswordInput(attrs={'placeholder': 'Leave blank to keep current password', 'class': 'form-control'}),
-        label='New Password',
-    )
-    confirm_password = forms.CharField(
-        required=False,
-        widget=forms.PasswordInput(attrs={'placeholder': 'Repeat new password', 'class': 'form-control'}),
-        label='Confirm Password',
-    )
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'role', 'barangay']
+        fields = ['email']
 
-    def clean(self):
-        cleaned_data = super().clean()
-        password = cleaned_data.get('password')
-        confirm_password = cleaned_data.get('confirm_password')
-        barangay = cleaned_data.get('barangay')
-        
-        # Enforce barangay unicity on edit for BARANGAY
-        if self.instance.role == 'BARANGAY' and barangay:
-             if User.objects.filter(role='BARANGAY', barangay=barangay).exclude(pk=self.instance.pk).exists():
-                 self.add_error('barangay', f"{barangay.name} already has an assigned Barangay Admin account.")
-
-        if password or confirm_password:
-            if password != confirm_password:
-                self.add_error('confirm_password', "Passwords do not match.")
-            if password and len(password) < 8:
-                self.add_error('password', "Password must be at least 8 characters.")
-
-        return cleaned_data
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        qs = User.objects.filter(email__iexact=email).exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("This email is already in use by another account.")
+        return email
 
 # ============================================================
 # Profile self-service forms (for logged-in users to edit their own profile)
