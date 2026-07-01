@@ -60,7 +60,7 @@
       </span>
     </div>
     <div class="hh-card__body">
-      <h3 class="hh-card__family-name">{{ family.family_name }}</h3>
+      <h3 class="hh-card__family-name">Family Head - {{ family.head_member|default:"Not yet specified" }}</h3>
       <p class="hh-card__location">
         <i class="bi bi-house-door me-1"></i> House {{ household.house_number }}
       </p>

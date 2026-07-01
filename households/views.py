@@ -437,3 +437,24 @@ def member_details_modal(request, member_id):
         'member': member,
         'claims': claims
     })
+
+@login_required
+@session_protected
+def household_modal_content(request, household_id):
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden('Access Denied')
+
+    household = get_object_or_404(
+        Household.objects.prefetch_related('families', 'families__members'),
+        id=household_id,
+        barangay=request.user.barangay
+    )
+
+    total_families = household.families.count()
+    total_members = sum(f.members.count() for f in household.families.all())
+
+    return render(request, 'households/partials/_household_modal_content.html', {
+        'household': household,
+        'total_families': total_families,
+        'total_members': total_members,
+    })

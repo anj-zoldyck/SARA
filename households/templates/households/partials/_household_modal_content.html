@@ -1,0 +1,165 @@
+<div class="kiosk-modal-header border-bottom pb-3 mb-4">
+  <div>
+    <h5 class="kiosk-modal-title mb-1" style="font-size: 1.25rem; font-weight: 600; color: #1e293b;">
+      House {{ household.house_number }} Details
+    </h5>
+    <p class="mb-0 text-muted" style="font-size: 0.9rem;">
+      <i class="bi bi-geo-alt me-1"></i> {{ household.address }}
+    </p>
+  </div>
+</div>
+
+<div class="kiosk-modal-body px-1 py-2">
+  <!-- STAGE 1: Household Details -->
+  <div id="modalStage1">
+    <div class="row g-4 mb-4">
+      <div class="col-md-6">
+        <div class="p-3 bg-light rounded border">
+          <label class="text-muted small fw-semibold text-uppercase d-block mb-1">Land Use</label>
+          <div class="fw-medium text-dark fs-5">{{ household.get_land_use_display }}</div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="p-3 bg-light rounded border">
+          <label class="text-muted small fw-semibold text-uppercase d-block mb-1">Hazard Exposure</label>
+          <div class="fw-medium text-dark fs-5">
+            {{ household.get_hazard_exposure_display }}
+          </div>
+          {% if household.hazard_exposure == 'FLOOD' %}
+            <div class="mt-2 small text-muted">
+              <strong>Depth:</strong> {{ household.flood_depth|default:"Not specified" }}<br>
+              <strong>Frequency:</strong> {{ household.flood_frequency|default:"Not specified" }}
+            </div>
+          {% elif household.hazard_exposure == 'OTHER' %}
+            <div class="mt-2 small text-muted">
+              <strong>Description:</strong> {{ household.hazard_other_description|default:"Not specified" }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="p-3 bg-light rounded border h-100">
+          <label class="text-muted small fw-semibold text-uppercase d-block mb-2">Accessible By</label>
+          <div>
+            {% for label in household.accessibility_labels %}
+              <span class="badge bg-secondary me-1 mb-1">{{ label }}</span>
+            {% empty %}
+              <span class="text-muted">Not specified</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="p-3 bg-light rounded border h-100">
+          <label class="text-muted small fw-semibold text-uppercase d-block mb-1">Location Notes</label>
+          <div class="fw-medium text-dark">
+            {{ household.location_notes|default:"None" }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end mt-2">
+      <button type="button" class="btn-dash-primary" id="btnShowStage2" style="border: none;">
+        View Inhabitants <i class="bi bi-arrow-right ms-1"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- STAGE 2: Inhabitants Table (Initially Hidden) -->
+  <div id="modalStage2" style="display: none;">
+    
+    <div class="d-flex justify-content-between align-items-center mb-3 bg-light p-3 rounded border">
+      <div>
+        <h6 class="mb-1 fw-bold text-dark">Total Families: <span class="text-primary">{{ total_families }}</span></h6>
+        <h6 class="mb-0 fw-bold text-dark">Total Members: <span class="text-primary">{{ total_members }}</span></h6>
+      </div>
+      <button type="button" class="btn-dash-outline btn-sm" id="btnShowStage1" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">
+        <i class="bi bi-arrow-left me-1"></i> Back to Details
+      </button>
+    </div>
+
+    {% for family in household.families.all %}
+    <div class="mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
+        <h6 class="mb-0 fw-bold" style="color: var(--clr-primary);">
+          (Family {{ forloop.counter }}) Head of the Family: {{ family.head_member|default:"Not yet specified" }}
+        </h6>
+        <span class="badge bg-light text-dark border">
+          No. of Members: {{ family.members.count }}
+        </span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-bordered table-sm align-middle" style="font-size: 0.85rem;">
+          <thead class="table-light">
+            <tr>
+              <th>Last Name</th>
+              <th>First Name</th>
+              <th>Middle Name</th>
+              <th>Ext.</th>
+              <th>Place of Birth</th>
+              <th>Age</th>
+              <th>Sex</th>
+              <th>Civil Status</th>
+              <th>Citizenship</th>
+              <th>Occupation</th>
+              <th>Category</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for member in family.members.all %}
+            <tr>
+              <td class="fw-medium">{{ member.last_name }}</td>
+              <td>{{ member.first_name }}</td>
+              <td>{{ member.middle_name|default:"-" }}</td>
+              <td>{{ member.suffix|default:"-" }}</td>
+              <td>{{ member.birthplace|default:"-" }}</td>
+              <td>{{ member.age|default:"-" }}</td>
+              <td>{{ member.get_sex_display|default:"-" }}</td>
+              <td>{{ member.civil_status|default:"-" }}</td>
+              <td>{{ member.citizenship|default:"-" }}</td>
+              <td>{{ member.occupation|default:"-" }}</td>
+              <td>
+                <div class="d-flex flex-wrap gap-1">
+                  {% if member.is_pwd %}<span class="badge bg-danger">PWD</span>{% endif %}
+                  {% if member.is_senior_citizen %}<span class="badge bg-warning text-dark">Senior</span>{% endif %}
+                  {% if member.is_solo_parent %}<span class="badge bg-info text-dark">Solo Parent</span>{% endif %}
+                  {% if member.is_out_of_school_youth %}<span class="badge bg-secondary">OSY</span>{% endif %}
+                  {% if member.is_out_of_school_children %}<span class="badge bg-secondary">OSC</span>{% endif %}
+                  {% if member.is_indigenous %}<span class="badge bg-success">IP</span>{% endif %}
+                  {% if not member.is_pwd and not member.is_senior_citizen and not member.is_solo_parent and not member.is_out_of_school_youth and not member.is_out_of_school_children and not member.is_indigenous %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="11" class="text-center text-muted py-3">No members found in this family.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% empty %}
+      <div class="text-center text-muted p-4 border rounded bg-light">
+        No families registered in this household yet.
+      </div>
+    {% endfor %}
+
+  </div>
+</div>
+
+<script>
+  document.getElementById('btnShowStage2').addEventListener('click', function() {
+    document.getElementById('modalStage1').style.display = 'none';
+    document.getElementById('modalStage2').style.display = 'block';
+  });
+  document.getElementById('btnShowStage1').addEventListener('click', function() {
+    document.getElementById('modalStage2').style.display = 'none';
+    document.getElementById('modalStage1').style.display = 'block';
+  });
+</script>

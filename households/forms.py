@@ -68,7 +68,7 @@ class FamilyMemberForm(forms.ModelForm):
             'relationship', 'birthdate', 'birthplace', 'sex', 'civil_status',
             'philsys_card_no', 'religion', 'citizenship', 'occupation',
             'contact_number', 'email', 'educational_attainment', 'education_status',
-            'monthly_income', 'is_pwd', 'is_solo_parent', 'is_senior_citizen', 'profile_image'
+            'monthly_income', 'is_pwd', 'is_solo_parent', 'is_senior_citizen', 'is_indigenous', 'is_out_of_school_youth', 'is_out_of_school_children', 'profile_image'
         ]
 
         widgets = {
@@ -93,6 +93,9 @@ class FamilyMemberForm(forms.ModelForm):
             'is_pwd': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_solo_parent': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_senior_citizen': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'is_indigenous': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'is_out_of_school_youth': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'is_out_of_school_children': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'profile_image': forms.FileInput(attrs={'class': 'd-none', 'id': 'profile_image_input', 'accept': 'image/*'}),
         }
 

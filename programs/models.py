@@ -83,6 +83,7 @@ class Assistance(models.Model):
     )
     requires_pwd = models.BooleanField(default=False)
     requires_solo_parent = models.BooleanField(default=False)
+    requires_senior_citizen = models.BooleanField(default=False)
 
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -261,6 +261,27 @@
                   <p class="modal-form__check-sub" style="margin: 0; font-size: 0.8rem; color: #64748b;">Must have a valid Solo Parent ID.</p>
                 </div>
               </div>
+              <div class="modal-form__check-row" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px;">
+                {{ form.is_indigenous }}
+                <div>
+                  <label class="modal-form__check-label" for="{{ form.is_indigenous.id_for_label }}" style="font-weight: 500; color: #334155; margin-bottom: 2px;">Indigenous People</label>
+                  <p class="modal-form__check-sub" style="margin: 0; font-size: 0.8rem; color: #64748b;">Member of an indigenous cultural community.</p>
+                </div>
+              </div>
+              <div class="modal-form__check-row" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px;">
+                {{ form.is_out_of_school_youth }}
+                <div>
+                  <label class="modal-form__check-label" for="{{ form.is_out_of_school_youth.id_for_label }}" style="font-weight: 500; color: #334155; margin-bottom: 2px;">Out of School Youth</label>
+                  <p class="modal-form__check-sub" style="margin: 0; font-size: 0.8rem; color: #64748b;">Typically ages 15-24 not attending formal school.</p>
+                </div>
+              </div>
+              <div class="modal-form__check-row" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px;">
+                {{ form.is_out_of_school_children }}
+                <div>
+                  <label class="modal-form__check-label" for="{{ form.is_out_of_school_children.id_for_label }}" style="font-weight: 500; color: #334155; margin-bottom: 2px;">Out of School Children</label>
+                  <p class="modal-form__check-sub" style="margin: 0; font-size: 0.8rem; color: #64748b;">Typically ages 6-14 not attending formal school.</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

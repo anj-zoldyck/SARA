@@ -51,6 +51,18 @@ class Household(models.Model):
     def address(self):
         return f"{self.house_number}, {self.zone.name}, {self.barangay.name}"
 
+    @property
+    def accessibility_labels(self):
+        if not self.accessibility:
+            return []
+        choices = {
+            'CONCRETE_ROAD': 'Concrete Road',
+            'GRAVEL_ROAD': 'Gravel Road',
+            'DIRT_ROAD': 'Dirt Road',
+            'FOOT_TRAIL': 'Foot Trail',
+        }
+        return [choices.get(val.strip(), val.strip()) for val in self.accessibility.split(',')]
+
 # ----------------- Family Model -----------------
 class Family(models.Model):
     household = models.ForeignKey(Household, on_delete=models.CASCADE, related_name='families')
@@ -67,6 +79,10 @@ class Family(models.Model):
 
     def __str__(self):
         return f"{self.family_name} ({self.household})"
+
+    @property
+    def head_member(self):
+        return self.members.filter(relationship='HEAD').first()
 
 # ----------------- FamilyMember Model -----------------
 RELATIONSHIP_CHOICES = (
@@ -152,6 +168,9 @@ class FamilyMember(models.Model):
     is_pwd = models.BooleanField(default=False)
     is_solo_parent = models.BooleanField(default=False)
     is_senior_citizen = models.BooleanField(default=False)
+    is_indigenous = models.BooleanField(default=False)
+    is_out_of_school_youth = models.BooleanField(default=False)
+    is_out_of_school_children = models.BooleanField(default=False)
     profile_image = models.ImageField(upload_to=resident_profile_image_path, blank=True, null=True)
 
     @property

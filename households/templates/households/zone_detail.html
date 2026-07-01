@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
 <link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
 <link rel="stylesheet" href="{% static 'css/households.css' %}">
+<link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -41,7 +42,7 @@
 {% if households %}
 <div class="hh-grid">
   {% for household in households %}
-  <div class="hh-card">
+  <div class="hh-card" style="cursor: pointer;" onclick="openHouseholdModal({{ household.id }})">
     <div class="hh-card__header">
       <div class="hh-card__icon"><i class="bi bi-house-door"></i></div>
       <span class="hh-card__num">House #{{ household.house_number }}</span>
@@ -52,8 +53,8 @@
       </p>
     </div>
     <div class="hh-card__footer">
-      <a href="{% url 'household_detail' household.id %}" class="btn-dash-primary hh-card__btn">
-        <i class="bi bi-person-lines-fill"></i> View Members
+      <a href="{% url 'household_detail' household.id %}" class="btn-dash-primary hh-card__btn text-center w-100 d-inline-block" onclick="event.stopPropagation()">
+        <i class="bi bi-eye"></i> View House Members
       </a>
     </div>
   </div>
@@ -80,4 +81,99 @@
   </a>
 </div>
 
+<!-- Household Modal -->
+<div class="modal-overlay" id="householdModalOverlay">
+  <div class="kiosk-modal" id="householdModalBox" style="max-width: 800px; width: 95%; transition: max-width 0.3s ease;">
+    <div class="kiosk-modal-header" style="justify-content: flex-end; border-bottom: none; padding-bottom: 0;">
+      <button type="button" class="btn-close" aria-label="Close" onclick="closeHouseholdModal()"></button>
+    </div>
+    <div class="kiosk-modal-body" id="householdModalContent">
+      <!-- Content will be loaded here via AJAX -->
+      <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading household details...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+  function closeHouseholdModal() {
+    const modalEl = document.getElementById('householdModalOverlay');
+    if (modalEl) modalEl.classList.remove('active');
+  }
+
+  // Handle clicking outside to close
+  window.addEventListener('click', function(e) {
+      if (e.target.classList.contains('modal-overlay')) {
+          e.target.classList.remove('active');
+      }
+  });
+
+  function openHouseholdModal(householdId) {
+    const modalEl = document.getElementById('householdModalOverlay');
+    const modalBox = document.getElementById('householdModalBox');
+    
+    // Reset to stage 1 width
+    if (modalBox) modalBox.style.maxWidth = '800px';
+    
+    // Show loading state
+    document.getElementById('householdModalContent').innerHTML = `
+      <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading household details...</p>
+      </div>
+    `;
+    
+    // Open modal
+    if (modalEl) modalEl.classList.add('active');
+
+    // Fetch content
+    fetch(`/barangay/households/${householdId}/modal/`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.text();
+      })
+      .then(html => {
+        document.getElementById('householdModalContent').innerHTML = html;
+        
+        // Re-attach event listeners for stage toggle within the newly injected HTML
+        const btnShowStage2 = document.getElementById('btnShowStage2');
+        const btnShowStage1 = document.getElementById('btnShowStage1');
+        const stage1 = document.getElementById('modalStage1');
+        const stage2 = document.getElementById('modalStage2');
+        
+        if(btnShowStage2 && btnShowStage1 && stage1 && stage2) {
+          btnShowStage2.addEventListener('click', function() {
+            stage1.style.display = 'none';
+            stage2.style.display = 'block';
+            if (modalBox) modalBox.style.maxWidth = '1200px';
+          });
+          btnShowStage1.addEventListener('click', function() {
+            stage2.style.display = 'none';
+            stage1.style.display = 'block';
+            if (modalBox) modalBox.style.maxWidth = '800px';
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching modal content:', error);
+        document.getElementById('householdModalContent').innerHTML = `
+          <div class="text-center py-5 text-danger">
+            <i class="bi bi-exclamation-triangle fs-1"></i>
+            <p class="mt-2">Failed to load household details. Please try again.</p>
+          </div>
+        `;
+      });
+  }
+</script>
 {% endblock %}

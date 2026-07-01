@@ -265,6 +265,9 @@ def scan_rfid(request):
                     if assistance.minimum_age: criteria.append(f"{assistance.minimum_age}+")
                     if assistance.requires_pwd: criteria.append("PWD")
                     if assistance.requires_solo_parent: criteria.append("Solo Parent")
+                    if assistance.requires_senior_citizen:
+                        criteria.append("Senior Citizen")
+                        eligible_members = eligible_members.filter(is_senior_citizen=True)
                     criteria_str = " + ".join(criteria) if criteria else "No specific criteria"
 
                     return JsonResponse({
