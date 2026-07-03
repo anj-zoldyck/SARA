@@ -19,6 +19,7 @@ from distribution.models import AidSchedule, AidClaim
 from accounts.forms import UserEditForm, UserInvitationForm
 from households.forms import HouseholdForm, FamilyForm, FamilyMemberForm
 from programs.forms import ProgramForm, AidCategoryForm, AssistanceForm
+from programs.eligibility import check_eligibility, get_eligibility_badges
 # from distribution.forms import AidScheduleForm  # if any
 
 from django.utils.safestring import mark_safe
@@ -227,15 +228,9 @@ def scan_rfid(request):
 
                 member_data = []
                 for m in all_members:
-                    reasons = []
-                    if assistance.minimum_age and (m.age is None or m.age < assistance.minimum_age):
-                        reasons.append(f"Under {assistance.minimum_age}")
-                    if assistance.requires_pwd and not m.is_pwd:
-                        reasons.append("Not registered PWD")
-                    if assistance.requires_solo_parent and not m.is_solo_parent:
-                        reasons.append("Not registered Solo Parent")
+                    is_eligible, reasons = check_eligibility(m, assistance)
 
-                    if reasons:
+                    if not is_eligible:
                         status = 'ineligible'
                         reason_str = ", ".join(reasons)
                     elif m.id in claimed_member_ids:
@@ -261,13 +256,8 @@ def scan_rfid(request):
                             'message': f"All eligible members of this family have already claimed {assistance.aid_category.name} today."
                         })
 
-                    criteria = []
-                    if assistance.minimum_age: criteria.append(f"{assistance.minimum_age}+")
-                    if assistance.requires_pwd: criteria.append("PWD")
-                    if assistance.requires_solo_parent: criteria.append("Solo Parent")
-                    if assistance.requires_senior_citizen:
-                        criteria.append("Senior Citizen")
-                        eligible_members = eligible_members.filter(is_senior_citizen=True)
+                    badges = get_eligibility_badges(assistance)
+                    criteria = [b['label'] for b in badges]
                     criteria_str = " + ".join(criteria) if criteria else "No specific criteria"
 
                     return JsonResponse({
@@ -279,20 +269,14 @@ def scan_rfid(request):
                     })
                 else:
                     # fallback for non-ajax
-                    eligible_members = all_members.exclude(id__in=claimed_member_ids)
-                    if assistance.minimum_age:
-                        today = date.today()
-                        try:
-                            threshold_date = today.replace(year=today.year - assistance.minimum_age)
-                        except ValueError:
-                            threshold_date = today.replace(year=today.year - assistance.minimum_age, day=28)
-                        eligible_members = eligible_members.filter(birthdate__lte=threshold_date)
-                    if assistance.requires_pwd:
-                        eligible_members = eligible_members.filter(is_pwd=True)
-                    if assistance.requires_solo_parent:
-                        eligible_members = eligible_members.filter(is_solo_parent=True)
+                    unclaimed_members = all_members.exclude(id__in=claimed_member_ids)
+                    eligible_members = []
+                    for m in unclaimed_members:
+                        is_el, _ = check_eligibility(m, assistance)
+                        if is_el:
+                            eligible_members.append(m)
                         
-                    if not eligible_members.exists():
+                    if not eligible_members:
                         error = f"All eligible members have already claimed {assistance.aid_category.name} for this schedule."
                     else:
                         return render(request, 'distribution/scan_rfid.html', {

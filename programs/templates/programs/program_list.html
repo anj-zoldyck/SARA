@@ -40,11 +40,11 @@
     </p>
   </div>
   <div class="dash-header-actions">
-    <button class="btn-dash-outline" data-bs-toggle="modal" data-bs-target="#addAssistanceModal">
-      <i class="bi bi-plus-lg"></i> Add Assistance
-    </button>
-    <button class="btn-dash-primary" data-bs-toggle="modal" data-bs-target="#addProgramModal">
+    <button class="btn-dash-outline" data-bs-toggle="modal" data-bs-target="#addProgramModal">
       <i class="bi bi-plus-lg"></i> Add Program
+    </button>
+    <button class="btn-dash-primary" data-bs-toggle="modal" data-bs-target="#addAssistanceModal">
+      <i class="bi bi-plus-lg"></i> Add Assistance
     </button>
   </div>
 </div>
@@ -129,7 +129,7 @@
               <th class="acct-th">#</th>
               <th class="acct-th">Aid Category</th>
               <th class="acct-th">Beneficiary Type</th>
-              <th class="acct-th">Min. Age</th>
+              <th class="acct-th">Eligibility</th>
               <th class="acct-th">Status</th>
               <th class="acct-th acct-th--actions">Action</th>
             </tr>
@@ -153,8 +153,12 @@
                 </span>
               </td>
               <td class="acct-td">
-                {% if a.minimum_age %}
-                  <span class="prog-age-badge">{{ a.minimum_age }}+ yrs</span>
+                {% if a.eligibility_badges %}
+                  <div class="eligibility-badges">
+                    {% for badge in a.eligibility_badges %}
+                      <span class="acct-badge {{ badge.class }}">{{ badge.label }}</span>
+                    {% endfor %}
+                  </div>
                 {% else %}
                   <span class="acct-username">—</span>
                 {% endif %}
@@ -184,6 +188,9 @@
                     data-assistance-category-name="{{ a.aid_category.name }}"
                     data-assistance-beneficiary="{{ a.beneficiary_type }}"
                     data-assistance-min-age="{{ a.minimum_age|default:'' }}"
+                    data-assistance-pwd="{{ a.requires_pwd|yesno:'true,false' }}"
+                    data-assistance-solo-parent="{{ a.requires_solo_parent|yesno:'true,false' }}"
+                    data-assistance-senior="{{ a.requires_senior_citizen|yesno:'true,false' }}"
                     data-assistance-active="{{ a.is_active|yesno:'true,false' }}"
                     title="Edit assistance">
                     <i class="bi bi-pencil"></i>
@@ -527,7 +534,7 @@
             <select id="asst_category" name="aid_category" class="modal-form__select" required disabled>
               <option value="">-- Select Program First --</option>
             </select>
-            <p class="modal-form__hint">Select a program first to load its categories.</p>
+            <p class="modal-form__hint" id="asst_category_hint">Select a program first to load its categories.</p>
           </div>
 
           <div class="modal-form__group">
@@ -542,19 +549,39 @@
             </select>
           </div>
 
-          <div class="modal-form__group" id="asst_min_age_group" style="display:none;">
-            <label class="modal-form__label" for="asst_min_age">
-              <i class="bi bi-person-check"></i> Minimum Age
-            </label>
-            <input
-              type="number"
-              id="asst_min_age"
-              name="minimum_age"
-              class="modal-form__control"
-              placeholder="e.g. 60 for Senior, leave blank if none"
-              min="1"
-              max="120">
-            <p class="modal-form__hint">Leave blank if no age requirement.</p>
+          <div id="asst_eligibility_group" style="display:none;">
+            <div class="modal-form__group">
+              <label class="modal-form__label" for="asst_min_age">
+                <i class="bi bi-person-check"></i> Minimum Age
+              </label>
+              <input
+                type="number"
+                id="asst_min_age"
+                name="minimum_age"
+                class="modal-form__control"
+                placeholder="e.g. 60 for Senior, leave blank if none"
+                min="1"
+                max="120">
+            </div>
+
+            <div class="modal-form__group">
+              <label class="modal-form__label">
+                <i class="bi bi-ui-checks"></i> Specific Requirements
+              </label>
+              <div class="modal-form__check-row mb-2">
+                <input type="checkbox" id="asst_pwd" name="requires_pwd">
+                <label class="modal-form__check-label" for="asst_pwd">PWD Only</label>
+              </div>
+              <div class="modal-form__check-row mb-2">
+                <input type="checkbox" id="asst_solo_parent" name="requires_solo_parent">
+                <label class="modal-form__check-label" for="asst_solo_parent">Solo Parent Only</label>
+              </div>
+              <div class="modal-form__check-row">
+                <input type="checkbox" id="asst_senior" name="requires_senior_citizen">
+                <label class="modal-form__check-label" for="asst_senior">Senior Citizen Only</label>
+              </div>
+              <p class="modal-form__hint mt-1">Leave unchecked if not required.</p>
+            </div>
           </div>
 
           <div class="modal-form__group">
@@ -661,19 +688,40 @@
             </select>
           </div>
 
-          <div class="modal-form__group" id="edit_asst_min_age_group">
-            <label class="modal-form__label" for="edit_asst_min_age">
-              <i class="bi bi-person-check"></i> Minimum Age
-            </label>
-            <input
-              type="number"
-              id="edit_asst_min_age"
-              name="minimum_age"
-              class="modal-form__control"
-              placeholder="e.g. 60 for Senior, leave blank if none"
-              min="1"
-              max="120">
-            <p class="modal-form__hint">Only applies to individual-based assistance. Leave blank if none.</p>
+          <div id="edit_asst_eligibility_group" style="display:none;">
+            <div class="modal-form__group">
+              <label class="modal-form__label" for="edit_asst_min_age">
+                <i class="bi bi-person-check"></i> Minimum Age
+              </label>
+              <input
+                type="number"
+                id="edit_asst_min_age"
+                name="minimum_age"
+                class="modal-form__control"
+                placeholder="e.g. 60 for Senior, leave blank if none"
+                min="1"
+                max="120">
+              <p class="modal-form__hint">Only applies to individual-based assistance. Leave blank if none.</p>
+            </div>
+
+            <div class="modal-form__group">
+              <label class="modal-form__label">
+                <i class="bi bi-ui-checks"></i> Specific Requirements
+              </label>
+              <div class="modal-form__check-row mb-2">
+                <input type="checkbox" id="edit_asst_pwd" name="requires_pwd">
+                <label class="modal-form__check-label" for="edit_asst_pwd">PWD Only</label>
+              </div>
+              <div class="modal-form__check-row mb-2">
+                <input type="checkbox" id="edit_asst_solo_parent" name="requires_solo_parent">
+                <label class="modal-form__check-label" for="edit_asst_solo_parent">Solo Parent Only</label>
+              </div>
+              <div class="modal-form__check-row">
+                <input type="checkbox" id="edit_asst_senior" name="requires_senior_citizen">
+                <label class="modal-form__check-label" for="edit_asst_senior">Senior Citizen Only</label>
+              </div>
+              <p class="modal-form__hint mt-1">Leave unchecked if not required.</p>
+            </div>
           </div>
 
           <div class="modal-form__group">
@@ -773,7 +821,7 @@ document.getElementById('addCategoryModal').addEventListener('show.bs.modal', fu
 const asstProgramSelect  = document.getElementById('asst_program');
 const asstCategorySelect = document.getElementById('asst_category');
 const asstBeneficiary    = document.getElementById('asst_beneficiary_type');
-const asstMinAgeGroup    = document.getElementById('asst_min_age_group');
+const asstEligibilityGroup = document.getElementById('asst_eligibility_group');
 const asstMinAgeInput    = document.getElementById('asst_min_age');
 
 // Load categories via AJAX when program is selected
@@ -794,8 +842,10 @@ asstProgramSelect.addEventListener('change', function () {
     .then(data => {
       asstCategorySelect.innerHTML = '<option value="">-- Select Category --</option>';
       if (data.categories.length === 0) {
-        asstCategorySelect.innerHTML = '<option value="">No categories found — add one first</option>';
+        asstCategorySelect.innerHTML = '<option value="">No categories found</option>';
+        document.getElementById('asst_category_hint').innerHTML = `No categories found. <a href="#" data-bs-toggle="modal" data-bs-target="#addCategoryModal" data-program-id="${programId}" data-program-name="${asstProgramSelect.options[asstProgramSelect.selectedIndex].text}" class="text-decoration-underline text-primary" style="cursor:pointer;">Click here to add one.</a>`;
       } else {
+        document.getElementById('asst_category_hint').innerHTML = 'Select a program first to load its categories.';
         data.categories.forEach(cat => {
           const opt = document.createElement('option');
           opt.value       = cat.id;
@@ -810,13 +860,16 @@ asstProgramSelect.addEventListener('change', function () {
     });
 });
 
-// Show minimum_age field only for individual-based assistance
+// Show eligibility fields only for individual-based assistance
 asstBeneficiary.addEventListener('change', function () {
   if (this.value === 'individual') {
-    asstMinAgeGroup.style.display = 'block';
+    asstEligibilityGroup.style.display = 'block';
   } else {
-    asstMinAgeGroup.style.display = 'none';
+    asstEligibilityGroup.style.display = 'none';
     asstMinAgeInput.value = '';
+    document.getElementById('asst_pwd').checked = false;
+    document.getElementById('asst_solo_parent').checked = false;
+    document.getElementById('asst_senior').checked = false;
   }
 });
 
@@ -826,8 +879,12 @@ document.getElementById('addAssistanceModal').addEventListener('hidden.bs.modal'
   asstCategorySelect.innerHTML     = '<option value="">-- Select Program First --</option>';
   asstCategorySelect.disabled      = true;
   asstBeneficiary.value            = '';
-  asstMinAgeGroup.style.display    = 'none';
+  asstEligibilityGroup.style.display    = 'none';
   asstMinAgeInput.value            = '';
+  document.getElementById('asst_pwd').checked = false;
+  document.getElementById('asst_solo_parent').checked = false;
+  document.getElementById('asst_senior').checked = false;
+  document.getElementById('asst_category_hint').innerHTML = 'Select a program first to load its categories.';
   document.getElementById('asst_is_active').checked = true;
 });
 
@@ -862,7 +919,7 @@ document.getElementById('toggleAssistanceModal').addEventListener('show.bs.modal
 const editAsstProgram     = document.getElementById('edit_asst_program');
 const editAsstCategory    = document.getElementById('edit_asst_category');
 const editAsstBeneficiary = document.getElementById('edit_asst_beneficiary');
-const editAsstMinAgeGroup = document.getElementById('edit_asst_min_age_group');
+const editAsstEligibilityGroup = document.getElementById('edit_asst_eligibility_group');
 const editAsstMinAge      = document.getElementById('edit_asst_min_age');
 
 document.getElementById('editAssistanceModal').addEventListener('show.bs.modal', function (e) {
@@ -874,6 +931,9 @@ document.getElementById('editAssistanceModal').addEventListener('show.bs.modal',
   const categoryName   = btn.dataset.assistanceCategoryName;
   const beneficiary    = btn.dataset.assistanceBeneficiary;
   const minAge         = btn.dataset.assistanceMinAge;
+  const pwd            = btn.dataset.assistancePwd === 'true';
+  const soloParent     = btn.dataset.assistanceSoloParent === 'true';
+  const senior         = btn.dataset.assistanceSenior === 'true';
   const isActive       = btn.dataset.assistanceActive === 'true';
 
   // Set form action
@@ -909,13 +969,19 @@ document.getElementById('editAssistanceModal').addEventListener('show.bs.modal',
   // Set beneficiary type
   editAsstBeneficiary.value = beneficiary;
 
-  // Show/hide minimum age based on current beneficiary type
+  // Show/hide eligibility fields based on current beneficiary type
   if (beneficiary === 'individual') {
-    editAsstMinAgeGroup.style.display = 'block';
+    editAsstEligibilityGroup.style.display = 'block';
     editAsstMinAge.value = minAge;
+    document.getElementById('edit_asst_pwd').checked = pwd;
+    document.getElementById('edit_asst_solo_parent').checked = soloParent;
+    document.getElementById('edit_asst_senior').checked = senior;
   } else {
-    editAsstMinAgeGroup.style.display = 'none';
+    editAsstEligibilityGroup.style.display = 'none';
     editAsstMinAge.value = '';
+    document.getElementById('edit_asst_pwd').checked = false;
+    document.getElementById('edit_asst_solo_parent').checked = false;
+    document.getElementById('edit_asst_senior').checked = false;
   }
 
   // Set active checkbox
@@ -950,13 +1016,16 @@ editAsstProgram.addEventListener('change', function () {
     });
 });
 
-// Show/hide minimum age when beneficiary type changes inside Edit modal
+// Show/hide eligibility fields when beneficiary type changes inside Edit modal
 editAsstBeneficiary.addEventListener('change', function () {
   if (this.value === 'individual') {
-    editAsstMinAgeGroup.style.display = 'block';
+    editAsstEligibilityGroup.style.display = 'block';
   } else {
-    editAsstMinAgeGroup.style.display = 'none';
+    editAsstEligibilityGroup.style.display = 'none';
     editAsstMinAge.value = '';
+    document.getElementById('edit_asst_pwd').checked = false;
+    document.getElementById('edit_asst_solo_parent').checked = false;
+    document.getElementById('edit_asst_senior').checked = false;
   }
 });
 </script>

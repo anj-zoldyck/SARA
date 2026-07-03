@@ -49,7 +49,7 @@ class AidCategoryForm(forms.ModelForm):
 class AssistanceForm(forms.ModelForm):
     class Meta:
         model = Assistance
-        fields = ['program', 'aid_category', 'beneficiary_type', 'minimum_age', 'is_active']
+        fields = ['program', 'aid_category', 'beneficiary_type', 'minimum_age', 'requires_pwd', 'requires_solo_parent', 'requires_senior_citizen', 'is_active']
         widgets = {
             'program': forms.Select(attrs={
                 'class': 'form-select',
@@ -65,6 +65,15 @@ class AssistanceForm(forms.ModelForm):
             'minimum_age': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Leave blank if no age requirement'
+            }),
+            'requires_pwd': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'requires_solo_parent': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'requires_senior_citizen': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
             }),
             'is_active': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'

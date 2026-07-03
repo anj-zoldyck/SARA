@@ -264,6 +264,27 @@ textarea.modal-form__control {
   border: 1px solid var(--border);
 }
 
+.acct-badge--senior {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.acct-badge--pwd {
+  background: #f3e8ff;
+  color: #7e22ce;
+}
+
+.acct-badge--solo-parent {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.eligibility-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 /* upcoming badge (not in original dashboard.css) */
 .sched-item__badge--upcoming {
   background: #fef3c7;

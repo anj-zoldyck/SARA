@@ -1,4 +1,5 @@
 from django.db import models
+from programs.eligibility import get_eligibility_badges
 
 # ----------------- Program Model -----------------
 class Program(models.Model):
@@ -102,3 +103,7 @@ class Assistance(models.Model):
     @property
     def is_family(self):
         return self.beneficiary_type == 'family'
+
+    @property
+    def eligibility_badges(self):
+        return get_eligibility_badges(self)
