@@ -7,48 +7,75 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 
 
-class UserInvitationForm(forms.ModelForm):
+class CreateUserForm(forms.ModelForm):
     ROLE_CHOICES = (
         ('MSWDO_STAFF', 'MSWDO Staff'),
         ('BARANGAY', 'Barangay Admin'),
     )
     role = forms.ChoiceField(
         choices=ROLE_CHOICES,
-        widget=forms.Select(attrs={'class': 'form-control'})
+        widget=forms.Select(attrs={'class': 'form-select'})
     )
     barangay = forms.ModelChoiceField(
-        queryset=Barangay.objects.none(),  # set properly in __init__
+        queryset=Barangay.objects.none(),
         empty_label="Select Barangay",
         required=False,
-        widget=forms.Select(attrs={'class': 'form-control'})
+        widget=forms.Select(attrs={'class': 'form-select'})
     )
-    email = forms.EmailField(widget=forms.EmailInput(attrs={'class': 'form-control'}))
- 
+    
     class Meta:
         model = User
-        fields = ['email', 'role', 'barangay']
- 
+        fields = [
+            'username', 'email', 'first_name', 'last_name', 'middle_name', 'suffix',
+            'sex', 'birthdate', 'birth_place', 'civil_status', 'citizenship', 'contact_number',
+            'role', 'barangay', 'position'
+        ]
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Username'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email Address'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'First Name'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Last Name'}),
+            'middle_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Middle Name (Optional)'}),
+            'suffix': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Jr, Sr (Optional)'}),
+            'sex': forms.Select(attrs={'class': 'form-select'}),
+            'birthdate': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'birth_place': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Place of Birth'}),
+            'civil_status': forms.Select(attrs={'class': 'form-select'}),
+            'citizenship': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Citizenship'}),
+            'contact_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '09XXXXXXXXX'}),
+            'position': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Job Position'}),
+        }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['first_name'].required = True
+        self.fields['last_name'].required = True
         self.fields['barangay'].queryset = Barangay.objects.all()
- 
+
     def clean(self):
         cleaned_data = super().clean()
         role = cleaned_data.get('role')
         barangay = cleaned_data.get('barangay')
-        email = cleaned_data.get('email')
- 
+        
         if role == 'BARANGAY':
             if not barangay:
                 self.add_error('barangay', "Barangay is required for Barangay Admin role.")
- 
         elif role == 'MSWDO_STAFF':
             cleaned_data['barangay'] = None
-            if email:
-                if User.objects.filter(role='MSWDO_STAFF', email__iexact=email).exclude(pk=self.instance.pk).exists():
-                    self.add_error('email', "An MSWDO Staff account with this email already exists.")
- 
+        
         return cleaned_data
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("An account with this email already exists.")
+        return email
+
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if User.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError("This username is already taken.")
+        return username
 
 class UserEditForm(forms.ModelForm):
     """
@@ -73,66 +100,6 @@ class UserEditForm(forms.ModelForm):
 from django.contrib.auth import password_validation
 
 
-class UserInvitationForm(forms.ModelForm):
-    ROLE_CHOICES = (
-        ('MSWDO_STAFF', 'MSWDO Staff'),
-        ('BARANGAY', 'Barangay Admin'),
-    )
-    role = forms.ChoiceField(
-        choices=ROLE_CHOICES,
-        widget=forms.Select(attrs={'class': 'form-control'})
-    )
-    barangay = forms.ModelChoiceField(
-        queryset=Barangay.objects.none(),  # set properly in __init__
-        empty_label="Select Barangay",
-        required=False,
-        widget=forms.Select(attrs={'class': 'form-control'})
-    )
-    email = forms.EmailField(widget=forms.EmailInput(attrs={'class': 'form-control'}))
- 
-    class Meta:
-        model = User
-        fields = ['email', 'role', 'barangay']
- 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
- 
-        # Only offer barangays that do NOT already have an assigned
-        # admin (active OR still-pending-activation). This makes it
-        # impossible to even select a taken barangay from the dropdown,
-        # rather than relying solely on the clean() error message below.
-        taken_barangay_ids = User.objects.filter(
-            role='BARANGAY',
-            barangay__isnull=False
-        ).values_list('barangay_id', flat=True)
- 
-        self.fields['barangay'].queryset = Barangay.objects.exclude(
-            id__in=taken_barangay_ids
-        )
- 
-    def clean(self):
-        cleaned_data = super().clean()
-        role = cleaned_data.get('role')
-        barangay = cleaned_data.get('barangay')
-        email = cleaned_data.get('email')
- 
-        if role == 'BARANGAY':
-            if not barangay:
-                self.add_error('barangay', "Barangay is required for Barangay Admin role.")
-            else:
-                # Re-check here too (not just the filtered queryset above) —
-                # protects against a race condition where two invitations
-                # are submitted for the same barangay at nearly the same time.
-                if User.objects.filter(role='BARANGAY', barangay=barangay).exclude(pk=self.instance.pk).exists():
-                    self.add_error('barangay', f"{barangay.name} already has an assigned Barangay Admin account.")
- 
-        elif role == 'MSWDO_STAFF':
-            cleaned_data['barangay'] = None
-            if email:
-                if User.objects.filter(role='MSWDO_STAFF', email__iexact=email).exclude(pk=self.instance.pk).exists():
-                    self.add_error('email', "An MSWDO Staff account with this email already exists.")
- 
-        return cleaned_data
 
 #-------Profile Setting Form---------
 class ProfileSettingsForm(forms.ModelForm):
@@ -255,65 +222,3 @@ class ProfilePasswordChangeForm(forms.Form):
                     self.add_error('new_password', e)
 
         return cleaned_data
-
-class SetPasswordForm(forms.Form):
-    """
-    Used on the activation page. Since UserInvitationForm no longer
-    collects a username (the admin only provides email + role +
-    barangay), the invited user now chooses their own username here,
-    at the same time they set their password.
-    """
-    username = forms.CharField(
-        max_length=150,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Choose a username'})
-    )
-    password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'form-control'}), label="New Password")
-    confirm_password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'form-control'}), label="Confirm Password")
- 
-    def __init__(self, user=None, *args, **kwargs):
-        self.user = user
-        super().__init__(*args, **kwargs)
- 
-    def clean_username(self):
-        username = self.cleaned_data.get('username')
-        qs = User.objects.filter(username__iexact=username)
-        if self.user:
-            qs = qs.exclude(pk=self.user.pk)
-        if qs.exists():
-            raise forms.ValidationError("This username is already taken. Please choose another.")
-        return username
- 
-    def clean(self):
-        cleaned = super().clean()
-        if cleaned.get('password') != cleaned.get('confirm_password'):
-            raise forms.ValidationError("Passwords do not match.")
-        if cleaned.get('password') and len(cleaned.get('password')) < 8:
-            raise forms.ValidationError("Password must be at least 8 characters.")
-        return cleaned
- 
- 
-# View for handling the activation link with token verification and password setup
-
- 
-def activate_account(request, uidb64, token):
-    try:
-        uid = force_str(urlsafe_base64_decode(uidb64))
-        user = User.objects.get(pk=uid)
-    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-        user = None
- 
-    if user is not None and default_token_generator.check_token(user, token):
-        if request.method == 'POST':
-            form = SetPasswordForm(user=user, data=request.POST)
-            if form.is_valid():
-                user.username = form.cleaned_data['username']
-                user.set_password(form.cleaned_data['password'])
-                user.is_active = True
-                user.save()
-                messages.success(request, "Account activated! You can now log in.")
-                return redirect('login')
-        else:
-            form = SetPasswordForm(user=user)
-        return render(request, 'accounts/activate_account.html', {'form': form})
-    else:
-        return render(request, 'accounts/activation_invalid.html')

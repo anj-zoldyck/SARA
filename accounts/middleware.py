@@ -1,17 +1,20 @@
-from django.utils.cache import add_never_cache_headers
+from django.shortcuts import redirect
+from django.urls import reverse
 
-class DisableCacheMiddleware:
+class ForcePasswordChangeMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
+        if request.user.is_authenticated and getattr(request.user, 'must_change_password', False):
+            # Prevent infinite redirect loops by allowing access to force_password_change and logout
+            allowed_paths = [
+                reverse('force_password_change'),
+                reverse('logout'),
+            ]
+            # Optionally, you might want to allow access to static files and media
+            if request.path not in allowed_paths and not request.path.startswith('/static/') and not request.path.startswith('/media/'):
+                return redirect('force_password_change')
+
         response = self.get_response(request)
-
-        # Apply to ALL pages, not just authenticated ones
-        response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0, private'
-        response['Pragma'] = 'no-cache'
-        response['Expires'] = '0'
-
-        # ✅ This specifically opts out of Chrome/Edge bfcache
-        response['Clear-Site-Data'] = '"cache"'
-        return 
+        return response

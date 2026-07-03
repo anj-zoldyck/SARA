@@ -14,7 +14,7 @@ urlpatterns = [
     path('mswdo/users/<int:user_id>/deactivate/', views.deactivate_user, name='deactivate_user'),
     path('mswdo/users/<int:user_id>/activate/', views.activate_user_account, name='activate_user_account'),
     
-    path('activate/<uidb64>/<token>/', views.activate_account, name='activate_account'),
+    path('force-password-change/', views.force_password_change, name='force_password_change'),
 
     path('password-reset/', auth_views.PasswordResetView.as_view(
         template_name='password-reset/password_reset.html',

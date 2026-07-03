@@ -96,31 +96,124 @@
           {% if form.barangay.errors %}
             <p class="acct-form__error">{{ form.barangay.errors|join:", " }}</p>
           {% endif %}
-          <p class="acct-form__hint">Only barangays without an existing administrator are shown.</p>
+          <p class="acct-form__hint">Multiple administrators can be assigned to the same barangay.</p>
         </div>
 
-        <!-- Email Field -->
-        <div class="acct-form__group">
-          <label class="acct-form__label" for="{{ form.email.id_for_label }}">
-            <i class="bi bi-envelope"></i> Email Address
-            <span class="acct-form__required">*</span>
-          </label>
-          <div class="acct-form__control-wrap">
-            {{ form.email }}
+        <div class="row">
+          <div class="col-md-6">
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ form.first_name.id_for_label }}">First Name <span class="acct-form__required">*</span></label>
+              <div class="acct-form__control-wrap">{{ form.first_name }}</div>
+              {% if form.first_name.errors %}<p class="acct-form__error">{{ form.first_name.errors|join:", " }}</p>{% endif %}
+            </div>
           </div>
-          {% if form.email.errors %}
-            <p class="acct-form__error">{{ form.email.errors|join:", " }}</p>
-          {% endif %}
-          <p class="acct-form__hint">An activation link will be sent to this email. The user will choose their own username and password.</p>
+          <div class="col-md-6">
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ form.last_name.id_for_label }}">Last Name <span class="acct-form__required">*</span></label>
+              <div class="acct-form__control-wrap">{{ form.last_name }}</div>
+              {% if form.last_name.errors %}<p class="acct-form__error">{{ form.last_name.errors|join:", " }}</p>{% endif %}
+            </div>
+          </div>
         </div>
 
-        <!-- Form Actions -->
+        <div class="row">
+          <div class="col-md-6">
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ form.middle_name.id_for_label }}">Middle Name</label>
+              <div class="acct-form__control-wrap">{{ form.middle_name }}</div>
+              {% if form.middle_name.errors %}<p class="acct-form__error">{{ form.middle_name.errors|join:", " }}</p>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ form.suffix.id_for_label }}">Suffix</label>
+              <div class="acct-form__control-wrap">{{ form.suffix }}</div>
+              {% if form.suffix.errors %}<p class="acct-form__error">{{ form.suffix.errors|join:", " }}</p>{% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6">
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ form.username.id_for_label }}">Username <span class="acct-form__required">*</span></label>
+              <div class="acct-form__control-wrap">{{ form.username }}</div>
+              {% if form.username.errors %}<p class="acct-form__error">{{ form.username.errors|join:", " }}</p>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ form.email.id_for_label }}">Email Address <span class="acct-form__required">*</span></label>
+              <div class="acct-form__control-wrap">{{ form.email }}</div>
+              {% if form.email.errors %}<p class="acct-form__error">{{ form.email.errors|join:", " }}</p>{% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6">
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ form.sex.id_for_label }}">Sex</label>
+              <div class="acct-form__control-wrap">{{ form.sex }}</div>
+              {% if form.sex.errors %}<p class="acct-form__error">{{ form.sex.errors|join:", " }}</p>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ form.birthdate.id_for_label }}">Birthdate</label>
+              <div class="acct-form__control-wrap">{{ form.birthdate }}</div>
+              {% if form.birthdate.errors %}<p class="acct-form__error">{{ form.birthdate.errors|join:", " }}</p>{% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6">
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ form.birth_place.id_for_label }}">Place of Birth</label>
+              <div class="acct-form__control-wrap">{{ form.birth_place }}</div>
+              {% if form.birth_place.errors %}<p class="acct-form__error">{{ form.birth_place.errors|join:", " }}</p>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ form.civil_status.id_for_label }}">Civil Status</label>
+              <div class="acct-form__control-wrap">{{ form.civil_status }}</div>
+              {% if form.civil_status.errors %}<p class="acct-form__error">{{ form.civil_status.errors|join:", " }}</p>{% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-4">
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ form.citizenship.id_for_label }}">Citizenship</label>
+              <div class="acct-form__control-wrap">{{ form.citizenship }}</div>
+              {% if form.citizenship.errors %}<p class="acct-form__error">{{ form.citizenship.errors|join:", " }}</p>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ form.contact_number.id_for_label }}">Contact Number</label>
+              <div class="acct-form__control-wrap">{{ form.contact_number }}</div>
+              {% if form.contact_number.errors %}<p class="acct-form__error">{{ form.contact_number.errors|join:", " }}</p>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="acct-form__group">
+              <label class="acct-form__label" for="{{ form.position.id_for_label }}">Job Position</label>
+              <div class="acct-form__control-wrap">{{ form.position }}</div>
+              {% if form.position.errors %}<p class="acct-form__error">{{ form.position.errors|join:", " }}</p>{% endif %}
+            </div>
+          </div>
+        </div>
+
         <div class="acct-form__actions">
           <a href="{% url 'user_accounts' %}" class="btn-dash-outline">
             <i class="bi bi-x-lg"></i> Cancel
           </a>
           <button type="submit" class="btn-dash-primary">
-            <i class="bi bi-envelope-paper"></i> Send Invitation
+            <i class="bi bi-person-check"></i> Create Account
           </button>
         </div>
 
@@ -144,23 +237,19 @@
         <ul class="form-guideline-list">
           <li class="form-guideline-item">
             <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
-            <span>Each barangay can have exactly <strong>one</strong> administrator account — barangays with an existing admin won't appear in the dropdown.</span>
+            <span>Multiple administrators can be assigned to the same barangay.</span>
           </li>
           <li class="form-guideline-item">
             <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
-            <span>Each MSWDO Staff invitation requires a <strong>unique</strong> email address — one email can only be tied to one staff account.</span>
+            <span>Upon creation, a secure <strong>temporary password</strong> will be generated.</span>
           </li>
           <li class="form-guideline-item">
             <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
-            <span>An invitation email with an activation link will be sent to the user.</span>
+            <span>The temporary password will only be shown <strong>once</strong>. Please communicate it to the user directly.</span>
           </li>
           <li class="form-guideline-item">
             <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
-            <span>The user will set their own <strong>username and password</strong> upon clicking the activation link.</span>
-          </li>
-          <li class="form-guideline-item">
-            <i class="bi bi-check2-circle form-guideline-icon form-guideline-icon--blue"></i>
-            <span>Accounts can be deactivated anytime from the accounts list.</span>
+            <span>The user will be required to change this temporary password upon their first login.</span>
           </li>
         </ul>
       </div>

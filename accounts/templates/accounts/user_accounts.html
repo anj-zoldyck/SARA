@@ -127,40 +127,49 @@
       <table class="acct-table">
         <thead>
           <tr>
-            <th class="acct-th">#</th>
-            <th class="acct-th">Full Name</th>
-            <th class="acct-th">Email</th>
+            <th class="acct-th">User</th>
             <th class="acct-th">Role</th>
             <th class="acct-th">Barangay</th>
-            <th class="acct-th">Position</th>
-            <th class="acct-th">Sex</th>
-            <th class="acct-th">Contact Number</th>
+            <th class="acct-th">Email</th>
             <th class="acct-th">Status</th>
+            <th class="acct-th">Password Status</th>
             <th class="acct-th acct-th--actions">Actions</th>
           </tr>
         </thead>
         <tbody>
           {% for user in users %}
           <tr class="acct-row">
-            <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
             <td class="acct-td">
-                {{ user.first_name }} 
-                {% if user.middle_name %}{{ user.middle_name|make_list|first|upper }}. {% endif %}
-                {{ user.last_name }} 
-                {% if user.suffix %}{{ user.suffix }}{% endif %}
+              <div class="d-flex align-items-center gap-3">
+                <div class="topbar-avatar" style="width: 40px; height: 40px; flex-shrink: 0;">
+                  {% if user.profile_image %}
+                    <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name }}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+                  {% else %}
+                    <span class="avatar-initials" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #e9ecef; color: #495057; border-radius: 50%; font-weight: 600;">
+                      {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+                    </span>
+                  {% endif %}
+                </div>
+                <div>
+                  <div class="fw-bold text-dark">
+                    {{ user.first_name }} 
+                    {% if user.middle_name %}{{ user.middle_name|make_list|first|upper }}. {% endif %}
+                    {{ user.last_name }} 
+                    {% if user.suffix %}{{ user.suffix }}{% endif %}
+                  </div>
+                  <div class="text-muted small">@{{ user.username }}</div>
+                </div>
+              </div>
             </td>
-            <td class="acct-td">{{ user.email }}</td>
             <td class="acct-td">{{ user.get_role_display }}</td>
             <td class="acct-td">
                 {% if user.role == 'BARANGAY' and user.barangay %}
                     {{ user.barangay.name }}
                 {% else %}
-                    -
+                    <span class="text-muted">-</span>
                 {% endif %}
             </td>
-            <td class="acct-td">{{ user.position|default:"-" }}</td>
-            <td class="acct-td">{{ user.get_sex_display|default:"-" }}</td>
-            <td class="acct-td">{{ user.contact_number|default:"-" }}</td>
+            <td class="acct-td">{{ user.email }}</td>
             <td class="acct-td">
               {% if user.is_active %}
                 <span class="acct-badge acct-badge--active">
@@ -172,8 +181,17 @@
                 </span>
               {% endif %}
             </td>
+            <td class="acct-td">
+              {% if user.must_change_password %}
+                <span class="badge bg-warning text-dark"><i class="bi bi-key-fill me-1"></i> Pending Change</span>
+              {% endif %}
+            </td>
             <td class="acct-td acct-td--actions">
               <div class="acct-actions">
+                <button type="button" class="acct-btn acct-btn--edit text-primary border-0 bg-transparent" data-bs-toggle="modal" data-bs-target="#userModal{{ user.id }}" title="View Details">
+                  <i class="bi bi-eye"></i>
+                  <span>Details</span>
+                </button>
                 <a href="{% url 'edit_user' user.id %}" class="acct-btn acct-btn--edit" title="Edit Email">
                   <i class="bi bi-envelope"></i>
                   <span>Edit Email</span>
@@ -217,6 +235,89 @@
   </div>
 
 </div>
+
+{% for user in users %}
+<!-- User Details Modal -->
+<div class="modal fade" id="userModal{{ user.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered sara-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-person-badge me-2 text-primary"></i>User Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        
+        <div class="d-flex align-items-center mb-4">
+          <div class="topbar-avatar me-3" style="width: 60px; height: 60px; flex-shrink: 0;">
+            {% if user.profile_image %}
+              <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name }}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+            {% else %}
+              <span class="avatar-initials" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #e9ecef; color: #495057; border-radius: 50%; font-weight: 600; font-size: 1.5rem;">
+                {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+              </span>
+            {% endif %}
+          </div>
+          <div>
+            <h4 class="mb-0 fw-bold">{{ user.first_name }} {% if user.middle_name %}{{ user.middle_name }} {% endif %}{{ user.last_name }} {% if user.suffix %}{{ user.suffix }}{% endif %}</h4>
+            <div class="text-muted">@{{ user.username }}</div>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <div class="text-muted small fw-bold text-uppercase">Role</div>
+            <div>{{ user.get_role_display }}</div>
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small fw-bold text-uppercase">Barangay</div>
+            <div>{% if user.role == 'BARANGAY' and user.barangay %}{{ user.barangay.name }}{% else %}-{% endif %}</div>
+          </div>
+          
+          <div class="col-sm-6">
+            <div class="text-muted small fw-bold text-uppercase">Email</div>
+            <div>{{ user.email }}</div>
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small fw-bold text-uppercase">Contact Number</div>
+            <div>{{ user.contact_number|default:"-" }}</div>
+          </div>
+          
+          <div class="col-sm-6">
+            <div class="text-muted small fw-bold text-uppercase">Position</div>
+            <div>{{ user.position|default:"-" }}</div>
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small fw-bold text-uppercase">Sex</div>
+            <div>{{ user.get_sex_display|default:"-" }}</div>
+          </div>
+          
+          <div class="col-sm-6">
+            <div class="text-muted small fw-bold text-uppercase">Birthdate & Age</div>
+            <div>{% if user.birthdate %}{{ user.birthdate|date:"M d, Y" }} ({{ user.age }} yrs){% else %}-{% endif %}</div>
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small fw-bold text-uppercase">Place of Birth</div>
+            <div>{{ user.birth_place|default:"-" }}</div>
+          </div>
+          
+          <div class="col-sm-6">
+            <div class="text-muted small fw-bold text-uppercase">Civil Status</div>
+            <div>{{ user.get_civil_status_display|default:"-" }}</div>
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small fw-bold text-uppercase">Citizenship</div>
+            <div>{{ user.citizenship|default:"-" }}</div>
+          </div>
+        </div>
+        
+      </div>
+      <div class="modal-footer border-top-0 pt-0">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
 
 <!-- ── Back Link ──────────────────────────────────────────── -->
 <div class="page-back-row">

@@ -16,7 +16,7 @@ from households.models import Household, Zone, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
 from distribution.models import AidSchedule, AidClaim
 
-from accounts.forms import UserEditForm, UserInvitationForm
+from accounts.forms import UserEditForm, CreateUserForm
 from households.forms import HouseholdForm, FamilyForm, FamilyMemberForm
 from programs.forms import ProgramForm, AidCategoryForm, AssistanceForm
 from programs.eligibility import check_eligibility, get_eligibility_badges

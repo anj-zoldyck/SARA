@@ -16,16 +16,11 @@ from households.models import Household, Zone, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
 from distribution.models import AidSchedule, AidClaim
 
-from accounts.forms import UserEditForm, UserInvitationForm, ProfileSettingsForm, ProfilePasswordChangeForm
+from accounts.forms import UserEditForm, CreateUserForm, ProfileSettingsForm, ProfilePasswordChangeForm
 from households.forms import HouseholdForm, FamilyForm, FamilyMemberForm
 from programs.forms import ProgramForm, AidCategoryForm, AssistanceForm
 
-from django.contrib.auth.tokens import default_token_generator
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.utils.encoding import force_bytes, force_str
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
-from django.conf import settings
+# Removed unused invitation email imports
 # from distribution.forms import AidScheduleForm  # if any
 
 from django.utils.safestring import mark_safe
@@ -70,12 +65,15 @@ def login_view(request):
             else:
                 cache.delete(cache_key)  # Reset attempts on successful login
                 login(request, user)
-                if user.role == 'MSWDO':
-                    response = redirect('mswdo_dashboard')
-                elif user.role == 'MSWDO_STAFF':
-                    response = redirect('staff_dashboard')
+                if user.must_change_password:
+                    response = redirect('force_password_change')
                 else:
-                    response = redirect('barangay_dashboard')
+                    if user.role == 'MSWDO':
+                        response = redirect('mswdo_dashboard')
+                    elif user.role == 'MSWDO_STAFF':
+                        response = redirect('staff_dashboard')
+                    else:
+                        response = redirect('barangay_dashboard')
                 response.set_cookie('sara_auth', '1', samesite='Lax')
                 return response
         else:
@@ -124,6 +122,13 @@ def check_session(request):
     return JsonResponse({'authenticated': False}, status=401)
 
 
+import secrets
+import string
+
+def generate_temp_password(length=12):
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
+
 @login_required(login_url='login')
 @session_protected
 def create_user(request):
@@ -131,72 +136,54 @@ def create_user(request):
         return HttpResponseForbidden("Access Denied")
 
     if request.method == 'POST':
-        form = UserInvitationForm(request.POST)
+        form = CreateUserForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
-            user.is_active = False
-            user.set_unusable_password()
+            temp_password = generate_temp_password()
+            user.set_password(temp_password)
+            user.is_active = True
+            user.must_change_password = True
             user.save()
-
-            # Generate activation token
-            token = default_token_generator.make_token(user)
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            
-            # Send invitation email
-            protocol = 'https' if request.is_secure() else 'http'
-            domain = request.get_host()
-            
-            context = {
-                'user': user,
-                'protocol': protocol,
-                'domain': domain,
-                'uid': uid,
-                'token': token,
-            }
-            
-            html_message = render_to_string('accounts/invitation_email.html', context)
-            
-            send_mail(
-                subject='S.A.R.A System - Account Invitation',
-                message='Please activate your account by clicking the link in the HTML email.',
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                html_message=html_message,
-                fail_silently=False,
-            )
-            
-            messages.success(request, f"Invitation sent to {user.email}.")
-            return redirect('user_accounts')
+            return render(request, 'accounts/create_user_success.html', {
+                'created_user': user,
+                'temp_password': temp_password,
+            })
     else:
-        form = UserInvitationForm()
+        form = CreateUserForm()
 
     return render(request, 'accounts/create_user.html', {'form': form})
 
 
-def activate_account(request, uidb64, token):
-    try:
-        uid = force_str(urlsafe_base64_decode(uidb64))
-        user = User.objects.get(pk=uid)
-    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-        user = None
+@login_required(login_url='login')
+def force_password_change(request):
+    if not request.user.must_change_password:
+        if request.user.role == 'MSWDO':
+            return redirect('mswdo_dashboard')
+        elif request.user.role == 'MSWDO_STAFF':
+            return redirect('staff_dashboard')
+        else:
+            return redirect('barangay_dashboard')
 
-    if user is not None and default_token_generator.check_token(user, token):
-        if request.method == 'POST':
-            password = request.POST.get('password')
-            confirm_password = request.POST.get('confirm_password')
-            
-            if password and password == confirm_password and len(password) >= 8:
-                user.set_password(password)
-                user.is_active = True
-                user.save()
-                messages.success(request, 'Your account has been activated! You can now log in.')
-                return redirect('login')
+    if request.method == 'POST':
+        new_password = request.POST.get('new_password')
+        confirm_password = request.POST.get('confirm_password')
+        
+        if new_password and new_password == confirm_password and len(new_password) >= 8:
+            request.user.set_password(new_password)
+            request.user.must_change_password = False
+            request.user.save()
+            update_session_auth_hash(request, request.user)
+            messages.success(request, "Password updated successfully. Welcome to SARA!")
+            if request.user.role == 'MSWDO':
+                return redirect('mswdo_dashboard')
+            elif request.user.role == 'MSWDO_STAFF':
+                return redirect('staff_dashboard')
             else:
-                messages.error(request, 'Passwords do not match or are less than 8 characters.')
-                
-        return render(request, 'accounts/activate_account.html', {'validlink': True})
-    else:
-        return render(request, 'accounts/activation_invalid.html')
+                return redirect('barangay_dashboard')
+        else:
+            messages.error(request, "Passwords do not match or are less than 8 characters.")
+
+    return render(request, 'accounts/force_password_change.html')
 
 
 @login_required(login_url='login')
@@ -255,7 +242,7 @@ def user_accounts(request):
         return HttpResponseForbidden("Access Denied")
     
     # Base queryset excluding MSWDO Admin
-    users = User.objects.filter(role__in=['BARANGAY', 'MSWDO_STAFF'])
+    users = User.objects.filter(role__in=['BARANGAY', 'MSWDO_STAFF']).select_related('barangay')
     
     # Filtering logic
     role_filter = request.GET.get('role', '')

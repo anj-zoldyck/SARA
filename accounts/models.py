@@ -23,6 +23,19 @@ class User(AbstractUser):
     middle_name = models.CharField(max_length=150, blank=True)
     suffix = models.CharField(max_length=10, blank=True, null=True)
     position = models.CharField(max_length=100, blank=True)
+    birth_place = models.CharField(max_length=200, blank=True)
+    
+    CIVIL_STATUS_CHOICES = (
+        ('SINGLE', 'Single'),
+        ('MARRIED', 'Married'),
+        ('WIDOWED', 'Widowed'),
+        ('SEPARATED', 'Separated'),
+        ('ANNULLED', 'Annulled'),
+    )
+    civil_status = models.CharField(max_length=20, choices=CIVIL_STATUS_CHOICES, blank=True)
+    citizenship = models.CharField(max_length=100, blank=True, default='Filipino')
+    
+    must_change_password = models.BooleanField(default=False)
     
     SEX_CHOICES = (
         ('M', 'Male'),

@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Account Created — SARA{% endblock %}
+{% block navbar_title %}Account Created{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Page Header ─────────────────────────────────────────── -->
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'user_accounts' %}" class="breadcrumb-link">User Accounts</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Account Created</span>
+    </div>
+    <h1 class="dash-page-title">Account Created Successfully</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-check-circle-fill me-1 text-success"></i>
+      The user account has been created and is ready to use.
+    </p>
+  </div>
+</div>
+
+<!-- ── Success Layout ────────────────────────────────────────── -->
+<div class="form-page-layout">
+
+  <!-- Main Panel -->
+  <div class="dash-panel form-panel">
+    <div class="dash-panel__header">
+      <div class="dash-panel__header-left">
+        <i class="bi bi-person-badge dash-panel__icon"></i>
+        <div>
+          <h2 class="dash-panel__title">Account Details</h2>
+          <p class="dash-panel__sub">Share these credentials securely with the user</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-panel__body">
+      
+      <div class="mb-4">
+        <h5 class="fw-bold mb-1">{{ created_user.get_full_name }}</h5>
+        <p class="text-muted mb-0">
+          {{ created_user.get_role_display }}
+          {% if created_user.barangay %}
+            &bull; {{ created_user.barangay.name }}
+          {% endif %}
+        </p>
+        <p class="text-muted"><i class="bi bi-person me-1"></i> {{ created_user.username }}</p>
+      </div>
+
+      <div class="alert alert-warning d-flex align-items-center mb-4">
+        <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+        <div>
+          <strong>This password will only be shown once.</strong><br>
+          Please copy it now and give it to the user directly. They will be forced to change it upon their first login.
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="acct-form__label">Temporary Password</label>
+        <div class="input-group">
+          <input type="text" id="tempPassword" class="form-control font-monospace fs-5" value="{{ temp_password }}" readonly>
+          <button class="btn btn-outline-secondary" type="button" id="copyBtn" onclick="copyPassword()">
+            <i class="bi bi-clipboard"></i> Copy
+          </button>
+        </div>
+      </div>
+
+      <div class="acct-form__actions mt-4">
+        <a href="{% url 'user_accounts' %}" class="btn-dash-primary">
+          <i class="bi bi-check2"></i> Done
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+function copyPassword() {
+  const passwordField = document.getElementById("tempPassword");
+  passwordField.select();
+  passwordField.setSelectionRange(0, 99999); /* For mobile devices */
+
+  navigator.clipboard.writeText(passwordField.value).then(function() {
+    const btn = document.getElementById("copyBtn");
+    btn.innerHTML = '<i class="bi bi-clipboard-check text-success"></i> Copied!';
+    setTimeout(() => {
+      btn.innerHTML = '<i class="bi bi-clipboard"></i> Copy';
+    }, 2000);
+  });
+}
+</script>
+{% endblock %}
