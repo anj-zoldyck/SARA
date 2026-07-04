@@ -1,0 +1,318 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Household Map — SARA{% endblock %}
+{% block navbar_title %}Household Map{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<!-- MarkerCluster -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<style>
+  .map-container {
+    height: 70vh;
+    min-height: 500px;
+    border-radius: 0.5rem;
+    border: 1px solid #e2e8f0;
+    z-index: 1;
+  }
+  .map-filter-row {
+    background-color: #fff;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 1rem;
+  }
+  .unpinned-alert {
+    background-color: #fef9c3;
+    color: #854d0e;
+    border: 1px solid #fef08a;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="dash-page-header">
+  <div>
+    <h1 class="dash-page-title">Household Map (Monitoring)</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-map me-1"></i> View and filter registered households geographically.
+    </p>
+  </div>
+</div>
+
+<div id="unpinnedAlertContainer" style="display: none;">
+  <div class="unpinned-alert">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <span id="unpinnedCountText"></span>
+  </div>
+</div>
+
+<div class="map-filter-row">
+  <div class="row g-3 align-items-end">
+    {% if request.user.role != 'BARANGAY' %}
+    <div class="col-md-2">
+      <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #475569;">Barangay</label>
+      <select id="filterBarangay" class="form-select form-select-sm">
+        <option value="">All Barangays</option>
+        {% for b in barangays %}
+        <option value="{{ b.id }}">{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% else %}
+      <input type="hidden" id="filterBarangay" value="{{ request.user.barangay.id }}">
+    {% endif %}
+
+    <div class="col-md-2">
+      <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #475569;">Zone</label>
+      <select id="filterZone" class="form-select form-select-sm">
+        <option value="">All Zones</option>
+        <!-- Options injected via JS -->
+      </select>
+    </div>
+
+    <div class="col-md-2">
+      <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #475569;">Land Use</label>
+      <select id="filterLandUse" class="form-select form-select-sm">
+        <option value="">All Land Uses</option>
+        {% for code, label in land_uses %}
+        <option value="{{ code }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-2">
+      <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #475569;">Hazard Exposure</label>
+      <select id="filterHazard" class="form-select form-select-sm">
+        <option value="">All Hazards</option>
+        {% for code, label in hazards %}
+        <option value="{{ code }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #475569;">Search Map</label>
+      <div class="input-group input-group-sm">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" id="filterSearch" class="form-control" placeholder="House number or address...">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="dash-panel">
+  <div class="dash-panel__body p-0">
+    <div id="householdMap" class="map-container"></div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<!-- MarkerCluster -->
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const DEFAULT_MAP_CENTER = [14.9993, 120.6117];
+    const DEFAULT_MAP_ZOOM = 15;
+    const zoneMap = {{ zone_map_json|safe }};
+    const userRole = "{{ request.user.role }}";
+    
+    // UI Elements
+    const filterBarangay = document.getElementById('filterBarangay');
+    const filterZone = document.getElementById('filterZone');
+    const filterLandUse = document.getElementById('filterLandUse');
+    const filterHazard = document.getElementById('filterHazard');
+    const filterSearch = document.getElementById('filterSearch');
+    const unpinnedAlertContainer = document.getElementById('unpinnedAlertContainer');
+    const unpinnedCountText = document.getElementById('unpinnedCountText');
+
+    let allFetchedHouseholds = []; // Cache for client-side search filtering
+
+    // Init Map
+    var map = L.map('householdMap').setView(DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    var markersCluster = L.markerClusterGroup({
+        chunkedLoading: true,
+        maxClusterRadius: 50
+    });
+    map.addLayer(markersCluster);
+
+    // Hazard color mapping
+    const hazardColors = {
+        'FLOOD': '#ef4444', // red
+        'LANDSLIDE': '#f97316', // orange
+        'FIRE': '#eab308', // yellow
+        'EARTHQUAKE': '#a855f7', // purple
+        'RIVERBANK_EROSION': '#78350f', // brown
+        'OTHER': '#475569', // dark gray
+        'NONE': '#22c55e', // green
+    };
+
+    function createCustomIcon(hazard) {
+        const color = hazardColors[hazard] || '#3b82f6'; // default blue if undefined
+        const svg = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" width="32px" height="32px">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                <path d="M0 0h24v24H0z" fill="none"/>
+            </svg>`;
+        return L.divIcon({
+            className: 'custom-div-icon',
+            html: svg,
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+    }
+
+    function updateZoneDropdown() {
+        const bId = filterBarangay.value;
+        filterZone.innerHTML = '<option value="">All Zones</option>';
+        if (bId && zoneMap[bId]) {
+            zoneMap[bId].forEach(z => {
+                const opt = document.createElement('option');
+                opt.value = z.id;
+                opt.textContent = z.name;
+                filterZone.appendChild(opt);
+            });
+        } else if (!bId && userRole !== 'BARANGAY') {
+            // If all barangays, maybe list all zones or keep it empty (safer to keep empty or show all)
+            // Let's show all zones just in case, but they are mixed up. Better to just leave empty if no barangay is selected.
+            // But if user wants to filter by zone name, they can't. Let's just put all zones if no barangay is selected.
+            Object.values(zoneMap).flat().forEach(z => {
+                const opt = document.createElement('option');
+                opt.value = z.id;
+                opt.textContent = z.name;
+                filterZone.appendChild(opt);
+            });
+        }
+    }
+
+    function renderMarkers(householdsToRender) {
+        markersCluster.clearLayers();
+        let bounds = L.latLngBounds();
+
+        householdsToRender.forEach(h => {
+            const marker = L.marker([h.latitude, h.longitude], {
+                icon: createCustomIcon(h.hazard_exposure)
+            });
+
+            // Dynamic detail URL based on role
+            let detailUrl = (userRole === 'BARANGAY') 
+                ? `/barangay/households/${h.id}/` 
+                : `/mswdo/households/${h.id}/`;
+
+            let floodInfo = '';
+            if (h.hazard_exposure === 'FLOOD') {
+                floodInfo = `<br><strong>Flood Depth:</strong> ${h.flood_depth || 'N/A'}<br>
+                             <strong>Flood Freq:</strong> ${h.flood_frequency || 'N/A'}`;
+            }
+
+            const popupContent = `
+                <div style="font-family: 'IBM Plex Sans', sans-serif; min-width: 200px;">
+                    <h6 style="margin-bottom: 0.5rem; font-weight: 700; color: #1e293b;">House ${h.house_number}</h6>
+                    <p style="margin-bottom: 0.5rem; font-size: 0.85rem; color: #475569;">
+                        <i class="bi bi-geo-alt"></i> ${h.address}
+                    </p>
+                    <p style="margin-bottom: 0.5rem; font-size: 0.85rem; color: #475569;">
+                        <strong>Land Use:</strong> ${h.land_use}<br>
+                        <strong>Hazard:</strong> <span style="color: ${hazardColors[h.hazard_exposure] || '#333'}; font-weight:600;">${h.hazard_exposure_display}</span>
+                        ${floodInfo}
+                    </p>
+                    <a href="${detailUrl}" class="btn btn-sm btn-primary" style="background-color: #0d47a1; border-color: #0d47a1; padding: 0.2rem 0.5rem; font-size: 0.75rem;">
+                        View Details
+                    </a>
+                </div>
+            `;
+            marker.bindPopup(popupContent);
+            markersCluster.addLayer(marker);
+            bounds.extend([h.latitude, h.longitude]);
+        });
+
+        if (householdsToRender.length > 0) {
+            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
+        } else {
+            map.setView(DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM);
+        }
+    }
+
+    function applyClientSearch() {
+        const query = filterSearch.value.toLowerCase().trim();
+        if (!query) {
+            renderMarkers(allFetchedHouseholds);
+            return;
+        }
+
+        const filtered = allFetchedHouseholds.filter(h => {
+            const num = (h.house_number || '').toLowerCase();
+            const addr = (h.address || '').toLowerCase();
+            return num.includes(query) || addr.includes(query);
+        });
+        renderMarkers(filtered);
+    }
+
+    function fetchMapData() {
+        const params = new URLSearchParams();
+        if (filterBarangay.value) params.append('barangay', filterBarangay.value);
+        if (filterZone.value) params.append('zone', filterZone.value);
+        if (filterLandUse.value) params.append('land_use', filterLandUse.value);
+        if (filterHazard.value) params.append('hazard_exposure', filterHazard.value);
+
+        fetch(`/map/data/?${params.toString()}`)
+            .then(res => res.json())
+            .then(data => {
+                allFetchedHouseholds = data.households;
+                
+                // Handle unpinned count
+                if (data.unpinned_count > 0) {
+                    unpinnedAlertContainer.style.display = 'block';
+                    unpinnedCountText.textContent = `${data.unpinned_count} households not yet pinned — visit Edit Household to add their location.`;
+                } else {
+                    unpinnedAlertContainer.style.display = 'none';
+                }
+
+                // Render with current search applied
+                applyClientSearch();
+            })
+            .catch(err => console.error("Error fetching map data:", err));
+    }
+
+    // Event Listeners
+    if (userRole !== 'BARANGAY') {
+        filterBarangay.addEventListener('change', () => {
+            updateZoneDropdown();
+            fetchMapData();
+        });
+    }
+    
+    filterZone.addEventListener('change', fetchMapData);
+    filterLandUse.addEventListener('change', fetchMapData);
+    filterHazard.addEventListener('change', fetchMapData);
+    filterSearch.addEventListener('input', applyClientSearch);
+
+    // Initial Load
+    updateZoneDropdown();
+    fetchMapData();
+});
+</script>
+{% endblock %}

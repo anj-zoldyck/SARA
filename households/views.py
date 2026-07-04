@@ -163,6 +163,32 @@ def add_household(request, zone_id):
 
 @login_required(login_url='login')
 @session_protected
+def edit_household(request, household_id):
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+
+    household = get_object_or_404(
+        Household,
+        id=household_id,
+        barangay=request.user.barangay
+    )
+
+    if request.method == 'POST':
+        form = HouseholdForm(request.POST, instance=household)
+        if form.is_valid():
+            form.save()
+            return redirect('household_detail', household_id=household.id)
+    else:
+        form = HouseholdForm(instance=household)
+
+    return render(request, 'households/edit_household.html', {
+        'form': form,
+        'household': household
+    })
+
+
+@login_required(login_url='login')
+@session_protected
 def household_detail(request, household_id):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
@@ -457,4 +483,82 @@ def household_modal_content(request, household_id):
         'household': household,
         'total_families': total_families,
         'total_members': total_members,
+    })
+
+@login_required
+@session_protected
+def household_map(request):
+    if request.user.role == 'BARANGAY':
+        barangays = [request.user.barangay] if request.user.barangay else []
+        zones = Zone.objects.filter(barangay=request.user.barangay).order_by('name') if request.user.barangay else []
+    else:
+        barangays = Barangay.objects.all().order_by('name')
+        zones = Zone.objects.all().order_by('name')
+        
+    land_uses = Household.LAND_USE_CHOICES
+    hazards = Household.HAZARD_CHOICES
+    
+    zone_map = {}
+    for z in zones:
+        b_id = str(z.barangay_id)
+        if b_id not in zone_map:
+            zone_map[b_id] = []
+        zone_map[b_id].append({'id': z.id, 'name': z.name})
+
+    return render(request, 'households/household_map.html', {
+        'barangays': barangays,
+        'land_uses': land_uses,
+        'hazards': hazards,
+        'zone_map_json': json.dumps(zone_map)
+    })
+
+@login_required
+@session_protected
+def household_map_data(request):
+    if request.user.role == 'BARANGAY':
+        if not request.user.barangay:
+            return JsonResponse({'unpinned_count': 0, 'households': []})
+        qs = Household.objects.filter(barangay=request.user.barangay)
+    else:
+        qs = Household.objects.all()
+        
+    barangay_id = request.GET.get('barangay')
+    if barangay_id:
+        qs = qs.filter(barangay_id=barangay_id)
+        
+    zone_id = request.GET.get('zone')
+    if zone_id:
+        qs = qs.filter(zone_id=zone_id)
+        
+    land_use = request.GET.get('land_use')
+    if land_use:
+        qs = qs.filter(land_use=land_use)
+        
+    hazard_exposure = request.GET.get('hazard_exposure')
+    if hazard_exposure:
+        qs = qs.filter(hazard_exposure=hazard_exposure)
+        
+    pinned_qs = qs.filter(latitude__isnull=False, longitude__isnull=False).select_related('barangay', 'zone')
+    unpinned_count = qs.filter(Q(latitude__isnull=True) | Q(longitude__isnull=True)).count()
+    
+    data = []
+    for h in pinned_qs:
+        data.append({
+            'id': h.id,
+            'latitude': float(h.latitude),
+            'longitude': float(h.longitude),
+            'house_number': h.house_number,
+            'address': h.address,
+            'land_use': h.get_land_use_display(),
+            'hazard_exposure': h.hazard_exposure,
+            'hazard_exposure_display': h.get_hazard_exposure_display(),
+            'flood_depth': h.flood_depth,
+            'flood_frequency': h.flood_frequency,
+            'zone_name': h.zone.name,
+            'barangay_name': h.barangay.name,
+        })
+        
+    return JsonResponse({
+        'unpinned_count': unpinned_count,
+        'households': data
     })

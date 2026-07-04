@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Add Household — {{ zone.name }} — SARA{% endblock %}
-{% block navbar_title %}Add Household{% endblock %}
+{% block title %}Edit Household — {{ household.zone.name }} — SARA{% endblock %}
+{% block navbar_title %}Edit Household{% endblock %}
 
 {% block css %}
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
@@ -19,13 +19,15 @@
         <i class="bi bi-speedometer2"></i> Dashboard
       </a>
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
-      <a href="{% url 'zone_detail' zone.id %}" class="breadcrumb-link">{{ zone.name }}</a>
+      <a href="{% url 'zone_detail' household.zone.id %}" class="breadcrumb-link">{{ household.zone.name }}</a>
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
-      <span class="breadcrumb-current">Add Household</span>
+      <a href="{% url 'household_detail' household.id %}" class="breadcrumb-link">House {{ household.house_number }}</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Edit Household</span>
     </div>
-    <h1 class="dash-page-title">Add Household</h1>
+    <h1 class="dash-page-title">Edit Household</h1>
     <p class="dash-page-sub">
-      <i class="bi bi-map me-1"></i> Zone: {{ zone.name }}
+      <i class="bi bi-house me-1"></i> House {{ household.house_number }}
     </p>
   </div>
 </div>
@@ -34,10 +36,10 @@
   <div class="dash-panel form-panel">
     <div class="dash-panel__header">
       <div class="dash-panel__header-left">
-        <i class="bi bi-house-door dash-panel__icon"></i>
+        <i class="bi bi-pencil-square dash-panel__icon"></i>
         <div>
           <h2 class="dash-panel__title">Household Details</h2>
-          <p class="dash-panel__sub">Enter information for the new household</p>
+          <p class="dash-panel__sub">Update information for the household</p>
         </div>
       </div>
     </div>
@@ -122,15 +124,15 @@
           <label class="acct-form__label">House Location (Please specify)</label>
           <div class="acct-form__control-wrap">{{ form.location_notes }}</div>
         </div>
-
+        
         {% include 'households/partials/map_widget.html' %}
 
         <div class="acct-form__actions">
-          <a href="{% url 'zone_detail' zone.id %}" class="btn-dash-outline">
+          <a href="{% url 'household_detail' household.id %}" class="btn-dash-outline">
             <i class="bi bi-x-lg"></i> Cancel
           </a>
           <button type="submit" class="btn-dash-primary">
-            <i class="bi bi-check-lg"></i> Save Household
+            <i class="bi bi-check-lg"></i> Save Changes
           </button>
         </div>
       </form>
@@ -141,8 +143,8 @@
     <div class="dash-notice">
       <i class="bi bi-info-circle dash-notice__icon"></i>
       <div>
-        <p class="dash-notice__title">Adding to {{ zone.name }}</p>
-        <p class="dash-notice__text">This household will be registered under {{ zone.name }}. Make sure the house number is accurate and unique within this zone.</p>
+        <p class="dash-notice__title">Editing Household</p>
+        <p class="dash-notice__text">You are modifying an existing household in {{ household.zone.name }}. Please ensure information is up to date.</p>
       </div>
     </div>
   </div>
@@ -156,45 +158,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const floodContainer = document.getElementById('flood_fields_container');
     const floodDepth = document.getElementById('{{ form.flood_depth.id_for_label }}');
     const floodFreq = document.getElementById('{{ form.flood_frequency.id_for_label }}');
-
-    const hazardOtherContainer = document.getElementById('hazard_other_container');
-    const hazardOtherInput = document.getElementById('{{ form.hazard_other_description.id_for_label }}');
-
-    function toggleHazardFields() {
-        let isFlood = false;
-        let isOther = false;
-        hazardRadios.forEach(radio => {
-            if (radio.checked) {
-                if (radio.value === 'FLOOD') isFlood = true;
-                if (radio.value === 'OTHER') isOther = true;
-            }
-        });
-
-        if (isFlood) {
-            floodContainer.style.display = 'block';
-        } else {
-            floodContainer.style.display = 'none';
-            if(floodDepth) floodDepth.value = '';
-            if(floodFreq) floodFreq.value = '';
-        }
-
-        if (isOther) {
-            hazardOtherContainer.style.display = 'block';
-        } else {
-            hazardOtherContainer.style.display = 'none';
-            if(hazardOtherInput) hazardOtherInput.value = '';
-        }
-    }
-
-    hazardRadios.forEach(radio => {
-        radio.addEventListener('change', toggleHazardFields);
-    });
-
-    // Initial check
-    toggleHazardFields();
-});
-    const hazardOtherContainer = document.getElementById('hazard_other_container');
-    const hazardOtherInput = document.getElementById('{{ form.hazard_other_description.id_for_label }}');
 
     const hazardOtherContainer = document.getElementById('hazard_other_container');
     const hazardOtherInput = document.getElementById('{{ form.hazard_other_description.id_for_label }}');

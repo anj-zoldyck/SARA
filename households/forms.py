@@ -22,7 +22,8 @@ class HouseholdForm(forms.ModelForm):
         model = Household
         fields = [
             'house_number', 'land_use', 'hazard_exposure', 
-            'flood_depth', 'flood_frequency', 'hazard_other_description', 'accessibility', 'location_notes'
+            'flood_depth', 'flood_frequency', 'hazard_other_description', 'accessibility', 'location_notes',
+            'latitude', 'longitude'
         ]
 
         widgets = {
@@ -35,7 +36,9 @@ class HouseholdForm(forms.ModelForm):
             'flood_depth': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 1 meter, knee-deep'}),
             'flood_frequency': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Once a year, During typhoons'}),
             'hazard_other_description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Please specify the hazard'}),
-            'location_notes': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Near the Barangay Hall'})
+            'location_notes': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Near the Barangay Hall'}),
+            'latitude': forms.HiddenInput(),
+            'longitude': forms.HiddenInput(),
         }
 
     def __init__(self, *args, **kwargs):
