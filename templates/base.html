@@ -190,6 +190,12 @@
               </a>
             </li>
             <li>
+              <a href="{% url 'household_vulnerability_map' %}" class="sidebar-sublink {% if request.resolver_match.url_name == 'household_vulnerability_map' %}active{% endif %}">
+                <i class="bi bi-shield-exclamation"></i>
+                <span>Vulnerability Map</span>
+              </a>
+            </li>
+            <li>
               <a href="{% url 'register_rfid' %}" class="sidebar-sublink">
                 <i class="bi bi-credit-card-2-front"></i>
                 <span>RFID Registration</span>
@@ -309,6 +315,12 @@
               </a>
             </li>
             <li>
+              <a href="{% url 'household_vulnerability_map' %}" class="sidebar-sublink {% if request.resolver_match.url_name == 'household_vulnerability_map' %}active{% endif %}">
+                <i class="bi bi-shield-exclamation"></i>
+                <span>Vulnerability Map</span>
+              </a>
+            </li>
+            <li>
               <a href="{% url 'register_rfid' %}" class="sidebar-sublink">
                 <i class="bi bi-credit-card-2-front"></i>
                 <span>RFID Registration</span>
@@ -368,6 +380,13 @@
           <a href="{% url 'household_map' %}" class="sidebar-link {% if request.resolver_match.url_name == 'household_map' %}active{% endif %}">
             <i class="bi bi-map"></i>
             <span>Household Map</span>
+          </a>
+        </li>
+
+        <li class="sidebar-item">
+          <a href="{% url 'household_vulnerability_map' %}" class="sidebar-link {% if request.resolver_match.url_name == 'household_vulnerability_map' %}active{% endif %}">
+            <i class="bi bi-shield-exclamation"></i>
+            <span>Vulnerability Map</span>
           </a>
         </li>
 

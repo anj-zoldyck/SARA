@@ -13,6 +13,7 @@ from django.db.models import Count, Q
 from accounts.decorators import session_protected, mswdo_or_staff_required
 from accounts.models import User, Barangay
 from households.models import Household, Zone, Family, FamilyMember
+from households.vulnerability import get_vulnerable_households, get_matched_demographic_flags
 from programs.models import Program, AidCategory, Assistance
 from distribution.models import AidSchedule, AidClaim
 
@@ -560,5 +561,108 @@ def household_map_data(request):
         
     return JsonResponse({
         'unpinned_count': unpinned_count,
+        'households': data
+    })
+
+@login_required
+@session_protected
+def household_vulnerability_map(request):
+    if request.user.role == 'BARANGAY':
+        barangays = [request.user.barangay] if request.user.barangay else []
+        zones = Zone.objects.filter(barangay=request.user.barangay).order_by('name') if request.user.barangay else []
+    else:
+        barangays = Barangay.objects.all().order_by('name')
+        zones = Zone.objects.all().order_by('name')
+        
+    hazards = Household.HAZARD_CHOICES
+    
+    # Demographic flags for UI (only PWD, Solo Parent, Senior Citizen for now)
+    demographic_flags = [
+        ('is_pwd', 'PWD'),
+        ('is_solo_parent', 'Solo Parent'),
+        ('is_senior_citizen', 'Senior Citizen'),
+    ]
+    
+    zone_map = {}
+    for z in zones:
+        b_id = str(z.barangay_id)
+        if b_id not in zone_map:
+            zone_map[b_id] = []
+        zone_map[b_id].append({'id': z.id, 'name': z.name})
+
+    return render(request, 'households/household_vulnerability_map.html', {
+        'barangays': barangays,
+        'hazards': hazards,
+        'demographic_flags': demographic_flags,
+        'zone_map_json': json.dumps(zone_map)
+    })
+
+@login_required
+@session_protected
+def household_vulnerability_data(request):
+    # Parse hazard types
+    hazard_types = request.GET.getlist('hazard_types')
+    if not hazard_types:
+        hazard_types_str = request.GET.get('hazard_types')
+        if hazard_types_str:
+            hazard_types = hazard_types_str.split(',')
+    
+    # Parse demographic flags
+    demographic_flags = request.GET.getlist('demographic_flags')
+    if not demographic_flags:
+        demographic_flags_str = request.GET.get('demographic_flags')
+        if demographic_flags_str:
+            demographic_flags = demographic_flags_str.split(',')
+    
+    # Parse barangay and zone
+    barangay_id = request.GET.get('barangay')
+    zone_id = request.GET.get('zone')
+    
+    # Apply role scoping
+    if request.user.role == 'BARANGAY':
+        if not request.user.barangay:
+            return JsonResponse({'total_count': 0, 'households': []})
+        barangay = request.user.barangay
+        # BARANGAY users cannot override their barangay via GET param
+        if barangay_id and str(barangay_id) != str(barangay.id):
+            return JsonResponse({'total_count': 0, 'households': []})
+    else:
+        barangay = Barangay.objects.filter(id=barangay_id).first() if barangay_id else None
+    
+    zone = Zone.objects.filter(id=zone_id).first() if zone_id else None
+    
+    # Call the vulnerability query function
+    qs = get_vulnerable_households(
+        hazard_types=hazard_types if hazard_types else None,
+        demographic_flags=demographic_flags if demographic_flags else None,
+        barangay=barangay,
+        zone=zone
+    )
+    
+    # Filter to only households with coordinates
+    pinned_qs = qs.filter(latitude__isnull=False, longitude__isnull=False).select_related('barangay', 'zone')
+    total_count = pinned_qs.count()
+    
+    data = []
+    for h in pinned_qs:
+        matched_flags = get_matched_demographic_flags(h, demographic_flags) if demographic_flags else []
+        
+        data.append({
+            'id': h.id,
+            'latitude': float(h.latitude),
+            'longitude': float(h.longitude),
+            'house_number': h.house_number,
+            'address': h.address,
+            'hazard_exposure': h.hazard_exposure,
+            'hazard_exposure_display': h.get_hazard_exposure_display(),
+            'flood_depth': h.flood_depth,
+            'flood_frequency': h.flood_frequency,
+            'zone_name': h.zone.name,
+            'barangay_name': h.barangay.name,
+            'matched_flags': matched_flags,
+        })
+        
+    return JsonResponse({
+        'total_count': total_count,
         'households': data
     })

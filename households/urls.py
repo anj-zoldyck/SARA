@@ -19,4 +19,6 @@ urlpatterns = [
     path('barangay/households/<int:household_id>/modal/', views.household_modal_content, name='household_modal_content'),
     path('map/', views.household_map, name='household_map'),
     path('map/data/', views.household_map_data, name='household_map_data'),
+    path('vulnerability-map/', views.household_vulnerability_map, name='household_vulnerability_map'),
+    path('vulnerability-map/data/', views.household_vulnerability_data, name='household_vulnerability_data'),
 ]
