@@ -7,6 +7,14 @@
   </label>
   <div id="householdMap" style="height: 350px; border-radius: 0.5rem; border: 1px solid #e2e8f0; margin-bottom: 0.5rem; z-index: 1;"></div>
   
+  <button type="button" id="use-current-location-btn" class="btn btn-sm btn-outline-secondary mb-2">
+    <i class="bi bi-geo-alt"></i> Use Current Location
+  </button>
+  
+  <div class="small text-muted mb-2">
+    <i class="bi bi-info-circle"></i> This uses your device's current location as a starting point — please confirm or adjust the pin to match the exact household location.
+  </div>
+
   {{ form.latitude }}
   {{ form.longitude }}
 
@@ -82,5 +90,34 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
         map.invalidateSize();
     }, 100);
+
+    // Use Current Location button handler
+    document.getElementById('use-current-location-btn').addEventListener('click', function() {
+        if (!navigator.geolocation) {
+            alert('Geolocation is not supported by your browser.');
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                map.setView([lat, lng], 17);
+                if (marker) {
+                    marker.setLatLng([lat, lng]);
+                } else {
+                    marker = L.marker([lat, lng], {draggable: true}).addTo(map);
+                    marker.on('dragend', function(e) {
+                        var position = marker.getLatLng();
+                        updateCoordinatesDisplay(position.lat, position.lng);
+                    });
+                }
+                updateCoordinatesDisplay(lat, lng);
+            },
+            function(error) {
+                alert('Unable to retrieve your location. Please pin the location manually on the map.');
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    });
 });
 </script>

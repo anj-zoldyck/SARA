@@ -193,44 +193,5 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial check
     toggleHazardFields();
 });
-    const hazardOtherContainer = document.getElementById('hazard_other_container');
-    const hazardOtherInput = document.getElementById('{{ form.hazard_other_description.id_for_label }}');
-
-    const hazardOtherContainer = document.getElementById('hazard_other_container');
-    const hazardOtherInput = document.getElementById('{{ form.hazard_other_description.id_for_label }}');
-
-    function toggleHazardFields() {
-        let isFlood = false;
-        let isOther = false;
-        hazardRadios.forEach(radio => {
-            if (radio.checked) {
-                if (radio.value === 'FLOOD') isFlood = true;
-                if (radio.value === 'OTHER') isOther = true;
-            }
-        });
-
-        if (isFlood) {
-            floodContainer.style.display = 'block';
-        } else {
-            floodContainer.style.display = 'none';
-            if(floodDepth) floodDepth.value = '';
-            if(floodFreq) floodFreq.value = '';
-        }
-
-        if (isOther) {
-            hazardOtherContainer.style.display = 'block';
-        } else {
-            hazardOtherContainer.style.display = 'none';
-            if(hazardOtherInput) hazardOtherInput.value = '';
-        }
-    }
-
-    hazardRadios.forEach(radio => {
-        radio.addEventListener('change', toggleHazardFields);
-    });
-
-    // Initial check
-    toggleHazardFields();
-});
 </script>
 {% endblock %}
