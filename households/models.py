@@ -231,35 +231,122 @@ class SoloParentProfile(models.Model):
     def __str__(self):
         return f"Solo Parent Profile - {self.member}"
 
+APPLICATION_TYPE_CHOICES = (
+    ('NEW', 'New Applicant'),
+    ('RENEWAL', 'Renewal'),
+)
+
 DISABILITY_TYPE_CHOICES = (
-    ('Visual', 'Visual'),
-    ('Hearing', 'Hearing'),
-    ('Speech', 'Speech'),
-    ('Orthopedic', 'Orthopedic'),
-    ('Mental/Intellectual', 'Mental/Intellectual'),
-    ('Psychosocial', 'Psychosocial'),
-    ('Learning', 'Learning'),
-    ('Chronic Illness/Rare Disease', 'Chronic Illness/Rare Disease'),
+    ('DEAF_HARD_OF_HEARING', 'Deaf or Hard of Hearing'),
+    ('INTELLECTUAL', 'Intellectual Disability'),
+    ('LEARNING', 'Learning Disability'),
+    ('MENTAL', 'Mental Disability'),
+    ('PHYSICAL_ORTHOPEDIC', 'Physical Disability (Orthopedic)'),
+    ('PSYCHOSOCIAL', 'Psychosocial Disability'),
+    ('SPEECH_LANGUAGE', 'Speech and Language Impairment'),
+    ('VISUAL', 'Visual Disability'),
+    ('CANCER', 'Cancer (RA11215)'),
+    ('RARE_DISEASE', 'Rare Disease (RA10747)'),
 )
 
 CAUSE_OF_DISABILITY_CHOICES = (
-    ('Congenital', 'Congenital'),
-    ('Acquired-Illness', 'Acquired-Illness'),
-    ('Acquired-Injury', 'Acquired-Injury'),
-    ('Acquired-Workplace', 'Acquired-Workplace'),
-    ('Other', 'Other'),
+    ('Congenital / Inborn', (
+        ('CONGENITAL_AUTISM', 'Autism'),
+        ('CONGENITAL_ADHD', 'ADHD'),
+        ('CONGENITAL_CEREBRAL_PALSY', 'Cerebral Palsy'),
+        ('CONGENITAL_DOWN_SYNDROME', 'Down Syndrome'),
+    )),
+    ('Acquired', (
+        ('ACQUIRED_CHRONIC_ILLNESS', 'Chronic Illness'),
+        ('ACQUIRED_CEREBRAL_PALSY', 'Cerebral Palsy'),
+        ('ACQUIRED_INJURY', 'Injury'),
+    )),
+)
+
+EMPLOYMENT_STATUS_CHOICES = (
+    ('EMPLOYED', 'Employed'),
+    ('UNEMPLOYED', 'Unemployed'),
+    ('SELF_EMPLOYED', 'Self-employed'),
+)
+
+EMPLOYMENT_TYPE_CHOICES = (
+    ('PERMANENT', 'Permanent / Regular'),
+    ('SEASONAL', 'Seasonal'),
+    ('CASUAL', 'Casual'),
+    ('EMERGENCY', 'Emergency'),
+)
+
+EMPLOYMENT_CATEGORY_CHOICES = (
+    ('GOVERNMENT', 'Government'),
+    ('PRIVATE', 'Private'),
+)
+
+ACCOMPLISHED_BY_CHOICES = (
+    ('APPLICANT', 'Applicant'),
+    ('GUARDIAN', 'Guardian'),
+    ('REPRESENTATIVE', 'Representative'),
 )
 
 class PWDProfile(models.Model):
     member = models.OneToOneField(FamilyMember, on_delete=models.CASCADE, related_name='pwd_profile')
+
+    # Field 1 — Application Type
+    application_type = models.CharField(max_length=10, choices=APPLICATION_TYPE_CHOICES, blank=True)
+
+    # Field 2 — PWD ID Number (format: RR-PPMM-BBB-NNNNNNN)
     pwd_id_number = models.CharField(max_length=50, blank=True, null=True)
-    date_issued = models.DateField(blank=True, null=True)
-    disability_type = models.CharField(max_length=50, choices=DISABILITY_TYPE_CHOICES, blank=True, null=True)
-    cause_of_disability = models.CharField(max_length=50, choices=CAUSE_OF_DISABILITY_CHOICES, blank=True, null=True)
-    employment_status = models.CharField(max_length=50, blank=True, null=True)
-    certifying_physician = models.CharField(max_length=100, blank=True, null=True)
+
+    # Field 3 — Date Applied (renamed from date_issued)
+    date_applied = models.DateField(blank=True, null=True)
+
+    # Field 8 — Type of Disability
+    disability_type = models.CharField(max_length=50, choices=DISABILITY_TYPE_CHOICES, blank=True)
+
+    # Field 9 — Cause of Disability
+    cause_of_disability = models.CharField(max_length=50, choices=CAUSE_OF_DISABILITY_CHOICES, blank=True)
+
+    # Field 13 — Employment Details
+    employment_status = models.CharField(max_length=20, choices=EMPLOYMENT_STATUS_CHOICES, blank=True)
+    employment_type = models.CharField(max_length=20, choices=EMPLOYMENT_TYPE_CHOICES, blank=True)
+    employment_category = models.CharField(max_length=20, choices=EMPLOYMENT_CATEGORY_CHOICES, blank=True)
+
+    # Field 15 — Organization Information
+    organization_affiliated = models.CharField(max_length=200, blank=True)
+    organization_contact_person = models.CharField(max_length=200, blank=True)
+    organization_office_address = models.CharField(max_length=255, blank=True)
+    organization_tel_no = models.CharField(max_length=50, blank=True)
+
+    # Field 16 — Government ID Reference Numbers
+    sss_no = models.CharField(max_length=50, blank=True)
+    gsis_no = models.CharField(max_length=50, blank=True)
+    pagibig_no = models.CharField(max_length=50, blank=True)
+    psn_no = models.CharField(max_length=50, blank=True)
+    philhealth_no = models.CharField(max_length=50, blank=True)
+
+    # Field 17 — Family Background
+    father_last_name = models.CharField(max_length=100, blank=True)
+    father_first_name = models.CharField(max_length=100, blank=True)
+    father_middle_name = models.CharField(max_length=100, blank=True)
+    mother_last_name = models.CharField(max_length=100, blank=True)
+    mother_first_name = models.CharField(max_length=100, blank=True)
+    mother_middle_name = models.CharField(max_length=100, blank=True)
+    guardian_last_name = models.CharField(max_length=100, blank=True)
+    guardian_first_name = models.CharField(max_length=100, blank=True)
+    guardian_middle_name = models.CharField(max_length=100, blank=True)
+
+    # Field 18 — Accomplished By
+    accomplished_by = models.CharField(max_length=20, choices=ACCOMPLISHED_BY_CHOICES, blank=True)
+
+    # Field 19 — Certifying Physician
+    certifying_physician = models.CharField(max_length=200, blank=True)
+    physician_license_no = models.CharField(max_length=50, blank=True)
+
+    # Audit fields
     registered_at = models.DateTimeField(auto_now_add=True)
-    registered_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    registered_by = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+'
+    )
 
     def __str__(self):
         return f"PWD Profile - {self.member}"

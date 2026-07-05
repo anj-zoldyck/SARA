@@ -494,19 +494,110 @@
             <div class="kiosk-modal-header">
               <h5 class="kiosk-modal-title">PWD Registration</h5>
             </div>
-            <div class="kiosk-modal-body">
+            <div class="kiosk-modal-body" style="max-height: 70vh; overflow-y: auto;">
               <p class="text-muted small mb-4"><i class="bi bi-info-circle"></i> Based on DOH/NCDA PWD-RF (Form 1) standard requirements.</p>
-                 <div class="row">
-                   <div class="col-md-6 mb-3"><label>PWD ID Number</label>{{ pwd_form.pwd_id_number }}</div>
-                   <div class="col-md-6 mb-3"><label>Date Issued</label>{{ pwd_form.date_issued }}</div>
-                   <div class="col-md-6 mb-3"><label>Disability Type</label>{{ pwd_form.disability_type }}</div>
-                   <div class="col-md-6 mb-3"><label>Cause of Disability</label>{{ pwd_form.cause_of_disability }}</div>
-                   <div class="col-md-6 mb-3"><label>Civil Status</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_pwd_civil_status" style="min-height: 38px;"></div></div>
-                   <div class="col-md-6 mb-3"><label>Educational Attainment</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_pwd_educational_attainment" style="min-height: 38px;"></div></div>
-                   <div class="col-md-6 mb-3"><label>Occupation</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_pwd_occupation" style="min-height: 38px;"></div></div>
-                   <div class="col-md-6 mb-3"><label>Employment Status</label>{{ pwd_form.employment_status }}</div>
-                   <div class="col-md-12 mb-3"><label>Certifying Physician</label>{{ pwd_form.certifying_physician }}</div>
-                 </div>
+
+              <h6 class="text-muted fw-semibold mt-3 mb-2 border-bottom pb-1">1. Application Details</h6>
+              <div class="row mb-3">
+                <div class="col-md-12 mb-3">
+                  <label class="d-block">Application Type</label>
+                  <div class="d-flex gap-3 mt-1">
+                    {% for radio in pwd_form.application_type %}
+                      <div class="form-check">
+                        {{ radio.tag }}
+                        <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+                <div class="col-md-6 mb-3"><label>PWD ID Number</label>{{ pwd_form.pwd_id_number }}</div>
+                <div class="col-md-6 mb-3"><label>Date Applied</label>{{ pwd_form.date_applied }}</div>
+              </div>
+
+              <h6 class="text-muted fw-semibold mt-3 mb-2 border-bottom pb-1">2. Disability Details</h6>
+              <div class="row mb-3">
+                <div class="col-md-6 mb-3"><label>Type of Disability</label>{{ pwd_form.disability_type }}</div>
+                <div class="col-md-6 mb-3"><label>Cause of Disability</label>{{ pwd_form.cause_of_disability }}</div>
+              </div>
+
+              <h6 class="text-muted fw-semibold mt-3 mb-2 border-bottom pb-1">3. Basic Information (Synced)</h6>
+              <div class="row mb-3">
+                <div class="col-md-4 mb-3"><label>Civil Status</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_pwd_civil_status" style="min-height: 38px;"></div></div>
+                <div class="col-md-4 mb-3"><label>Educational Attainment</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_pwd_educational_attainment" style="min-height: 38px;"></div></div>
+                <div class="col-md-4 mb-3"><label>Occupation</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_pwd_occupation" style="min-height: 38px;"></div></div>
+              </div>
+
+              <h6 class="text-muted fw-semibold mt-3 mb-2 border-bottom pb-1">4. Employment Details</h6>
+              <div class="row mb-3">
+                <div class="col-md-4 mb-3"><label>Status of Employment</label>{{ pwd_form.employment_status }}</div>
+                <div class="col-md-4 mb-3" id="pwd_employment_type_container" style="display: none;"><label>Type of Employment</label>{{ pwd_form.employment_type }}</div>
+                <div class="col-md-4 mb-3" id="pwd_employment_category_container" style="display: none;">
+                  <label class="d-block">Category of Employment</label>
+                  <div class="d-flex flex-wrap gap-2 mt-1">
+                    {% for radio in pwd_form.employment_category %}
+                      <div class="form-check">
+                        {{ radio.tag }}
+                        <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+
+              <h6 class="text-muted fw-semibold mt-3 mb-2 border-bottom pb-1">5. Organization Information</h6>
+              <div class="row mb-3">
+                <div class="col-md-6 mb-3"><label>Organization Affiliated</label>{{ pwd_form.organization_affiliated }}</div>
+                <div class="col-md-6 mb-3"><label>Contact Person</label>{{ pwd_form.organization_contact_person }}</div>
+                <div class="col-md-6 mb-3"><label>Office Address</label>{{ pwd_form.organization_office_address }}</div>
+                <div class="col-md-6 mb-3"><label>Tel. No.</label>{{ pwd_form.organization_tel_no }}</div>
+              </div>
+
+              <h6 class="text-muted fw-semibold mt-3 mb-2 border-bottom pb-1">6. Government ID Reference Numbers</h6>
+              <div class="row mb-3">
+                <div class="col-md-6 mb-3"><label>SSS No.</label>{{ pwd_form.sss_no }}</div>
+                <div class="col-md-6 mb-3"><label>GSIS No.</label>{{ pwd_form.gsis_no }}</div>
+                <div class="col-md-6 mb-3"><label>PAG-IBIG No.</label>{{ pwd_form.pagibig_no }}</div>
+                <div class="col-md-6 mb-3"><label>PSN No.</label>{{ pwd_form.psn_no }}</div>
+                <div class="col-md-6 mb-3"><label>PhilHealth No.</label>{{ pwd_form.philhealth_no }}</div>
+              </div>
+
+              <h6 class="text-muted fw-semibold mt-3 mb-2 border-bottom pb-1">7. Family Background</h6>
+              <div class="row mb-3">
+                <div class="col-12"><label class="fw-bold">Father's Name</label></div>
+                <div class="col-md-4 mb-3"><label>Last Name</label>{{ pwd_form.father_last_name }}</div>
+                <div class="col-md-4 mb-3"><label>First Name</label>{{ pwd_form.father_first_name }}</div>
+                <div class="col-md-4 mb-3"><label>Middle Name</label>{{ pwd_form.father_middle_name }}</div>
+
+                <div class="col-12"><label class="fw-bold">Mother's Name</label></div>
+                <div class="col-md-4 mb-3"><label>Last Name</label>{{ pwd_form.mother_last_name }}</div>
+                <div class="col-md-4 mb-3"><label>First Name</label>{{ pwd_form.mother_first_name }}</div>
+                <div class="col-md-4 mb-3"><label>Middle Name</label>{{ pwd_form.mother_middle_name }}</div>
+
+                <div class="col-12"><label class="fw-bold">Guardian's Name</label></div>
+                <div class="col-md-4 mb-3"><label>Last Name</label>{{ pwd_form.guardian_last_name }}</div>
+                <div class="col-md-4 mb-3"><label>First Name</label>{{ pwd_form.guardian_first_name }}</div>
+                <div class="col-md-4 mb-3"><label>Middle Name</label>{{ pwd_form.guardian_middle_name }}</div>
+              </div>
+
+              <h6 class="text-muted fw-semibold mt-3 mb-2 border-bottom pb-1">8. Accomplished By</h6>
+              <div class="row mb-3">
+                <div class="col-md-12">
+                  <div class="d-flex flex-wrap gap-4 mt-1">
+                    {% for radio in pwd_form.accomplished_by %}
+                      <div class="form-check">
+                        {{ radio.tag }}
+                        <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+
+              <h6 class="text-muted fw-semibold mt-3 mb-2 border-bottom pb-1">9. Certifying Physician</h6>
+              <div class="row mb-3">
+                <div class="col-md-6 mb-3"><label>Certifying Physician</label>{{ pwd_form.certifying_physician }}</div>
+                <div class="col-md-6 mb-3"><label>License No.</label>{{ pwd_form.physician_license_no }}</div>
+              </div>
             </div>
             <div class="kiosk-modal-footer" style="display:flex; justify-content:flex-end; gap:10px;">
               <button type="button" class="btn-dash-outline modal-close-btn" data-target-modal="pwdModalOverlay" data-target-checkbox="id_is_pwd">Cancel</button>
@@ -796,6 +887,27 @@ document.addEventListener("DOMContentLoaded", function() {
           // The user specifically asked the Cancel button to uncheck.
       }
   });
+
+  // PWD Employment Toggle
+  const pwdEmpStatus = document.getElementById('id_employment_status');
+  const pwdEmpTypeCont = document.getElementById('pwd_employment_type_container');
+  const pwdEmpCatCont = document.getElementById('pwd_employment_category_container');
+
+  function togglePwdEmployment() {
+    if (!pwdEmpStatus) return;
+    if (pwdEmpStatus.value === 'EMPLOYED' || pwdEmpStatus.value === 'SELF_EMPLOYED') {
+      if(pwdEmpTypeCont) pwdEmpTypeCont.style.display = 'block';
+      if(pwdEmpCatCont) pwdEmpCatCont.style.display = 'block';
+    } else {
+      if(pwdEmpTypeCont) pwdEmpTypeCont.style.display = 'none';
+      if(pwdEmpCatCont) pwdEmpCatCont.style.display = 'none';
+    }
+  }
+
+  if(pwdEmpStatus) {
+    pwdEmpStatus.addEventListener('change', togglePwdEmployment);
+    togglePwdEmployment();
+  }
 
   // Handle manual file selection preview
   fileInput.addEventListener('change', function(e) {

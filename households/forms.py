@@ -136,10 +136,39 @@ class PWDProfileForm(forms.ModelForm):
         model = PWDProfile
         exclude = ['member', 'registered_at', 'registered_by']
         widgets = {
-            'pwd_id_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'date_issued': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'application_type': forms.RadioSelect(attrs={'class': 'form-check-input'}),
+            'pwd_id_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Format: RR-PPMM-BBB-NNNNNNN'}),
+            'date_applied': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            
             'disability_type': forms.Select(attrs={'class': 'form-select'}),
             'cause_of_disability': forms.Select(attrs={'class': 'form-select'}),
-            'employment_status': forms.TextInput(attrs={'class': 'form-control'}),
+            
+            'employment_status': forms.Select(attrs={'class': 'form-select'}),
+            'employment_type': forms.Select(attrs={'class': 'form-select'}),
+            'employment_category': forms.RadioSelect(attrs={'class': 'form-check-input'}),
+            
+            'organization_affiliated': forms.TextInput(attrs={'class': 'form-control'}),
+            'organization_contact_person': forms.TextInput(attrs={'class': 'form-control'}),
+            'organization_office_address': forms.TextInput(attrs={'class': 'form-control'}),
+            'organization_tel_no': forms.TextInput(attrs={'class': 'form-control'}),
+            
+            'sss_no': forms.TextInput(attrs={'class': 'form-control'}),
+            'gsis_no': forms.TextInput(attrs={'class': 'form-control'}),
+            'pagibig_no': forms.TextInput(attrs={'class': 'form-control'}),
+            'psn_no': forms.TextInput(attrs={'class': 'form-control'}),
+            'philhealth_no': forms.TextInput(attrs={'class': 'form-control'}),
+            
+            'father_last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'father_first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'father_middle_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'mother_last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'mother_first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'mother_middle_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'guardian_last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'guardian_first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'guardian_middle_name': forms.TextInput(attrs={'class': 'form-control'}),
+            
+            'accomplished_by': forms.RadioSelect(attrs={'class': 'form-check-input'}),
             'certifying_physician': forms.TextInput(attrs={'class': 'form-control'}),
+            'physician_license_no': forms.TextInput(attrs={'class': 'form-control'}),
         }
