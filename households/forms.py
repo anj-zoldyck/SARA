@@ -70,7 +70,7 @@ class FamilyMemberForm(forms.ModelForm):
         fields = [
             'first_name', 'middle_name', 'last_name', 'suffix',
             'relationship', 'birthdate', 'birthplace', 'sex', 'civil_status',
-            'philsys_card_no', 'religion', 'citizenship', 'occupation',
+            'government_id_type', 'government_id_number', 'religion', 'citizenship', 'occupation',
             'contact_number', 'email', 'educational_attainment', 'education_status',
             'monthly_income', 'is_pwd', 'is_solo_parent', 'is_senior_citizen', 'is_indigenous', 'is_out_of_school_youth', 'is_out_of_school_children', 'profile_image'
         ]
@@ -85,7 +85,8 @@ class FamilyMemberForm(forms.ModelForm):
             'birthplace': forms.TextInput(attrs={'class': 'form-control'}),
             'sex': forms.Select(attrs={'class': 'form-select'}),
             'civil_status': forms.Select(attrs={'class': 'form-select'}),
-            'philsys_card_no': forms.TextInput(attrs={'class': 'form-control'}),
+            'government_id_type': forms.Select(attrs={'class': 'form-select'}),
+            'government_id_number': forms.TextInput(attrs={'class': 'form-control'}),
             'religion': forms.TextInput(attrs={'class': 'form-control'}),
             'citizenship': forms.TextInput(attrs={'class': 'form-control'}),
             'occupation': forms.TextInput(attrs={'class': 'form-control'}),
@@ -110,6 +111,7 @@ class SeniorCitizenProfileForm(forms.ModelForm):
         model = SeniorCitizenProfile
         exclude = ['member', 'registered_at', 'registered_by']
         widgets = {
+            'senior_citizen_id_number': forms.TextInput(attrs={'class': 'form-control'}),
             'other_skills': forms.TextInput(attrs={'class': 'form-control'}),
             'ctc_no': forms.TextInput(attrs={'class': 'form-control'}),
         }

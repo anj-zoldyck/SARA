@@ -132,6 +132,18 @@ SEX_CHOICES = (
     ('F', 'Female'),
 )
 
+GOVERNMENT_ID_CHOICES = (
+    ('PHILSYS', 'PhilSys Card'),
+    ('PASSPORT', 'Philippine Passport'),
+    ('DRIVERS_LICENSE', "Driver's License"),
+    ('PHILHEALTH', 'PhilHealth ID'),
+    ('UMID', 'UMID'),
+    ('SSS', 'SSS ID'),
+    ('POSTAL', 'Philippine Postal ID'),
+    ('PRC', 'PRC ID'),
+    ('VOTERS', "Voter's ID"),
+)
+
 class FamilyMember(models.Model):
     family = models.ForeignKey(
         Family,
@@ -147,7 +159,11 @@ class FamilyMember(models.Model):
     birthplace = models.CharField(max_length=150, blank=True, null=True)
     sex = models.CharField(max_length=1, choices=SEX_CHOICES, blank=True, null=True)
     civil_status = models.CharField(max_length=50, choices=CIVIL_STATUS_CHOICES, blank=True, null=True)
-    philsys_card_no = models.CharField(max_length=50, blank=True, null=True)
+    government_id_type = models.CharField(
+        max_length=20, choices=GOVERNMENT_ID_CHOICES,
+        blank=True, default='PHILSYS'
+    )
+    government_id_number = models.CharField(max_length=50, blank=True, null=True)
     religion = models.CharField(max_length=100, blank=True, null=True)
     citizenship = models.CharField(max_length=50, default='Filipino', blank=True, null=True)
     occupation = models.CharField(max_length=150, blank=True, null=True)
@@ -189,6 +205,7 @@ class FamilyMember(models.Model):
 
 class SeniorCitizenProfile(models.Model):
     member = models.OneToOneField(FamilyMember, on_delete=models.CASCADE, related_name='senior_profile')
+    senior_citizen_id_number = models.CharField(max_length=50, blank=True, null=True)
     other_skills = models.CharField(max_length=100, blank=True, null=True)
     ctc_no = models.CharField(max_length=50, blank=True, null=True)
     registered_at = models.DateTimeField(auto_now_add=True)

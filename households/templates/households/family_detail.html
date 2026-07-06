@@ -27,7 +27,12 @@
         <i class="bi bi-chevron-right breadcrumb-sep"></i>
         <span class="breadcrumb-current">{{ family.family_name }}</span>
       </div>
-      <h1 class="dash-page-title">{{ family.family_name }} Family</h1>
+      <div class="d-flex align-items-center gap-2">
+        <h1 class="dash-page-title mb-0">{{ family.family_name }} Family</h1>
+        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editFamilyNameModal" title="Edit Family Name" style="padding: 2px 8px;">
+          <i class="bi bi-pencil"></i>
+        </button>
+      </div>
       <p class="dash-page-sub">
         <i class="bi bi-person-lines-fill me-1"></i>
         {{ members|length }} member{{ members|length|pluralize }}
@@ -41,6 +46,9 @@
       <a href="{% url 'household_detail' family.household.id %}" class="btn-dash-outline">
         <i class="bi bi-arrow-left"></i> Back to Household
       </a>
+      <button class="btn-dash-outline" style="color: #dc3545; border-color: #dc3545;" data-bs-toggle="modal" data-bs-target="#removeFamilyModal">
+        <i class="bi bi-trash"></i> Remove Family
+      </button>
     </div>
   </div>
 
@@ -135,6 +143,57 @@
             <span class="visually-hidden">Loading...</span>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Family Name Modal -->
+  <div class="modal fade sara-modal" id="editFamilyNameModal" tabindex="-1" aria-labelledby="editFamilyNameModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editFamilyNameModalLabel">
+            <i class="bi bi-pencil"></i> Edit Family Name
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form method="post" action="{% url 'edit_family_name' family.id %}">
+          {% csrf_token %}
+          <div class="modal-body">
+            <div class="modal-form__group">
+              <label class="modal-form__label" for="family_name">Family Name <span class="modal-form__required">*</span></label>
+              <input type="text" id="family_name" name="family_name" class="modal-form__control" value="{{ family.family_name }}" required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn-dash-primary">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Remove Family Modal -->
+  <div class="modal fade sara-modal" id="removeFamilyModal" tabindex="-1" aria-labelledby="removeFamilyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title text-danger" id="removeFamilyModalLabel">
+            <i class="bi bi-exclamation-triangle"></i> Remove Family
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form method="post" action="{% url 'delete_family' family.id %}">
+          {% csrf_token %}
+          <div class="modal-body">
+            <p class="mb-0 text-muted">⚠️ Removing this family will also permanently delete all registered members. This cannot be undone. Are you sure?</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-danger" style="font-weight: 500; padding: 10px 16px; border-radius: 6px;">Yes, Remove</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

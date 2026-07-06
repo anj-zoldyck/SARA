@@ -21,4 +21,7 @@ urlpatterns = [
     path('map/data/', views.household_map_data, name='household_map_data'),
     path('vulnerability-map/', views.household_vulnerability_map, name='household_vulnerability_map'),
     path('vulnerability-map/data/', views.household_vulnerability_data, name='household_vulnerability_data'),
+    path('barangay/families/<int:family_id>/edit-name/', views.edit_family_name, name='edit_family_name'),
+    path('barangay/households/<int:household_id>/delete/', views.delete_household, name='delete_household'),
+    path('barangay/families/<int:family_id>/delete/', views.delete_family, name='delete_family'),
 ]

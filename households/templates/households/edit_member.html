@@ -86,16 +86,23 @@
 
         <!-- Name Row -->
         
-        
-        <div class="hh-form-row">
-
+        <div class="hh-form-row" style="grid-template-columns: 1fr 2fr;">
           <div class="acct-form__group">
             <label class="acct-form__label">
-              <i class="bi bi-card-text"></i> PhilSys Card No.
+              <i class="bi bi-card-text"></i> Government ID Type
             </label>
-            <div class="acct-form__control-wrap">{{ form.philsys_card_no }}</div>
-            {% if form.philsys_card_no.errors %}
-              <p class="acct-form__error">{{ form.philsys_card_no.errors|join:", " }}</p>
+            <div class="acct-form__control-wrap">{{ form.government_id_type }}</div>
+            {% if form.government_id_type.errors %}
+              <p class="acct-form__error">{{ form.government_id_type.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-upc-scan"></i> Government ID Number
+            </label>
+            <div class="acct-form__control-wrap">{{ form.government_id_number }}</div>
+            {% if form.government_id_number.errors %}
+              <p class="acct-form__error">{{ form.government_id_number.errors|join:", " }}</p>
             {% endif %}
           </div>
         </div>
@@ -265,7 +272,7 @@
               <p class="acct-form__error">{{ form.educational_attainment.errors|join:", " }}</p>
             {% endif %}
           </div>
-          <div class="acct-form__group" id="educationStatusContainer" style="display: none;">
+          <div class="acct-form__group" id="educationStatusContainer">
             <label class="acct-form__label">
               <i class="bi bi-check-circle"></i> Education Status
             </label>
@@ -384,6 +391,7 @@
             </div>
             <div class="kiosk-modal-body">
               <div class="row">
+                   <div class="col-md-12 mb-3"><label>Senior Citizen ID No.</label>{{ senior_form.senior_citizen_id_number }}</div>
                    <div class="col-md-6 mb-3"><label>Educational Attainment</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_senior_educational_attainment" style="min-height: 38px;"></div></div>
                    <div class="col-md-6 mb-3"><label>Civil Status</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_senior_civil_status" style="min-height: 38px;"></div></div>
                    <div class="col-md-6 mb-3"><label>Occupation</label><div class="fw-medium text-dark bg-light p-2 rounded border" id="sync_senior_occupation" style="min-height: 38px;"></div></div>
@@ -812,45 +820,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
   btnRetake.addEventListener('click', startCamera);
 
-  
-  const educAttainment = document.getElementById('id_educational_attainment');
-  const educStatusContainer = document.getElementById('educationStatusContainer');
-  
-  function toggleEducStatus() {
-    if (educAttainment.value === 'College' || educAttainment.value === 'Post Grad') {
-      educStatusContainer.style.display = 'block';
-    } else {
-      educStatusContainer.style.display = 'none';
-      const statusInput = document.getElementById('id_education_status');
-      if (statusInput) statusInput.value = '';
-    }
+  // Auto-scroll to error block if present
+  const errorBlock = document.querySelector('.form-error-block');
+  if (errorBlock) {
+    errorBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
-
-  if(educAttainment) {
-    educAttainment.addEventListener('change', toggleEducStatus);
-    toggleEducStatus();
-  }
-
-
-  // Modal Logic
-  const seniorCheck = document.getElementById('id_is_senior_citizen');
-  const pwdCheck = document.getElementById('id_is_pwd');
-  const soloCheck = document.getElementById('id_is_solo_parent');
-
-  const seniorModal = document.getElementById('seniorCitizenModalOverlay');
-  const pwdModal = document.getElementById('pwdModalOverlay');
-  const soloModal = document.getElementById('soloParentModalOverlay');
-
-  function showModal(modalEl) {
-      if(modalEl) modalEl.classList.add('active');
-  }
-  function hideModal(modalEl) {
-      if(modalEl) modalEl.classList.remove('active');
-  }
-
-  if(seniorCheck) seniorCheck.addEventListener('change', function() { if (this.checked) showModal(seniorModal); });
-  if(pwdCheck) pwdCheck.addEventListener('change', function() { if (this.checked) showModal(pwdModal); });
-  if(soloCheck) soloCheck.addEventListener('change', function() { if (this.checked) showModal(soloModal); });
 
   // Handle Edit page label clicks (if they exist)
   document.querySelectorAll('.modal-form__check-row label').forEach(label => {

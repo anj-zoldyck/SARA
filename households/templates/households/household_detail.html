@@ -41,6 +41,9 @@
     <a href="{% url 'zone_detail' household.zone.id %}" class="btn-dash-outline">
       <i class="bi bi-arrow-left"></i> Back to Zone
     </a>
+    <button class="btn-dash-outline" style="color: #dc3545; border-color: #dc3545;" data-bs-toggle="modal" data-bs-target="#removeHouseholdModal">
+      <i class="bi bi-trash"></i> Remove Household
+    </button>
   </div>
 </div>
 
@@ -145,6 +148,30 @@
   <a href="{% url 'zone_detail' household.zone.id %}" class="btn-dash-outline">
     <i class="bi bi-arrow-left"></i> Back to Zone
   </a>
+</div>
+
+<!-- Remove Household Modal -->
+<div class="modal fade sara-modal" id="removeHouseholdModal" tabindex="-1" aria-labelledby="removeHouseholdModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-danger" id="removeHouseholdModalLabel">
+          <i class="bi bi-exclamation-triangle"></i> Remove Household
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'delete_household' household.id %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <p class="mb-0 text-muted">⚠️ Removing this household will also permanently delete all families and members registered under it. This cannot be undone. Are you sure?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger" style="font-weight: 500; padding: 10px 16px; border-radius: 6px;">Yes, Remove</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 {% endblock %}

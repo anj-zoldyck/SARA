@@ -666,3 +666,45 @@ def household_vulnerability_data(request):
         'total_count': total_count,
         'households': data
     })
+
+@login_required(login_url='login')
+@session_protected
+def edit_family_name(request, family_id):
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+    family = get_object_or_404(Family, id=family_id, household__barangay=request.user.barangay)
+    if request.method == 'POST':
+        new_name = request.POST.get('family_name', '').strip()
+        if new_name:
+            family.family_name = new_name
+            family.save()
+            messages.success(request, "Family name updated successfully.")
+        else:
+            messages.error(request, "Family name cannot be empty.")
+    return redirect('family_detail', family_id=family.id)
+
+@login_required(login_url='login')
+@session_protected
+def delete_household(request, household_id):
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+    household = get_object_or_404(Household, id=household_id, barangay=request.user.barangay)
+    if request.method == 'POST':
+        zone_id = household.zone.id
+        household.delete()
+        messages.success(request, "Household removed successfully.")
+        return redirect('zone_detail', zone_id=zone_id)
+    return redirect('household_detail', household_id=household_id)
+
+@login_required(login_url='login')
+@session_protected
+def delete_family(request, family_id):
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+    family = get_object_or_404(Family, id=family_id, household__barangay=request.user.barangay)
+    if request.method == 'POST':
+        household_id = family.household.id
+        family.delete()
+        messages.success(request, "Family removed successfully.")
+        return redirect('household_detail', household_id=household_id)
+    return redirect('family_detail', family_id=family_id)
