@@ -820,22 +820,43 @@ document.addEventListener("DOMContentLoaded", function() {
 
   btnRetake.addEventListener('click', startCamera);
 
+  // Modal Logic
+  const seniorCheck = document.getElementById('id_is_senior_citizen');
+  const pwdCheck = document.getElementById('id_is_pwd');
+  const soloCheck = document.getElementById('id_is_solo_parent');
+
+  const seniorModal = document.getElementById('seniorCitizenModalOverlay');
+  const pwdModal = document.getElementById('pwdModalOverlay');
+  const soloModal = document.getElementById('soloParentModalOverlay');
+
+  function showModal(modalEl) {
+      if(modalEl) modalEl.classList.add('active');
+  }
+  function hideModal(modalEl) {
+      if(modalEl) modalEl.classList.remove('active');
+  }
+
+  if(seniorCheck) {
+      seniorCheck.addEventListener('change', function() {
+          if (this.checked) showModal(seniorModal);
+      });
+  }
+  if(pwdCheck) {
+      pwdCheck.addEventListener('change', function() {
+          if (this.checked) showModal(pwdModal);
+      });
+  }
+  if(soloCheck) {
+      soloCheck.addEventListener('change', function() {
+          if (this.checked) showModal(soloModal);
+      });
+  }
+
   // Auto-scroll to error block if present
   const errorBlock = document.querySelector('.form-error-block');
   if (errorBlock) {
     errorBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
-
-  // Handle Edit page label clicks (if they exist)
-  document.querySelectorAll('.modal-form__check-row label').forEach(label => {
-      label.style.cursor = 'pointer';
-      label.addEventListener('click', function(e) {
-          const inputId = this.getAttribute('for');
-          if (inputId === 'id_is_senior_citizen' && seniorCheck && seniorCheck.checked) showModal(seniorModal);
-          if (inputId === 'id_is_pwd' && pwdCheck && pwdCheck.checked) showModal(pwdModal);
-          if (inputId === 'id_is_solo_parent' && soloCheck && soloCheck.checked) showModal(soloModal);
-      });
-  });
 
   // Handle closing via Cancel or Confirm
   document.querySelectorAll('.modal-close-btn').forEach(btn => {
