@@ -1,0 +1,624 @@
+# S.A.R.A. Role-Based Capability Report
+
+**Santa Rita Automated Relief Assistance System (S.A.R.A.)**  
+*Comprehensive Analysis of User Role Permissions and Capabilities*
+
+---
+
+## 1. Account Creation & First-Login Flow
+
+### Account Creation Process
+
+**How accounts are created:**
+- **MSWDO Admin**: Created via Django's `createsuperuser` command (not through in-app flow)
+- **MSWDO Staff & Barangay Admin**: Created by MSWDO Admin through the in-app "Create User" flow
+
+**View and Form Involved:**
+- **View**: `accounts/views.py::create_user()` (lines 132-154)
+- **URL**: `/mswdo/users/create/`
+- **Form**: `accounts/forms.py::CreateUserForm` (lines 10-78)
+- **Permission Check**: `if request.user.role != 'MSWDO': return HttpResponseForbidden("Access Denied")`
+
+**Fields collected during creation:**
+- username, email, first_name, last_name, middle_name, suffix
+- sex, birthdate, birth_place, civil_status, citizenship
+- contact_number, position
+- role (MSWDO_STAFF or BARANGAY only - MSWDO not selectable)
+- barangay (required for BARANGAY role, forced to None for MSWDO_STAFF)
+
+### Temporary Password Generation
+
+**Confirmed**: Temporary password is auto-generated
+- **Function**: `accounts/views.py::generate_temp_password()` (lines 128-130)
+- **Implementation**: Uses `secrets.choice()` with alphanumeric characters (12 characters)
+- **Setting**: `user.set_password(temp_password)` (line 143)
+- **Flag Set**: `user.must_change_password = True` (line 145)
+
+**Display**: The temporary password is displayed ONCE to the MSWDO Admin on the success page (`accounts/create_user_success.html`) for manual communication to the user. No email invitation is sent.
+
+### Forced Password Change Enforcement
+
+**Middleware**: `accounts/middleware.py::ForcePasswordChangeMiddleware` (lines 4-20)
+
+**Enforcement Logic:**
+```python
+if request.user.is_authenticated and getattr(request.user, 'must_change_password', False):
+    allowed_paths = [reverse('force_password_change'), reverse('logout')]
+    if request.path not in allowed_paths and not request.path.startswith('/static/') and not request.path.startswith('/media/'):
+        return redirect('force_password_change')
+```
+
+**Security Assessment**: ✅ **Cannot bypass** - The middleware intercepts ALL requests except:
+- `/force-password-change/` (the password change page itself)
+- `/logout/` (allows logout)
+- Static files and media
+
+A user with `must_change_password=True` cannot navigate directly to any other URL, including dashboards or any protected endpoints.
+
+### Password Change Flow
+
+**View**: `accounts/views.py::force_password_change()` (lines 157-186)
+
+**Process:**
+1. User enters email + temporary password at `/login/`
+2. `login_view()` checks `user.must_change_password` (line 68)
+3. If True, redirects to `force_password_change` view
+4. User must enter new_password + confirm_password (minimum 8 characters)
+5. On success: `user.must_change_password = False`, `update_session_auth_hash()` called
+6. Redirected to role-specific dashboard:
+   - MSWDO → `mswdo_dashboard`
+   - MSWDO_STAFF → `staff_dashboard`
+   - BARANGAY → `barangay_dashboard`
+
+### Post-Login Redirects
+
+**From `login_view()` (lines 68-76):**
+- **MSWDO**: `/mswdo/dashboard/`
+- **MSWDO_STAFF**: `/staff/dashboard/`
+- **BARANGAY**: `/barangay/dashboard/`
+
+---
+
+## 2. MSWDO Admin (Superadmin) — Full Capability Breakdown
+
+### User Management
+
+| Capability | View Function | URL | Notes |
+|------------|---------------|-----|-------|
+| View all user accounts | `user_accounts()` | `/mswdo/users/` | Filters by role/barangay, excludes MSWDO Admin |
+| Create user (Staff/Barangay) | `create_user()` | `/mswdo/users/create/` | Auto-generates temp password |
+| Edit user email | `edit_user()` | `/mswdo/users/<id>/edit/` | Only email field editable |
+| Deactivate user | `deactivate_user()` | `/mswdo/users/<id>/deactivate/` | Sets `is_active=False` |
+| Activate user | `activate_user_account()` | `/mswdo/users/<id>/activate/` | Sets `is_active=True` |
+
+### Household Profiling (Read-Only Global Access)
+
+| Capability | View Function | URL | Access Pattern |
+|------------|---------------|-----|----------------|
+| View all barangays | `barangay_list()` | `/mswdo/barangays/` | `@mswdo_or_staff_required` |
+| View barangay zones | `barangay_zones()` | `/mswdo/barangays/<id>/zones/` | `@mswdo_or_staff_required` |
+| View zone households | `zone_households()` | `/mswdo/zones/<id>/households/` | `@mswdo_or_staff_required` |
+| View household details | `household_info()` | `/mswdo/households/<id>/` | `@mswdo_or_staff_required` |
+| View family members | `family_members()` | `/mswdo/families/<id>/members/` | `@mswdo_or_staff_required` |
+| View household map | `household_map()` | `/map/` | Role-based filtering (MSWDO sees all) |
+| View vulnerability map | `household_vulnerability_map()` | `/vulnerability-map/` | Role-based filtering (MSWDO sees all) |
+
+### Program & Aid Configuration
+
+| Capability | View Function | URL | Notes |
+|------------|---------------|-----|-------|
+| View all programs | `program_list()` | `/mswdo/programs/` | Full program/assistance tree |
+| Add program | `add_program()` | `/mswdo/programs/add/` | `role != 'MSWDO'` blocked |
+| Edit program | `edit_program()` | `/mswdo/programs/<id>/edit/` | `role != 'MSWDO'` blocked |
+| Toggle program active/inactive | `toggle_program()` | `/mswdo/programs/<id>/toggle/` | `role != 'MSWDO'` blocked |
+| Add aid category | `add_aid_category()` | `/mswdo/programs/<id>/aid-categories/add/` | `role != 'MSWDO'` blocked |
+| Add assistance | `add_assistance()` | `/mswdo/programs/assistance/add/` | `role != 'MSWDO'` blocked |
+| Edit assistance | `edit_assistance()` | `/mswdo/programs/assistance/<id>/edit/` | `role != 'MSWDO'` blocked |
+| Toggle assistance active/inactive | `toggle_assistance()` | `/mswdo/programs/assistance/<id>/toggle/` | `role != 'MSWDO'` blocked |
+
+### Distribution Management
+
+| Capability | View Function | URL | Notes |
+|------------|---------------|-----|-------|
+| Create distribution schedule | `set_aid_schedule()` | `/mswdo/schedule/set/` | `role != 'MSWDO'` blocked |
+| Scan RFID for claims | `scan_rfid()` | `/mswdo/rfid/scan/` | Global access (all barangays) |
+| View recent claims | `scan_rfid()` (GET) | `/mswdo/rfid/scan/` | No scoping applied |
+
+### RFID Management
+
+| Capability | View Function | URL | Notes |
+|------------|---------------|-----|-------|
+| RFID registration overview | `register_rfid()` | `/mswdo/rfid/register/` | `@mswdo_or_staff_required` |
+| Register RFID to family | `register_rfid(family_id)` | `/mswdo/rfid/register/<id>/` | `@mswdo_or_staff_required` |
+| Deactivate RFID | `deactivate_rfid()` | `/mswdo/families/<id>/deactivate-rfid/` | `role != 'MSWDO'` blocked |
+| RFID overview dashboard | `rfid_overview()` | `/mswdo/rfid/overview/` | `role != 'MSWDO'` blocked |
+
+### Monitoring & Analytics
+
+| Capability | View Function | URL | Notes |
+|------------|---------------|-----|-------|
+| View aid type list | `aid_type_list()` | `/mswdo/aid/` | `@mswdo_or_staff_required` |
+| View aid by barangay | `aid_barangay_list()` | `/mswdo/aid/<id>/barangays/` | `@mswdo_or_staff_required` |
+| View aid barangay detail | `aid_barangay_detail()` | `/mswdo/aid/<id>/barangays/<bid>/` | `@mswdo_or_staff_required` |
+| RFID claim monitoring | `rfid_claim_monitoring()` | `/mswdo/rfid/monitoring/` | `@mswdo_or_staff_required`, no scoping |
+| Live claims feed | `rfid_live_claims()` | `/mswdo/rfid/live-claims/` | No scoping (sees all) |
+| Schedule status | `schedule_status()` | `/mswdo/schedule/status/` | `@mswdo_or_staff_required` |
+| Analytics dashboard | `analytics()` | `/mswdo/analytics/` | `@mswdo_or_staff_required`, global data |
+
+### Reports
+
+| Capability | View Function | URL | Notes |
+|------------|---------------|-----|-------|
+| View aid reports | `aid_reports()` | `/mswdo/reports/` | `@mswdo_or_staff_required`, global data |
+
+### Dashboard
+
+| Capability | View Function | URL | Notes |
+|------------|---------------|-----|-------|
+| MSWDO Dashboard | `mswdo_dashboard()` | `/mswdo/dashboard/` | Global statistics, all barangays |
+
+### Settings & Profile
+
+| Capability | View Function | URL | Notes |
+|------------|---------------|-----|-------|
+| Edit own profile | `settings_view()` | `/settings/` | Shared by all roles |
+| Change own password | `settings_view()` (password form) | `/settings/` | Requires current password |
+| Update profile photo | `update_profile_photo()` | `/settings/photo/` | Shared by all roles |
+| Remove profile photo | `remove_profile_photo()` | `/settings/photo/remove/` | Shared by all roles |
+
+---
+
+## 3. MSWDO Staff (Sub-admin) — Full Capability Breakdown
+
+### User Management
+
+| Capability | Access Level | Notes |
+|------------|--------------|-------|
+| View user accounts | ✗ | Blocked - `role != 'MSWDO'` check in `user_accounts()` |
+| Create user accounts | ✗ | Blocked - `role != 'MSWDO'` check in `create_user()` |
+| Edit user accounts | ✗ | Blocked - `role != 'MSWDO'` check in `edit_user()` |
+| Activate/deactivate users | ✗ | Blocked - `role != 'MSWDO'` checks |
+
+### Household Profiling (Read-Only Global Access)
+
+| Capability | View Function | URL | Access Pattern |
+|------------|---------------|-----|----------------|
+| View all barangays | `barangay_list()` | `/mswdo/barangays/` | ✅ `@mswdo_or_staff_required` |
+| View barangay zones | `barangay_zones()` | `/mswdo/barangays/<id>/zones/` | ✅ `@mswdo_or_staff_required` |
+| View zone households | `zone_households()` | `/mswdo/zones/<id>/households/` | ✅ `@mswdo_or_staff_required` |
+| View household details | `household_info()` | `/mswdo/households/<id>/` | ✅ `@mswdo_or_staff_required` |
+| View family members | `family_members()` | `/mswdo/families/<id>/members/` | ✅ `@mswdo_or_staff_required` |
+| View household map | `household_map()` | `/map/` | ✅ Role-based (sees all barangays) |
+| View vulnerability map | `household_vulnerability_map()` | `/vulnerability-map/` | ✅ Role-based (sees all barangays) |
+
+**Note**: MSWDO Staff has READ-ONLY access to household data across ALL barangays (no scoping applied).
+
+### Program & Aid Configuration
+
+| Capability | Access Level | Notes |
+|------------|--------------|-------|
+| View programs | ✗ | No dedicated view for staff (sidebar shows but no link) |
+| Add/edit programs | ✗ | Blocked - `role != 'MSWDO'` checks |
+| Add/edit assistance | ✗ | Blocked - `role != 'MSWDO'` checks |
+| Toggle programs/assistance | ✗ | Blocked - `role != 'MSWDO'` checks |
+
+### Distribution Management
+
+| Capability | View Function | URL | Notes |
+|------------|---------------|-----|-------|
+| Create distribution schedule | ✗ | Blocked - `role != 'MSWDO'` check in `set_aid_schedule()` |
+| Scan RFID for claims | `scan_rfid()` | `/mswdo/rfid/scan/` | ✅ Global access (all barangays) |
+| View recent claims | `scan_rfid()` (GET) | `/mswdo/rfid/scan/` | ✅ **Scoped to own claims** (`created_by=request.user`) |
+
+**Critical Scoping**: Line 311-312 in `distribution/views.py`:
+```python
+if request.user.role == 'MSWDO_STAFF':
+    claims = claims.filter(created_by=request.user)
+```
+
+### RFID Management
+
+| Capability | View Function | URL | Notes |
+|------------|---------------|-----|-------|
+| RFID registration overview | `register_rfid()` | `/mswdo/rfid/register/` | ✅ `@mswdo_or_staff_required` |
+| Register RFID to family | `register_rfid(family_id)` | `/mswdo/rfid/register/<id>/` | ✅ `@mswdo_or_staff_required` |
+| Deactivate RFID | ✗ | Blocked - `role != 'MSWDO'` check in `deactivate_rfid()` |
+| RFID overview dashboard | ✗ | Blocked - `role != 'MSWDO'` check in `rfid_overview()` |
+
+### Monitoring & Analytics
+
+| Capability | View Function | URL | Scoping |
+|------------|---------------|-----|---------|
+| View aid type list | `aid_type_list()` | `/mswdo/aid/` | ✅ `@mswdo_or_staff_required` |
+| View aid by barangay | `aid_barangay_list()` | `/mswdo/aid/<id>/barangays/` | ✅ `@mswdo_or_staff_required` |
+| View aid barangay detail | `aid_barangay_detail()` | `/mswdo/aid/<id>/barangays/<bid>/` | ✅ `@mswdo_or_staff_required` |
+| RFID claim monitoring | `rfid_claim_monitoring()` | `/mswdo/rfid/monitoring/` | ✅ **Scoped to own claims** (line 169-171) |
+| Live claims feed | `rfid_live_claims()` | `/mswdo/rfid/live-claims/` | ✅ **Scoped to own claims** (line 225-226) |
+| Schedule status | `schedule_status()` | `/mswdo/schedule/status/` | ✅ `@mswdo_or_staff_required` |
+| Analytics dashboard | `analytics()` | `/mswdo/analytics/` | ✅ `@mswdo_or_staff_required` (global data) |
+
+**Critical Scoping in Monitoring**:
+- `rfid_claim_monitoring()`: Lines 169-171 filter to `created_by=request.user`
+- `rfid_live_claims()`: Lines 225-226 filter to `created_by=request.user`
+- `analytics()`: No scoping - sees global data
+
+### Reports
+
+| Capability | View Function | URL | Notes |
+|------------|---------------|-----|-------|
+| View aid reports | `aid_reports()` | `/mswdo/reports/` | ✅ `@mswdo_or_staff_required` (global data) |
+
+### Dashboard
+
+| Capability | View Function | URL | Notes |
+|------------|---------------|-----|-------|
+| Staff Dashboard | `staff_dashboard()` | `/staff/dashboard/` | Global household/family counts |
+
+### Settings & Profile
+
+| Capability | View Function | URL | Notes |
+|------------|---------------|-----|-------|
+| Edit own profile | `settings_view()` | `/settings/` | ✅ Shared by all roles |
+| Change own password | `settings_view()` (password form) | `/settings/` | ✅ Requires current password |
+| Update profile photo | `update_profile_photo()` | `/settings/photo/` | ✅ Shared by all roles |
+| Remove profile photo | `remove_profile_photo()` | `/settings/photo/remove/` | ✅ Shared by all roles |
+
+### Key Differences from MSWDO Admin
+
+**Cannot Do:**
+- User management (create, edit, activate, deactivate)
+- Program/assistance configuration (any CRUD operations)
+- Distribution scheduling
+- RFID deactivation
+- RFID overview dashboard
+
+**Can Do (with scoping):**
+- View household data globally (read-only)
+- Register RFID cards
+- Scan RFID for claims (scoped to own processed claims)
+- View monitoring data (claims scoped to self, analytics global)
+- View reports (global data)
+
+---
+
+## 4. Barangay Admin — Full Capability Breakdown
+
+### User Management
+
+| Capability | Access Level | Notes |
+|------------|--------------|-------|
+| View user accounts | ✗ | Blocked - `role != 'MSWDO'` check |
+| Create user accounts | ✗ | Blocked - `role != 'MSWDO'` check |
+| Edit user accounts | ✗ | Blocked - `role != 'MSWDO'` check |
+| Activate/deactivate users | ✗ | Blocked - `role != 'MSWDO'` checks |
+
+### Household Profiling (Full CRUD - Barangay-Scoped)
+
+| Capability | View Function | URL | Scoping |
+|------------|---------------|-----|---------|
+| View zones | `zone_detail()` | `/barangay/zones/<id>/` | ✅ `barangay=request.user.barangay` |
+| Add household | `add_household()` | `/barangay/zones/<id>/households/add/` | ✅ `barangay=request.user.barangay` |
+| Edit household | `edit_household()` | `/barangay/households/<id>/edit/` | ✅ `barangay=request.user.barangay` |
+| View household detail | `household_detail()` | `/barangay/households/<id>/` | ✅ `barangay=request.user.barangay` |
+| Delete household | `delete_household()` | `/barangay/households/<id>/delete/` | ✅ `barangay=request.user.barangay` |
+| Add family | `add_family()` | `/barangay/households/<id>/families/add/` | ✅ `barangay=request.user.barangay` |
+| View family detail | `family_detail()` | `/barangay/families/<id>/` | ✅ `barangay=request.user.barangay` |
+| Delete family | `delete_family()` | `/barangay/families/<id>/delete/` | ✅ `barangay=request.user.barangay` |
+| Edit family name | `edit_family_name()` | `/barangay/families/<id>/edit-name/` | ✅ `barangay=request.user.barangay` |
+| Add family member | `add_family_member()` | `/barangay/families/<id>/members/add/` | ✅ `barangay=request.user.barangay` |
+| Edit family member | `edit_family_member()` | `/barangay/members/<id>/edit/` | ✅ `barangay=request.user.barangay` |
+| View member details modal | `member_details_modal()` | `/barangay/members/<id>/details/` | ✅ `barangay=request.user.barangay` |
+| View household modal | `household_modal_content()` | `/barangay/households/<id>/modal/` | ✅ `barangay=request.user.barangay` |
+| View household map | `household_map()` | `/map/` | ✅ Scoped to own barangay (lines 492-494) |
+| View vulnerability map | `household_vulnerability_map()` | `/vulnerability-map/` | ✅ Scoped to own barangay (lines 570-572) |
+
+**Scoping Verification**: All Barangay-specific views include:
+```python
+if request.user.role != 'BARANGAY':
+    return HttpResponseForbidden("Access Denied")
+# And queryset filtering:
+barangay=request.user.barangay
+```
+
+### Program & Aid Configuration
+
+| Capability | Access Level | Notes |
+|------------|--------------|-------|
+| View programs | ✗ | No access to program management views |
+| Add/edit programs | ✗ | Blocked - `role != 'MSWDO'` checks |
+| Add/edit assistance | ✗ | Blocked - `role != 'MSWDO'` checks |
+| Toggle programs/assistance | ✗ | Blocked - `role != 'MSWDO'` checks |
+
+### Distribution Management
+
+| Capability | View Function | URL | Scoping |
+|------------|---------------|-----|---------|
+| Create distribution schedule | ✗ | Blocked - `role != 'MSWDO'` check |
+| Scan RFID for claims | `scan_rfid()` | `/mswdo/rfid/scan/` | ✅ **Barangay-scoped RFID lookup** (lines 141-146) |
+| View recent claims | `scan_rfid()` (GET) | `/mswdo/rfid/scan/` | ✅ Can filter by barangay (line 308-309) |
+
+**Critical Scoping in RFID Scan** (lines 141-146):
+```python
+if request.user.role == 'BARANGAY':
+    family = Family.objects.get(
+        rfid_uid=uid,
+        is_active=True,
+        household__barangay=request.user.barangay
+    )
+```
+
+### RFID Management
+
+| Capability | Access Level | Notes |
+|------------|--------------|-------|
+| RFID registration overview | ✗ | Blocked - `@mswdo_or_staff_required` decorator |
+| Register RFID to family | ✗ | Blocked - `@mswdo_or_staff_required` decorator |
+| Deactivate RFID | ✗ | Blocked - `role != 'MSWDO'` check |
+| RFID overview dashboard | ✗ | Blocked - `role != 'MSWDO'` check |
+
+### Monitoring & Analytics
+
+| Capability | View Function | URL | Scoping |
+|------------|---------------|-----|---------|
+| View aid type list | ✗ | Blocked - `@mswdo_or_staff_required` decorator |
+| View aid by barangay | ✗ | Blocked - `@mswdo_or_staff_required` decorator |
+| View aid barangay detail | ✗ | Blocked - `@mswdo_or_staff_required` decorator |
+| RFID claim monitoring | ✗ | Blocked - `@mswdo_or_staff_required` decorator |
+| Live claims feed | `rfid_live_claims()` | `/mswdo/rfid/live-claims/` | ✅ **Barangay-scoped** (lines 221-224) |
+| Schedule status | ✗ | Blocked - `@mswdo_or_staff_required` decorator |
+| Barangay schedule status | `barangay_schedule_status()` | `/barangay/schedule-status/` | ✅ Barangay-scoped (lines 433-435) |
+| Analytics dashboard | ✗ | Blocked - uses `@mswdo_or_staff_required` |
+| Barangay analytics | `barangay_analytics()` | `/barangay/analytics/` | ✅ Barangay-scoped (lines 378-384) |
+
+**Scoping Verification**:
+- `rfid_live_claims()`: Lines 221-224 filter to `family__household__barangay=request.user.barangay`
+- `barangay_schedule_status()`: Lines 433-435 filter to `Q(barangay=barangay_obj) | Q(barangay__isnull=True)`
+- `barangay_analytics()`: Lines 378-384 filter to `family__household__barangay=barangay`
+
+### Reports
+
+| Capability | Access Level | Notes |
+|------------|--------------|-------|
+| View aid reports | ✗ | Blocked - `@mswdo_or_staff_required` decorator |
+
+### Dashboard
+
+| Capability | View Function | URL | Scoping |
+|------------|---------------|-----|---------|
+| Barangay Dashboard | `barangay_dashboard()` | `/barangay/dashboard/` | ✅ Barangay-scoped statistics |
+
+### Settings & Profile
+
+| Capability | View Function | URL | Notes |
+|------------|---------------|-----|-------|
+| Edit own profile | `settings_view()` | `/settings/` | ✅ Shared by all roles |
+| Change own password | `settings_view()` (password form) | `/settings/` | ✅ Requires current password |
+| Update profile photo | `update_profile_photo()` | `/settings/photo/` | ✅ Shared by all roles |
+| Remove profile photo | `remove_profile_photo()` | `/settings/photo/remove/` | ✅ Shared by all roles |
+
+### Key Limitations
+
+**Cannot Do:**
+- User management (any operations)
+- Program/assistance configuration (any operations)
+- Distribution scheduling
+- RFID registration/deactivation
+- Global monitoring views (blocked by `@mswdo_or_staff_required`)
+- Reports access
+- View other barangays' data
+
+**Can Do (barangay-scoped):**
+- Full household/family/member CRUD within assigned barangay
+- RFID scanning for claims (barangay-scoped family lookup)
+- View barangay-specific analytics
+- View barangay-specific schedule status
+- View live claims feed (barangay-scoped)
+
+---
+
+## 5. Side-by-Side Comparison Table
+
+| System Capability | MSWDO Admin | MSWDO Staff | Barangay Admin |
+|------------------|-------------|-------------|----------------|
+| **User Management** |
+| View all user accounts | ✓ | ✗ | ✗ |
+| Create user accounts | ✓ | ✗ | ✗ |
+| Edit user email | ✓ | ✗ | ✗ |
+| Activate/deactivate users | ✓ | ✗ | ✗ |
+| **Household Profiling** |
+| View all barangays | ✓ (Global) | ✓ (Global) | ✗ |
+| View barangay zones | ✓ (Global) | ✓ (Global) | ✗ |
+| View zone households | ✓ (Global) | ✓ (Global) | ✗ |
+| View household details | ✓ (Global) | ✓ (Global) | ✓ (Own barangay) |
+| View family members | ✓ (Global) | ✓ (Global) | ✓ (Own barangay) |
+| Add household | ✗ | ✗ | ✓ (Own barangay) |
+| Edit household | ✗ | ✗ | ✓ (Own barangay) |
+| Delete household | ✗ | ✗ | ✓ (Own barangay) |
+| Add family | ✗ | ✗ | ✓ (Own barangay) |
+| Edit family | ✗ | ✗ | ✓ (Own barangay) |
+| Delete family | ✗ | ✗ | ✓ (Own barangay) |
+| Add family member | ✗ | ✗ | ✓ (Own barangay) |
+| Edit family member | ✗ | ✗ | ✓ (Own barangay) |
+| **Program Configuration** |
+| View programs | ✓ | ✗ | ✗ |
+| Add program | ✓ | ✗ | ✗ |
+| Edit program | ✓ | ✗ | ✗ |
+| Toggle program | ✓ | ✗ | ✗ |
+| Add aid category | ✓ | ✗ | ✗ |
+| Add assistance | ✓ | ✗ | ✗ |
+| Edit assistance | ✓ | ✗ | ✗ |
+| Toggle assistance | ✓ | ✗ | ✗ |
+| **Distribution** |
+| Create schedule | ✓ | ✗ | ✗ |
+| Scan RFID for claims | ✓ (Global) | ✓ (Global) | ✓ (Own barangay) |
+| View recent claims | ✓ (Global) | Partial (Own claims) | ✓ (Can filter by barangay) |
+| **RFID Management** |
+| RFID registration overview | ✓ | ✓ | ✗ |
+| Register RFID to family | ✓ | ✓ | ✗ |
+| Deactivate RFID | ✓ | ✗ | ✗ |
+| RFID overview dashboard | ✓ | ✗ | ✗ |
+| **Monitoring** |
+| View aid type list | ✓ | ✓ | ✗ |
+| View aid by barangay | ✓ | ✓ | ✗ |
+| View aid barangay detail | ✓ | ✓ | ✗ |
+| RFID claim monitoring | ✓ (Global) | Partial (Own claims) | ✗ |
+| Live claims feed | ✓ (Global) | Partial (Own claims) | Partial (Own barangay) |
+| Schedule status | ✓ | ✓ | ✗ |
+| Barangay schedule status | N/A | N/A | ✓ (Own barangay) |
+| Analytics dashboard | ✓ (Global) | ✓ (Global) | ✗ |
+| Barangay analytics | N/A | N/A | ✓ (Own barangay) |
+| **Reports** |
+| View aid reports | ✓ (Global) | ✓ (Global) | ✗ |
+| **Maps** |
+| Household map | ✓ (Global) | ✓ (Global) | Partial (Own barangay) |
+| Vulnerability map | ✓ (Global) | ✓ (Global) | Partial (Own barangay) |
+| **Settings** |
+| Edit own profile | ✓ | ✓ | ✓ |
+| Change own password | ✓ | ✓ | ✓ |
+| Update profile photo | ✓ | ✓ | ✓ |
+| Remove profile photo | ✓ | ✓ | ✓ |
+
+---
+
+## 6. Navigation/Sidebar Differences Per Role
+
+### MSWDO Admin Sidebar Structure
+
+```
+Main
+├── Dashboard
+
+Management
+├── Household Profiling (accordion)
+│   ├── Residents
+│   ├── Household Map
+│   ├── Vulnerability Map
+│   └── RFID Registration
+├── Aid Programs (accordion)
+│   ├── Beneficiary Selection [no link]
+│   ├── Distribution Monitoring
+│   └── Aid History [no link]
+
+Data & Insights
+├── Analytics
+├── Reports
+└── Barangays
+
+System
+├── User Management
+└── Settings
+```
+
+### MSWDO Staff Sidebar Structure
+
+```
+Main
+├── Dashboard
+
+Operations
+├── Household Profiling (accordion)
+│   ├── Residents
+│   ├── Household Map
+│   ├── Vulnerability Map
+│   └── RFID Registration
+├── Aid Programs (accordion)
+│   └── Distribution Monitoring
+```
+
+**Notable Omissions vs MSWDO Admin:**
+- No "Beneficiary Selection" (no link in MSWDO either)
+- No "Aid History" (no link in MSWDO either)
+- No "Analytics" section
+- No "Reports"
+- No "Barangays"
+- No "System" section (User Management)
+- Settings only accessible via topbar user dropdown
+
+### Barangay Admin Sidebar Structure
+
+```
+Main
+├── [Barangay Name] Dashboard
+
+Management
+├── Zones [no link]
+├── Households [no link]
+├── Household Map
+├── Vulnerability Map
+└── Families [no link]
+
+Data & Insights
+└── Analytics
+```
+
+**Notable Characteristics:**
+- Dashboard shows barangay name dynamically
+- Several items have no links (Zones, Households, Families) - likely placeholder
+- No RFID Registration
+- No Distribution Monitoring
+- No Reports
+- No User Management
+- Settings only accessible via topbar user dropdown
+
+---
+
+## 7. Security Observations & Potential Issues
+
+### ✅ Properly Implemented
+
+1. **Forced Password Change Middleware**: Correctly blocks all URLs except password change and logout. Cannot be bypassed by direct navigation.
+
+2. **Barangay Scoping Consistency**: All Barangay Admin views properly filter by `request.user.barangay`. No cross-barangay data leakage detected.
+
+3. **MSWDO Staff Claims Scoping**: Claims monitoring and live claims properly scoped to `created_by=request.user`.
+
+4. **RFID Scan Scoping**: Barangay Admin RFID scan properly filters families by `household__barangay=request.user.barangay`.
+
+5. **Decorator Usage**: `@mswdo_or_staff_required` decorator consistently applied to views intended for both MSWDO and Staff roles.
+
+### ⚠️ Potential Concerns (Read-Only Findings)
+
+1. **MSWDO Staff Analytics Access**: The `analytics()` view (line 349 in monitoring/views.py) uses `@mswdo_or_staff_required` but does NOT apply any scoping. MSWDO Staff can view global analytics data across all barangays and all claims (not just their own). This may be intentional but worth reviewing.
+
+2. **MSWDO Staff Reports Access**: The `aid_reports()` view (line 38 in reports/views.py) uses `@mswdo_or_staff_required` and shows all schedules with claims. No scoping is applied to limit MSWDO Staff to their own processed claims or specific barangays.
+
+3. **MSWDO Staff Household Map Access**: While the household map view applies role-based filtering for Barangay Admin (lines 492-494), MSWDO Staff sees ALL barangays' households (line 496). This is read-only access but provides global visibility.
+
+4. **MSWDO Staff RFID Registration**: MSWDO Staff can register RFID cards to ANY family globally (no barangay scoping in `register_rfid()` view). This may be intentional for operational flexibility but allows cross-barangay RFID assignment.
+
+5. **Barangay Admin Sidebar Dead Links**: Several sidebar items for Barangay Admin have no actual links (Zones, Households, Families). These appear to be placeholders and may confuse users.
+
+6. **MSWDO Admin Sidebar Dead Links**: "Beneficiary Selection" and "Aid History" have no links in the sidebar for both MSWDO Admin and Staff.
+
+7. **No View-Level Scoping for MSWDO Staff in Some Monitoring Views**: 
+   - `aid_type_list()`: No scoping (shows all programs globally)
+   - `aid_barangay_list()`: No scoping (shows all barangays)
+   - `aid_barangay_detail()`: No scoping (shows all families in selected barangay)
+   
+   These are read-only views but provide MSWDO Staff with global visibility across all barangays.
+
+8. **Distribution Scan Recent Claims**: While the recent claims list in `scan_rfid()` is scoped for MSWDO Staff (line 311-312), the view does not prevent MSWDO Staff from filtering by ANY barangay via GET parameter (line 308-309). The scoping only applies to the claims queryset, not the barangay filter dropdown.
+
+### 🔒 Security Strengths
+
+1. **Middleware Enforcement**: Password change cannot be bypassed - properly implemented at middleware level.
+
+2. **Consistent Role Checks**: All views use explicit `if request.user.role != 'X': return HttpResponseForbidden()` patterns.
+
+3. **Queryset Scoping**: Barangay Admin views consistently filter querysets by `request.user.barangay`.
+
+4. **No Direct Object Reference Attacks**: All views use `get_object_or_404` with scoping parameters, preventing ID enumeration attacks.
+
+5. **Session Protection**: `@session_protected` decorator applied to sensitive views ensures authentication.
+
+---
+
+## Summary
+
+The S.A.R.A. system implements a three-tier role-based access control model with clear separation of concerns:
+
+- **MSWDO Admin**: Full system access with global visibility across all barangays and all operational capabilities.
+- **MSWDO Staff**: Operational access for distribution and household viewing (read-only globally), with claims monitoring scoped to their own processed claims. Cannot manage users or configure programs.
+- **Barangay Admin**: Full CRUD access to household/family/member data within their assigned barangay only. Can scan RFID for claims within their barangay. Cannot access system configuration or other barangays' data.
+
+The forced password change mechanism is properly implemented and cannot be bypassed. Barangay scoping is consistently applied for Barangay Admin views. MSWDO Staff has appropriate scoping for claims processing but retains global visibility for analytics and reports, which may be intentional for oversight purposes.
