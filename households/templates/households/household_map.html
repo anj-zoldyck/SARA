@@ -133,7 +133,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const DEFAULT_MAP_ZOOM = 15;
     const zoneMap = {{ zone_map_json|safe }};
     const userRole = "{{ request.user.role }}";
+    const boundaryMode = "{{ boundary_mode }}";
+    const assignedBarangay = "{{ assigned_barangay|default:''|escapejs }}";
     
+    let boundaryBounds = null;
+
     // UI Elements
     const filterBarangay = document.getElementById('filterBarangay');
     const filterZone = document.getElementById('filterZone');
@@ -157,6 +161,37 @@ document.addEventListener('DOMContentLoaded', function() {
         maxClusterRadius: 50
     });
     map.addLayer(markersCluster);
+
+    // Load Boundary Overlay
+    fetch('{% static "households/geojson/santa_rita_boundaries.geojson" %}')
+        .then(res => res.json())
+        .then(data => {
+            const boundaryLayer = L.geoJSON(data, {
+                style: {
+                    color: '#dc2626',
+                    weight: 3,
+                    fillColor: '#6b7280',
+                    fillOpacity: 0.15,
+                    interactive: false
+                },
+                filter: function(feature) {
+                    if (boundaryMode === 'municipal') {
+                        return feature.properties.boundary_type === 'municipal';
+                    } else if (boundaryMode === 'barangay') {
+                        return feature.properties.boundary_type === 'barangay' && feature.properties.name === assignedBarangay;
+                    }
+                    return false;
+                }
+            }).addTo(map);
+
+            boundaryBounds = boundaryLayer.getBounds();
+            if (boundaryMode === 'barangay' && boundaryBounds.isValid()) {
+                map.fitBounds(boundaryBounds);
+            }
+            
+            boundaryLayer.bringToBack();
+        })
+        .catch(err => console.error("Error loading boundary overlay:", err));
 
     // Hazard color mapping
     const hazardColors = {
@@ -286,6 +321,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (householdsToRender.length > 0) {
             map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
+        } else if (boundaryBounds && boundaryBounds.isValid() && boundaryMode === 'barangay') {
+            map.fitBounds(boundaryBounds);
         } else {
             map.setView(DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM);
         }

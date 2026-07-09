@@ -19,6 +19,7 @@ from distribution.models import AidSchedule, AidClaim
 
 from django.db import transaction
 from households.forms import HouseholdForm, FamilyForm, FamilyMemberForm, SeniorCitizenProfileForm, SoloParentProfileForm, PWDProfileForm
+from households.constants import OSM_TO_DB_BARANGAY_NAME
 from programs.forms import ProgramForm, AidCategoryForm, AssistanceForm
 # from distribution.forms import AidScheduleForm  # if any
 
@@ -489,7 +490,15 @@ def household_modal_content(request, household_id):
 @login_required
 @session_protected
 def household_map(request):
+    db_to_osm = {v: k for k, v in OSM_TO_DB_BARANGAY_NAME.items()}
+    boundary_mode = 'municipal'
+    assigned_barangay = None
+
     if request.user.role == 'BARANGAY':
+        boundary_mode = 'barangay'
+        if request.user.barangay:
+            assigned_barangay = db_to_osm.get(request.user.barangay.name, request.user.barangay.name)
+            
         barangays = [request.user.barangay] if request.user.barangay else []
         zones = Zone.objects.filter(barangay=request.user.barangay).order_by('name') if request.user.barangay else []
     else:
@@ -510,7 +519,9 @@ def household_map(request):
         'barangays': barangays,
         'land_uses': land_uses,
         'hazards': hazards,
-        'zone_map_json': json.dumps(zone_map)
+        'zone_map_json': json.dumps(zone_map),
+        'boundary_mode': boundary_mode,
+        'assigned_barangay': assigned_barangay,
     })
 
 @login_required
@@ -567,7 +578,15 @@ def household_map_data(request):
 @login_required
 @session_protected
 def household_vulnerability_map(request):
+    db_to_osm = {v: k for k, v in OSM_TO_DB_BARANGAY_NAME.items()}
+    boundary_mode = 'municipal'
+    assigned_barangay = None
+
     if request.user.role == 'BARANGAY':
+        boundary_mode = 'barangay'
+        if request.user.barangay:
+            assigned_barangay = db_to_osm.get(request.user.barangay.name, request.user.barangay.name)
+
         barangays = [request.user.barangay] if request.user.barangay else []
         zones = Zone.objects.filter(barangay=request.user.barangay).order_by('name') if request.user.barangay else []
     else:
@@ -594,7 +613,9 @@ def household_vulnerability_map(request):
         'barangays': barangays,
         'hazards': hazards,
         'demographic_flags': demographic_flags,
-        'zone_map_json': json.dumps(zone_map)
+        'zone_map_json': json.dumps(zone_map),
+        'boundary_mode': boundary_mode,
+        'assigned_barangay': assigned_barangay,
     })
 
 @login_required
