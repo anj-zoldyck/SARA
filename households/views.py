@@ -515,6 +515,22 @@ def household_map(request):
             zone_map[b_id] = []
         zone_map[b_id].append({'id': z.id, 'name': z.name})
 
+    from households.models import WeatherSnapshot
+    from households.vulnerability import get_barangay_weather_risk
+
+    latest_snapshot = WeatherSnapshot.objects.filter(fetch_successful=True).order_by('-fetched_at').first()
+    weather_fetched_at = latest_snapshot.fetched_at.isoformat() if latest_snapshot else ''
+
+    weather_risks = {}
+    if request.user.role == 'BARANGAY':
+        if request.user.barangay:
+            osm_name = db_to_osm.get(request.user.barangay.name, request.user.barangay.name)
+            weather_risks[osm_name] = get_barangay_weather_risk(request.user.barangay)
+    else:
+        for b in barangays:
+            osm_name = db_to_osm.get(b.name, b.name)
+            weather_risks[osm_name] = get_barangay_weather_risk(b)
+
     return render(request, 'households/household_map.html', {
         'barangays': barangays,
         'land_uses': land_uses,
@@ -522,6 +538,8 @@ def household_map(request):
         'zone_map_json': json.dumps(zone_map),
         'boundary_mode': boundary_mode,
         'assigned_barangay': assigned_barangay,
+        'weather_risks_json': json.dumps(weather_risks),
+        'weather_fetched_at': weather_fetched_at,
     })
 
 @login_required

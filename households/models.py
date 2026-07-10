@@ -367,3 +367,15 @@ class PWDProfile(models.Model):
 
     def __str__(self):
         return f"PWD Profile - {self.member}"
+
+# ----------------- Weather Model -----------------
+
+class WeatherSnapshot(models.Model):
+    fetched_at = models.DateTimeField(auto_now_add=True)
+    current_wind_speed_kmh = models.DecimalField(max_digits=6, decimal_places=2)
+    current_precipitation_mm = models.DecimalField(max_digits=6, decimal_places=2)
+    forecast_data = models.JSONField()  # store the full hourly forecast array for reference
+    fetch_successful = models.BooleanField(default=True)
+    
+    def __str__(self):
+        return f"Weather Snapshot - {self.fetched_at.strftime('%Y-%m-%d %H:%M:%S')} - Success: {self.fetch_successful}"
