@@ -81,9 +81,20 @@
   flex-shrink: 0;
 }
 
-.acct-summary-icon--blue  { background: rgba(19, 78, 213, 0.1); color: var(--secondary); }
-.acct-summary-icon--green { background: #dcfce7; color: #166534; }
-.acct-summary-icon--navy  { background: rgba(13, 45, 107, 0.08); color: var(--primary); }
+.acct-summary-icon--blue {
+  background: rgba(19, 78, 213, 0.1);
+  color: var(--secondary);
+}
+
+.acct-summary-icon--green {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.acct-summary-icon--navy {
+  background: rgba(13, 45, 107, 0.08);
+  color: var(--primary);
+}
 
 .acct-summary-val {
   display: block;
@@ -236,7 +247,7 @@
   text-decoration: none;
   border: 1.5px solid transparent;
   transition: background var(--transition), border-color var(--transition),
-              color var(--transition), box-shadow var(--transition);
+    color var(--transition), box-shadow var(--transition);
   white-space: nowrap;
 }
 
@@ -255,6 +266,19 @@
   border-color: #93c5fd;
   color: #1e40af;
   box-shadow: 0 2px 6px rgba(29, 78, 216, 0.15);
+}
+
+.acct-btn--delete {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c;
+}
+
+.acct-btn--delete:hover {
+  background: #ffe4e6;
+  border-color: #fda4af;
+  color: #9f1239;
+  box-shadow: 0 2px 6px rgba(190, 18, 60, 0.15);
 }
 
 .acct-btn--deactivate {
@@ -524,7 +548,9 @@
   margin-top: 1px;
 }
 
-.form-guideline-icon--blue { color: var(--secondary); }
+.form-guideline-icon--blue {
+  color: var(--secondary);
+}
 
 /* =============================================================
    PROGRAM LIST

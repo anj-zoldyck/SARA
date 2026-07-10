@@ -93,7 +93,16 @@
             {% endif %}
           </div>
         </div>
-<div class="hh-form-row" style="grid-template-columns: 1fr 1fr 1fr 80px;">
+  <div class="hh-form-row" style="grid-template-columns: 1fr 1fr 1fr 80px;">
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-person"></i> Last Name <span class="acct-form__required">*</span>
+            </label>
+            <div class="acct-form__control-wrap">{{ form.last_name }}</div>
+            {% if form.last_name.errors %}
+              <p class="acct-form__error">{{ form.last_name.errors|join:", " }}</p>
+            {% endif %}
+          </div>
           <div class="acct-form__group">
             <label class="acct-form__label">
               <i class="bi bi-person"></i> First Name <span class="acct-form__required">*</span>
@@ -110,15 +119,6 @@
             <div class="acct-form__control-wrap">{{ form.middle_name }}</div>
             {% if form.middle_name.errors %}
               <p class="acct-form__error">{{ form.middle_name.errors|join:", " }}</p>
-            {% endif %}
-          </div>
-          <div class="acct-form__group">
-            <label class="acct-form__label">
-              <i class="bi bi-person"></i> Last Name <span class="acct-form__required">*</span>
-            </label>
-            <div class="acct-form__control-wrap">{{ form.last_name }}</div>
-            {% if form.last_name.errors %}
-              <p class="acct-form__error">{{ form.last_name.errors|join:", " }}</p>
             {% endif %}
           </div>
           <div class="acct-form__group">

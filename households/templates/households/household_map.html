@@ -64,6 +64,30 @@
     border: 2px solid white;
     cursor: pointer;
   }
+  .map-loading-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(255, 255, 255, 0.7);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+  }
+  .empty-state-message {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    padding: 1rem 2rem;
+    border-radius: 0.5rem;
+    z-index: 999;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    font-weight: 500;
+    display: none;
+  }
 </style>
 {% endblock %}
 
@@ -136,18 +160,33 @@
       </select>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3">
       <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #475569;">Search Map</label>
       <div class="input-group input-group-sm">
         <span class="input-group-text"><i class="bi bi-search"></i></span>
         <input type="text" id="filterSearch" class="form-control" placeholder="House number or address...">
       </div>
     </div>
+    
+    <div class="col-md-1">
+      <label class="form-label" style="font-size: 0.85rem; font-weight: 600; color: #475569;">&nbsp;</label>
+      <button id="resetFilters" class="btn btn-sm btn-outline-secondary w-100" title="Reset Filters" style="white-space: nowrap; padding-left: 0.2rem; padding-right: 0.2rem;">
+        Reset <span id="activeFilterBadge" class="badge bg-secondary ms-1 d-none">0</span>
+      </button>
+    </div>
   </div>
 </div>
 
 <div class="dash-panel">
-  <div class="dash-panel__body p-0">
+  <div class="dash-panel__body p-0" style="position: relative;">
+    <div id="mapLoading" class="map-loading-overlay" style="display: flex;">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+    <div id="mapEmptyState" class="empty-state-message">
+      No households match the selected filters.
+    </div>
     <div id="householdMap" class="map-container"></div>
   </div>
 </div>
@@ -170,6 +209,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const assignedBarangay = "{{ assigned_barangay|default:''|escapejs }}";
     const weatherRisks = {{ weather_risks_json|safe|default:"{}" }};
     const weatherFetchedAt = "{{ weather_fetched_at|default:''|escapejs }}"; 
+    const barangayStats = {{ barangay_stats_json|safe|default:"{}" }};
     let boundaryBounds = null;
 
     // UI Elements
@@ -178,8 +218,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const filterLandUse = document.getElementById('filterLandUse');
     const filterHazard = document.getElementById('filterHazard');
     const filterSearch = document.getElementById('filterSearch');
+    const resetFiltersBtn = document.getElementById('resetFilters');
+    const activeFilterBadge = document.getElementById('activeFilterBadge');
     const unpinnedAlertContainer = document.getElementById('unpinnedAlertContainer');
     const unpinnedCountText = document.getElementById('unpinnedCountText');
+    const mapLoading = document.getElementById('mapLoading');
+    const mapEmptyState = document.getElementById('mapEmptyState');
 
     let allFetchedHouseholds = []; // Cache for client-side search filtering
 
@@ -215,6 +259,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         return feature.properties.boundary_type === 'barangay' && feature.properties.name === assignedBarangay;
                     }
                     return false;
+                },
+                onEachFeature: function (feature, layer) {
+                    if (userRole !== 'BARANGAY' && feature.properties.boundary_type === 'barangay') {
+                        const bName = feature.properties.name;
+                        if (barangayStats && barangayStats[bName]) {
+                            const stats = barangayStats[bName];
+                            layer.bindTooltip(`<strong>${bName}</strong><br>${stats.total} households, ${stats.flood_exposed} flood-exposed`, {
+                                direction: 'auto',
+                                sticky: true
+                            });
+                        }
+                    }
                 }
             }).addTo(map);
 
@@ -427,27 +483,57 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function updateActiveFilterBadge() {
+        let count = 0;
+        if (filterBarangay && filterBarangay.value) count++;
+        if (filterZone.value) count++;
+        if (filterLandUse.value) count++;
+        if (filterHazard.value) count++;
+        if (filterSearch.value.trim() !== '') count++;
+        
+        if (count > 0) {
+            activeFilterBadge.textContent = count;
+            activeFilterBadge.classList.remove('d-none');
+            activeFilterBadge.classList.add('bg-primary');
+            activeFilterBadge.classList.remove('bg-secondary');
+        } else {
+            activeFilterBadge.classList.add('d-none');
+        }
+    }
+
     function applyClientSearch() {
         const query = filterSearch.value.toLowerCase().trim();
-        if (!query) {
-            renderMarkers(allFetchedHouseholds);
-            return;
+        let filtered = allFetchedHouseholds;
+        
+        if (query) {
+            filtered = allFetchedHouseholds.filter(h => {
+                const num = (h.house_number || '').toLowerCase();
+                const addr = (h.address || '').toLowerCase();
+                return num.includes(query) || addr.includes(query);
+            });
+        }
+        
+        if (filtered.length === 0) {
+            mapEmptyState.style.display = 'block';
+        } else {
+            mapEmptyState.style.display = 'none';
         }
 
-        const filtered = allFetchedHouseholds.filter(h => {
-            const num = (h.house_number || '').toLowerCase();
-            const addr = (h.address || '').toLowerCase();
-            return num.includes(query) || addr.includes(query);
-        });
+        updateActiveFilterBadge();
         renderMarkers(filtered);
     }
 
     function fetchMapData() {
+        mapLoading.style.display = 'flex';
+        mapEmptyState.style.display = 'none';
+
         const params = new URLSearchParams();
-        if (filterBarangay.value) params.append('barangay', filterBarangay.value);
+        if (filterBarangay && filterBarangay.value) params.append('barangay', filterBarangay.value);
         if (filterZone.value) params.append('zone', filterZone.value);
         if (filterLandUse.value) params.append('land_use', filterLandUse.value);
         if (filterHazard.value) params.append('hazard_exposure', filterHazard.value);
+
+        updateActiveFilterBadge();
 
         fetch(`/map/data/?${params.toString()}`)
             .then(res => res.json())
@@ -464,9 +550,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Render with current search applied
                 applyClientSearch();
+                mapLoading.style.display = 'none';
             })
-            .catch(err => console.error("Error fetching map data:", err));
+            .catch(err => {
+                console.error("Error fetching map data:", err);
+                mapLoading.style.display = 'none';
+            });
     }
+
+    resetFiltersBtn.addEventListener('click', () => {
+        if (userRole !== 'BARANGAY' && filterBarangay) {
+            filterBarangay.value = '';
+        }
+        filterZone.innerHTML = '<option value="">All Zones</option>';
+        updateZoneDropdown(); // Re-populate appropriately
+        filterLandUse.value = '';
+        filterHazard.value = '';
+        filterSearch.value = '';
+        fetchMapData();
+    });
 
     // Event Listeners
     if (userRole !== 'BARANGAY') {

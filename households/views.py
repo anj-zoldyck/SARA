@@ -522,6 +522,8 @@ def household_map(request):
     weather_fetched_at = latest_snapshot.fetched_at.isoformat() if latest_snapshot else ''
 
     weather_risks = {}
+    barangay_stats = {}
+    
     if request.user.role == 'BARANGAY':
         if request.user.barangay:
             osm_name = db_to_osm.get(request.user.barangay.name, request.user.barangay.name)
@@ -530,6 +532,10 @@ def household_map(request):
         for b in barangays:
             osm_name = db_to_osm.get(b.name, b.name)
             weather_risks[osm_name] = get_barangay_weather_risk(b)
+            barangay_stats[osm_name] = {
+                'total': b.households.count(),
+                'flood_exposed': b.households.filter(hazard_exposure='FLOOD').count()
+            }
 
     return render(request, 'households/household_map.html', {
         'barangays': barangays,
@@ -540,6 +546,7 @@ def household_map(request):
         'assigned_barangay': assigned_barangay,
         'weather_risks_json': json.dumps(weather_risks),
         'weather_fetched_at': weather_fetched_at,
+        'barangay_stats_json': json.dumps(barangay_stats),
     })
 
 @login_required
@@ -627,6 +634,15 @@ def household_vulnerability_map(request):
             zone_map[b_id] = []
         zone_map[b_id].append({'id': z.id, 'name': z.name})
 
+    barangay_stats = {}
+    if request.user.role != 'BARANGAY':
+        for b in barangays:
+            osm_name = db_to_osm.get(b.name, b.name)
+            barangay_stats[osm_name] = {
+                'total': b.households.count(),
+                'flood_exposed': b.households.filter(hazard_exposure='FLOOD').count()
+            }
+
     return render(request, 'households/household_vulnerability_map.html', {
         'barangays': barangays,
         'hazards': hazards,
@@ -634,6 +650,7 @@ def household_vulnerability_map(request):
         'zone_map_json': json.dumps(zone_map),
         'boundary_mode': boundary_mode,
         'assigned_barangay': assigned_barangay,
+        'barangay_stats_json': json.dumps(barangay_stats),
     })
 
 @login_required
@@ -747,3 +764,16 @@ def delete_family(request, family_id):
         messages.success(request, "Family removed successfully.")
         return redirect('household_detail', household_id=household_id)
     return redirect('family_detail', family_id=family_id)
+
+@login_required(login_url='login')
+@session_protected
+def delete_family_member(request, member_id):
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+    member = get_object_or_404(FamilyMember, id=member_id, family__household__barangay=request.user.barangay)
+    if request.method == 'POST':
+        family_id = member.family.id
+        member.delete()
+        messages.success(request, "Family member removed successfully.")
+        return redirect('family_detail', family_id=family_id)
+    return redirect('family_detail', family_id=member.family.id)

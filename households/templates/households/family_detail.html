@@ -1,250 +1,308 @@
-  {% extends 'base.html' %}
-  {% load static %}
+{% extends 'base.html' %}
+{% load static %}
 
-  {% block title %}{{ family.family_name }} Family — SARA{% endblock %}
-  {% block navbar_title %}{{ family.family_name }} Family{% endblock %}
+{% block title %}{{ family.family_name }} Family — SARA{% endblock %}
+{% block navbar_title %}{{ family.family_name }} Family{% endblock %}
 
-  {% block css %}
-  <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
-  <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
-  <link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
-  <link rel="stylesheet" href="{% static 'css/households.css' %}">
-  <link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
-  {% endblock %}
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+<link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
+{% endblock %}
 
-  {% block content %}
+{% block content %}
 
-  <div class="dash-page-header">
-    <div>
-      <div class="page-breadcrumb">
-        <a href="{% url 'barangay_dashboard' %}" class="breadcrumb-link">
-          <i class="bi bi-speedometer2"></i> Dashboard
-        </a>
-        <i class="bi bi-chevron-right breadcrumb-sep"></i>
-        <a href="{% url 'zone_detail' family.household.zone.id %}" class="breadcrumb-link">{{ family.household.zone.name }}</a>
-        <i class="bi bi-chevron-right breadcrumb-sep"></i>
-        <a href="{% url 'household_detail' family.household.id %}" class="breadcrumb-link">House {{ family.household.house_number }}</a>
-        <i class="bi bi-chevron-right breadcrumb-sep"></i>
-        <span class="breadcrumb-current">{{ family.family_name }}</span>
-      </div>
-      <div class="d-flex align-items-center gap-2">
-        <h1 class="dash-page-title mb-0">{{ family.family_name }} Family</h1>
-        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editFamilyNameModal" title="Edit Family Name" style="padding: 2px 8px;">
-          <i class="bi bi-pencil"></i>
-        </button>
-      </div>
-      <p class="dash-page-sub">
-        <i class="bi bi-person-lines-fill me-1"></i>
-        {{ members|length }} member{{ members|length|pluralize }}
-        &nbsp;·&nbsp; House {{ family.household.house_number }}
-      </p>
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'barangay_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'zone_detail' family.household.zone.id %}" class="breadcrumb-link">{{ family.household.zone.name }}</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'household_detail' family.household.id %}" class="breadcrumb-link">House {{ family.household.house_number }}</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">{{ family.family_name }}</span>
     </div>
-    <div class="dash-header-actions">
-      <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary">
-        <i class="bi bi-plus-lg"></i> Add Member
-      </a>
-      <a href="{% url 'household_detail' family.household.id %}" class="btn-dash-outline">
-        <i class="bi bi-arrow-left"></i> Back to Household
-      </a>
-      <button class="btn-dash-outline" style="color: #dc3545; border-color: #dc3545;" data-bs-toggle="modal" data-bs-target="#removeFamilyModal">
-        <i class="bi bi-trash"></i> Remove Family
+    <div class="d-flex align-items-center gap-2">
+      <h1 class="dash-page-title mb-0">{{ family.family_name }} Family</h1>
+      <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editFamilyNameModal"
+        title="Edit Family Name" style="padding: 2px 8px;">
+        <i class="bi bi-pencil"></i>
       </button>
     </div>
+    <p class="dash-page-sub">
+      <i class="bi bi-person-lines-fill me-1"></i>
+      {{ members|length }} member{{ members|length|pluralize }}
+      &nbsp;·&nbsp; House {{ family.household.house_number }}
+    </p>
   </div>
-
-  <!-- Members Table -->
-  <div class="dash-panel">
-    <div class="dash-panel__header">
-      <div class="dash-panel__header-left">
-        <i class="bi bi-person-lines-fill dash-panel__icon"></i>
-        <div>
-          <h2 class="dash-panel__title">Family Members</h2>
-          <p class="dash-panel__sub">All registered members of the {{ family.family_name }} family</p>
-        </div>
-      </div>
-      <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary" style="font-size:13px; padding:7px 14px;">
-        <i class="bi bi-plus-lg"></i> Add Member
-      </a>
-    </div>
-
-    <div class="dash-panel__body p-0">
-      <div class="table-responsive">
-        <table class="acct-table">
-          <thead>
-            <tr>
-              <th class="acct-th">#</th>
-              <th class="acct-th">Full Name</th>
-              <th class="acct-th">Relationship</th>
-              <th class="acct-th">Age</th>
-              <th class="acct-th acct-th--actions">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for member in members %}
-            <tr class="acct-row">
-              <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
-              <td class="acct-td">
-                <div class="acct-barangay-cell">
-                  <div class="acct-avatar">
-                    {% if member.profile_image %}
-                      <img src="{{ member.profile_image.url }}" alt="Photo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
-                    {% else %}
-                      {{ member.first_name|first|upper }}{{ member.last_name|first|upper }}
-                    {% endif %}
-                  </div>
-                  <a href="#" class="hh-family-link member-detail-trigger" data-member-id="{{ member.id }}" style="text-decoration: none; color: inherit;"><span class="acct-barangay-name" style="cursor: pointer; text-decoration: underline;">{{ member.first_name }} {{ member.last_name }}</span></a>
-                </div>
-              </td>
-              <td class="acct-td">
-                <span class="hh-relationship">{{ member.relationship }}</span>
-              </td>
-              <td class="acct-td">
-                <span class="hh-age-badge">{{ member.age }} yrs</span>
-              </td>
-              <td class="acct-td acct-td--actions">
-                <div class="acct-actions">
-                  <a href="{% url 'edit_family_member' member.id %}" class="acct-btn acct-btn--edit">
-                    <i class="bi bi-pencil"></i><span>Edit</span>
-                  </a>
-                </div>
-              </td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="5" class="acct-empty">
-                <div class="acct-empty-state">
-                  <i class="bi bi-person-lines-fill"></i>
-                  <p>No members added yet.</p>
-                  <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary">
-                    <i class="bi bi-plus-lg"></i> Add First Member
-                  </a>
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <div class="page-back-row">
+  <div class="dash-header-actions">
+    <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary">
+      <i class="bi bi-plus-lg"></i> Add Member
+    </a>
     <a href="{% url 'household_detail' family.household.id %}" class="btn-dash-outline">
       <i class="bi bi-arrow-left"></i> Back to Household
     </a>
+    <button class="btn-dash-outline" style="color: #dc3545; border-color: #dc3545;" data-bs-toggle="modal"
+      data-bs-target="#removeFamilyModal">
+      <i class="bi bi-trash"></i> Remove Family
+    </button>
+  </div>
+</div>
+
+<!-- Members Table -->
+<div class="dash-panel">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-person-lines-fill dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Family Members</h2>
+        <p class="dash-panel__sub">All registered members of the {{ family.family_name }} family</p>
+      </div>
+    </div>
+    <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary"
+      style="font-size:13px; padding:7px 14px;">
+      <i class="bi bi-plus-lg"></i> Add Member
+    </a>
   </div>
 
-  
-  <div class="modal-overlay" id="residentDetailModalOverlay">
-    <div class="kiosk-modal" style="max-width: 500px;">
-      <div id="residentDetailModalContent">
-        <div class="p-5 text-center">
-          <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
-          </div>
+  <div class="dash-panel__body p-0">
+    <div class="table-responsive">
+      <table class="acct-table">
+        <thead>
+          <tr>
+            <th class="acct-th">#</th>
+            <th class="acct-th">Full Name</th>
+            <th class="acct-th">Relationship</th>
+            <th class="acct-th">Age</th>
+            <th class="acct-th acct-th--actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for member in members %}
+          <tr class="acct-row">
+            <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
+            <td class="acct-td">
+              <div class="acct-barangay-cell">
+                <div class="acct-avatar">
+                  {% if member.profile_image %}
+                  <img src="{{ member.profile_image.url }}" alt="Photo"
+                    style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                  {% else %}
+                  {{ member.first_name|first|upper }}{{ member.last_name|first|upper }}
+                  {% endif %}
+                </div>
+                <a href="#" class="hh-family-link member-detail-trigger" data-member-id="{{ member.id }}"
+                  style="text-decoration: none; color: inherit;"><span class="acct-barangay-name"
+                    style="cursor: pointer; text-decoration: underline;">{{ member.first_name }} {{ member.last_name }}</span></a>
+              </div>
+            </td>
+            <td class="acct-td">
+              <span class="hh-relationship">{{ member.relationship }}</span>
+            </td>
+            <td class="acct-td">
+              <span class="hh-age-badge">{{ member.age }} yrs</span>
+            </td>
+            <td class="acct-td acct-td--actions">
+              <div class="acct-actions">
+                <a href="{% url 'edit_family_member' member.id %}" class="acct-btn acct-btn--edit">
+                  <i class="bi bi-pencil"></i><span>Edit</span>
+                </a>
+                <button type="button" class="acct-btn acct-btn--delete member-remove-trigger"
+                        data-member-id="{{ member.id }}"
+                        data-member-name="{{ member.first_name }} {{ member.last_name }}">
+                  <i class="bi bi-trash"></i><span>Remove</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="acct-empty">
+              <div class="acct-empty-state">
+                <i class="bi bi-person-lines-fill"></i>
+                <p>No members added yet.</p>
+                <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary">
+                  <i class="bi bi-plus-lg"></i> Add First Member
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="page-back-row">
+  <a href="{% url 'household_detail' family.household.id %}" class="btn-dash-outline">
+    <i class="bi bi-arrow-left"></i> Back to Household
+  </a>
+</div>
+
+
+<div class="modal-overlay" id="residentDetailModalOverlay">
+  <div class="kiosk-modal" style="max-width: 500px;">
+    <div id="residentDetailModalContent">
+      <div class="p-5 text-center">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
         </div>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Edit Family Name Modal -->
-  <div class="modal fade sara-modal" id="editFamilyNameModal" tabindex="-1" aria-labelledby="editFamilyNameModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="editFamilyNameModalLabel">
-            <i class="bi bi-pencil"></i> Edit Family Name
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <form method="post" action="{% url 'edit_family_name' family.id %}">
-          {% csrf_token %}
-          <div class="modal-body">
-            <div class="modal-form__group">
-              <label class="modal-form__label" for="family_name">Family Name <span class="modal-form__required">*</span></label>
-              <input type="text" id="family_name" name="family_name" class="modal-form__control" value="{{ family.family_name }}" required>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn-dash-primary">Save Changes</button>
-          </div>
-        </form>
+<!-- Edit Family Name Modal -->
+<div class="modal fade sara-modal" id="editFamilyNameModal" tabindex="-1" aria-labelledby="editFamilyNameModalLabel"
+  aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editFamilyNameModalLabel">
+          <i class="bi bi-pencil"></i> Edit Family Name
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
+      <form method="post" action="{% url 'edit_family_name' family.id %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="family_name">Family Name <span
+                class="modal-form__required">*</span></label>
+            <input type="text" id="family_name" name="family_name" class="modal-form__control"
+              value="{{ family.family_name }}" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-dash-primary">Save Changes</button>
+        </div>
+      </form>
     </div>
   </div>
+</div>
 
-  <!-- Remove Family Modal -->
-  <div class="modal fade sara-modal" id="removeFamilyModal" tabindex="-1" aria-labelledby="removeFamilyModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title text-danger" id="removeFamilyModalLabel">
-            <i class="bi bi-exclamation-triangle"></i> Remove Family
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <form method="post" action="{% url 'delete_family' family.id %}">
-          {% csrf_token %}
-          <div class="modal-body">
-            <p class="mb-0 text-muted">⚠️ Removing this family will also permanently delete all registered members. This cannot be undone. Are you sure?</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-danger" style="font-weight: 500; padding: 10px 16px; border-radius: 6px;">Yes, Remove</button>
-          </div>
-        </form>
+<!-- Remove Family Modal -->
+<div class="modal fade sara-modal" id="removeFamilyModal" tabindex="-1" aria-labelledby="removeFamilyModalLabel"
+  aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-danger" id="removeFamilyModalLabel">
+          <i class="bi bi-exclamation-triangle"></i> Remove Family
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
+      <form method="post" action="{% url 'delete_family' family.id %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <p class="mb-0 text-muted">⚠️ Removing this family will also permanently delete all registered members. This
+            cannot be undone. Are you sure?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger"
+            style="font-weight: 500; padding: 10px 16px; border-radius: 6px;">Yes, Remove</button>
+        </div>
+      </form>
     </div>
   </div>
+</div>
 
-  {% endblock %}
+<!-- Remove Member Modal -->
+<div class="modal fade sara-modal" id="removeMemberModal" tabindex="-1" aria-labelledby="removeMemberModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-danger" id="removeMemberModalLabel">
+          <i class="bi bi-exclamation-triangle"></i> Remove Member
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" id="removeMemberForm" action="">
+        {% csrf_token %}
+        <div class="modal-body">
+          <p class="mb-0 text-muted">
+            ⚠️ You are about to remove <strong id="removeMemberName"></strong> from this family.
+            This will permanently delete this member's record, including any linked Senior Citizen, PWD,
+            or Solo Parent profile, and any associated aid claim history reference to this member.
+            This cannot be undone. Are you sure?
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger" style="font-weight: 500; padding: 10px 16px; border-radius: 6px;">Yes, Remove Member</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
 
 {% block js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('DOMContentLoaded', function () {
     const modalOverlay = document.getElementById('residentDetailModalOverlay');
     const modalContent = document.getElementById('residentDetailModalContent');
     const loadingHtml = '<div class="p-5 text-center"><div class="spinner-border text-primary" role="status"></div></div>';
 
     document.querySelectorAll('.member-detail-trigger').forEach(trigger => {
-        trigger.addEventListener('click', function(e) {
-            e.preventDefault();
-            const memberId = this.getAttribute('data-member-id');
-            
-            // Show modal with loading state
-            modalContent.innerHTML = loadingHtml;
-            modalOverlay.classList.add('active');
-            
-            // Fetch content
-            fetch(`/barangay/members/${memberId}/details/`)
-                .then(response => {
-                    if (!response.ok) throw new Error('Network response was not ok');
-                    return response.text();
-                })
-                .then(html => {
-                    modalContent.innerHTML = html;
-                    // Attach close listener to the new close button
-                    const closeBtn = modalContent.querySelector('.modal-close-btn');
-                    if(closeBtn) {
-                        closeBtn.addEventListener('click', function() {
-                            modalOverlay.classList.remove('active');
-                        });
-                    }
-                })
-                .catch(error => {
-                    modalContent.innerHTML = '<div class="p-4 text-center text-danger"><i class="bi bi-exclamation-triangle fs-1"></i><p class="mt-2">Failed to load member details.</p></div>';
-                    console.error('Error fetching member details:', error);
-                });
-        });
+      trigger.addEventListener('click', function (e) {
+        e.preventDefault();
+        const memberId = this.getAttribute('data-member-id');
+
+        // Show modal with loading state
+        modalContent.innerHTML = loadingHtml;
+        modalOverlay.classList.add('active');
+
+        // Fetch content
+        fetch(`/barangay/members/${memberId}/details/`)
+          .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.text();
+          })
+          .then(html => {
+            modalContent.innerHTML = html;
+            // Attach close listener to the new close button
+            const closeBtn = modalContent.querySelector('.modal-close-btn');
+            if (closeBtn) {
+              closeBtn.addEventListener('click', function () {
+                modalOverlay.classList.remove('active');
+              });
+            }
+          })
+          .catch(error => {
+            modalContent.innerHTML = '<div class="p-4 text-center text-danger"><i class="bi bi-exclamation-triangle fs-1"></i><p class="mt-2">Failed to load member details.</p></div>';
+            console.error('Error fetching member details:', error);
+          });
+      });
     });
 
     // Close when clicking outside
-    modalOverlay.addEventListener('click', function(e) {
-        if (e.target === this) {
-            this.classList.remove('active');
-        }
+    modalOverlay.addEventListener('click', function (e) {
+      if (e.target === this) {
+        this.classList.remove('active');
+      }
     });
-});
+
+    // Remove Member Modal trigger
+    document.querySelectorAll('.member-remove-trigger').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const memberId = this.getAttribute('data-member-id');
+            const memberName = this.getAttribute('data-member-name');
+            document.getElementById('removeMemberName').textContent = memberName;
+            document.getElementById('removeMemberForm').action = `/barangay/members/${memberId}/delete/`;
+            const modal = new bootstrap.Modal(document.getElementById('removeMemberModal'));
+            modal.show();
+        });
+    });
+  });
 </script>
 {% endblock %}
