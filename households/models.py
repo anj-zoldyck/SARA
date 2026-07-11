@@ -3,6 +3,7 @@ from accounts.models import Barangay
 from accounts.utils import resident_profile_image_path
 import datetime
 from django.core.validators import RegexValidator
+from django.conf import settings
 
 # ----------------- Zone Model -----------------
 class Zone(models.Model):
@@ -11,6 +12,14 @@ class Zone(models.Model):
 
     def __str__(self):
         return f"{self.barangay.name} - {self.name}"
+
+class FloodProneArea(models.Model):
+    zone = models.ForeignKey(Zone, on_delete=models.CASCADE, related_name='flood_prone_areas')
+    latitude = models.DecimalField(max_digits=9, decimal_places=6)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6)
+    description = models.CharField(max_length=255, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 # ----------------- Household Model -----------------
 class Household(models.Model):
