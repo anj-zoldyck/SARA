@@ -103,19 +103,7 @@ def household_info(request, household_id):
     })
 
 
-@login_required
-@session_protected
-@mswdo_or_staff_required
-def family_members(request, family_id):
 
-    family = get_object_or_404(Family.objects.select_related('household', 'household__zone', 'household__barangay'), id=family_id)
-
-    members = family.members.all().order_by('first_name', 'last_name')  # or use select_related if needed
-
-    return render(request, 'households/family_members.html', {
-        'family': family,
-        'members': members,
-    })
 
 
 @login_required(login_url='login')
@@ -312,16 +300,30 @@ def add_family(request, household_id):
 @login_required
 @session_protected
 def family_detail(request, family_id):
-    if request.user.role != 'BARANGAY':
+    # Allow Barangay Admin AND MSWDO Staff
+    if request.user.role not in ('BARANGAY', 'MSWDO_STAFF'):
         return HttpResponseForbidden("Access Denied")
 
-    family = get_object_or_404(
-        Family,
-        id=family_id,
-        household__barangay=request.user.barangay
-    )
+    # Scope the query differently per role
+    if request.user.role == 'BARANGAY':
+        # Barangay Admin can only see families in their own barangay
+        family = get_object_or_404(
+            Family.objects.select_related(
+                'household', 'household__zone', 'household__barangay'
+            ),
+            id=family_id,
+            household__barangay=request.user.barangay
+        )
+    else:
+        # MSWDO Staff has system-wide read access — no barangay restriction
+        family = get_object_or_404(
+            Family.objects.select_related(
+                'household', 'household__zone', 'household__barangay'
+            ),
+            id=family_id
+        )
 
-    members = family.members.all()
+    members = family.members.all().order_by('first_name', 'last_name')
 
     return render(request, 'households/family_detail.html', {
         'family': family,
@@ -520,14 +522,17 @@ def edit_family_member(request, member_id):
 @login_required
 @session_protected
 def member_details_modal(request, member_id):
-    if request.user.role != 'BARANGAY':
+    if request.user.role not in ('BARANGAY', 'MSWDO_STAFF'):
         return HttpResponseForbidden('Access Denied')
 
-    member = get_object_or_404(
-        FamilyMember,
-        id=member_id,
-        family__household__barangay=request.user.barangay
-    )
+    if request.user.role == 'BARANGAY':
+        member = get_object_or_404(
+            FamilyMember,
+            id=member_id,
+            family__household__barangay=request.user.barangay
+        )
+    else:
+        member = get_object_or_404(FamilyMember, id=member_id)
 
     claims = AidClaim.objects.filter(
         Q(family_member=member) | Q(family=member.family, family_member__isnull=True)

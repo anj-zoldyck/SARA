@@ -142,8 +142,11 @@
           <span class="badge bg-primary rounded-pill">{{ today_claims }}</span>
         </div>
 
-        <a href="{% url 'scan_rfid' %}" class="btn-dash-primary w-100 d-flex justify-content-center align-items-center gap-2 py-2">
+        <a href="{% url 'scan_rfid' %}" class="btn-dash-primary w-100 d-flex justify-content-center align-items-center gap-2 py-2 mb-2">
           <i class="bi bi-upc-scan"></i> Launch RFID Scanner
+        </a>
+        <a href="{% url 'staff_walkin' %}" class="btn-dash-outline w-100 d-flex justify-content-center align-items-center gap-2 py-2">
+          <i class="bi bi-person-lines-fill"></i> Walk-in Assistance
         </a>
       </div>
     </div>

@@ -1,12 +1,16 @@
-from django.urls import path
+from django.urls import path, reverse
+from django.http import HttpResponseRedirect
 from . import views
+
+def family_members_redirect(request, family_id):
+    return HttpResponseRedirect(reverse('family_detail', kwargs={'family_id': family_id}))
 
 urlpatterns = [
     path('mswdo/barangays/', views.barangay_list, name='barangay_list'),
     path('mswdo/barangays/<int:barangay_id>/zones/', views.barangay_zones, name='barangay_zones'),
     path('mswdo/zones/<int:zone_id>/households/', views.zone_households, name='zone_households'),
     path('mswdo/households/<int:household_id>/', views.household_info, name='household_info'),
-    path('mswdo/families/<int:family_id>/members/', views.family_members, name='family_members'),
+    path('mswdo/families/<int:family_id>/members/', family_members_redirect, name='family_members'),
     path('barangay/zones/<int:zone_id>/', views.zone_detail, name='zone_detail'),
     path('barangay/zones/<int:zone_id>/flood-prone-areas/', views.manage_flood_prone_areas, name='manage_flood_prone_areas'),
     path('barangay/zones/<int:zone_id>/flood-prone-areas/api/', views.manage_flood_prone_areas_api, name='manage_flood_prone_areas_api'),

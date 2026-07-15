@@ -1,0 +1,390 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Walk-in Assistance — SARA{% endblock %}
+{% block navbar_title %}Walk-in Assistance{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/program_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
+<style>
+  /* Hidden input for RFID scanner */
+  #rfid_uid_input {
+    position: absolute;
+    left: -9999px;
+    opacity: 0;
+  }
+  .search-form-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .search-filters {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+  .search-filters .form-group {
+    flex: 1;
+    min-width: 200px;
+  }
+  .search-filters .btn-dash-primary {
+    padding: 0.5rem 1.25rem;
+    height: 42px;
+  }
+  .walkin-badge {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .walkin-badge--senior { background: #cce5ff; color: #004085; }
+  .walkin-badge--pwd { background: #d4edda; color: #155724; }
+  .walkin-badge--solo { background: #fff3cd; color: #856404; }
+</style>
+{% endblock %}
+
+{% block content %}
+<input type="text" id="rfid_uid_input" autofocus autocomplete="off">
+
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'staff_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Walk-in Assistance</span>
+    </div>
+    <h1 class="dash-page-title">Walk-in Assistance</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-person-lines-fill me-1"></i>
+      Search for a resident by name, or tap their RFID card to verify eligibility and record a claim.
+    </p>
+  </div>
+</div>
+
+<div class="search-form-card shadow-sm" id="searchSection" style="position: relative; z-index: 10;">
+  <form method="GET" action="{% url 'staff_walkin' %}">
+    <div class="search-filters">
+      <div class="form-group mb-0">
+        <label class="text-muted small fw-bold mb-1" for="q"><i class="bi bi-search"></i> Resident Name</label>
+        <input type="text" class="form-control" id="q" name="q" value="{{ query }}" placeholder="Search by first or last name...">
+      </div>
+      <div class="form-group mb-0">
+        <label class="text-muted small fw-bold mb-1" for="filter-barangay"><i class="bi bi-geo-alt"></i> Barangay</label>
+        <select class="form-select" id="filter-barangay" name="barangay">
+          <option value="">All Barangays</option>
+          {% for barangay in barangays %}
+            <option value="{{ barangay.id }}" {% if selected_barangay == barangay.id|stringformat:"s" %}selected{% endif %}>
+              {{ barangay.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group mb-0">
+        <label class="text-muted small fw-bold mb-1" for="filter-zone"><i class="bi bi-map"></i> Zone</label>
+        <select class="form-select" id="filter-zone" name="zone">
+          <option value="">All Zones</option>
+          {% for zone in all_zones %}
+            <option value="{{ zone.id }}"
+                    data-barangay="{{ zone.barangay_id }}"
+                    {% if selected_zone == zone.id|stringformat:"s" %}selected{% endif %}>
+              {{ zone.name }}{% if not selected_barangay %} — {{ zone.barangay.name }}{% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group mb-0 flex-grow-0 d-flex gap-2">
+        <button type="submit" class="btn-dash-primary w-100">Search</button>
+        <a href="{% url 'staff_walkin' %}" class="btn btn-outline-secondary d-flex align-items-center justify-content-center" title="Clear">
+          <i class="bi bi-x-circle"></i>
+        </a>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="dash-panel">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-list-ul dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Search Results</h2>
+        <p class="dash-panel__sub">Click on a resident to view their profile and record a walk-in claim</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-panel__body p-0">
+    <div class="table-responsive">
+      <table class="acct-table table-hover">
+        <thead>
+          <tr>
+            <th class="acct-th">Name</th>
+            <th class="acct-th">Location</th>
+            <th class="acct-th">Family Name</th>
+            <th class="acct-th">Categories</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if not query and not selected_barangay and not selected_zone %}
+          <tr>
+            <td colspan="4" class="text-center py-5 text-muted">
+              <i class="bi bi-search" style="font-size: 2rem; display: block; margin-bottom: 10px; opacity: 0.5;"></i>
+              Search for a resident by name, or tap their RFID card.
+            </td>
+          </tr>
+          {% elif not members %}
+          <tr>
+            <td colspan="4" class="text-center py-5 text-muted">
+              No matching residents found.
+            </td>
+          </tr>
+          {% else %}
+            {% for member in members %}
+            <tr class="acct-row" style="cursor: pointer;" onclick="openWalkinModal('{{ member.id }}')">
+              <td class="acct-td">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="acct-avatar" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                    {% if member.profile_image %}
+                      <img src="{{ member.profile_image.url }}" alt="Photo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                    {% else %}
+                      {{ member.first_name|first|upper }}{{ member.last_name|first|upper }}
+                    {% endif %}
+                  </div>
+                  <span class="fw-medium text-primary">{{ member.last_name }}, {{ member.first_name }} {% if member.middle_name %}{{ member.middle_name|first }}.{% endif %}</span>
+                </div>
+              </td>
+              <td class="acct-td text-muted">
+                House {{ member.family.household.house_number }}, {{ member.family.household.zone.name }}, {{ member.family.household.barangay.name }}
+              </td>
+              <td class="acct-td">
+                {{ member.family.family_name }}
+              </td>
+              <td class="acct-td">
+                {% if member.is_senior_citizen %}<span class="walkin-badge walkin-badge--senior">Senior</span>{% endif %}
+                {% if member.is_pwd %}<span class="walkin-badge walkin-badge--pwd">PWD</span>{% endif %}
+                {% if member.is_solo_parent %}<span class="walkin-badge walkin-badge--solo">Solo Parent</span>{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Main Walk-in Modal for Individual Member -->
+<div class="modal-overlay" id="walkinProfileModalOverlay">
+  <div class="kiosk-modal" style="max-width: 600px;">
+    <div id="walkinProfileModalContent">
+      <div class="p-5 text-center">
+        <div class="spinner-border text-primary" role="status"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for RFID Multiple Members Selection -->
+<div class="modal-overlay" id="rfidMembersModalOverlay">
+  <div class="kiosk-modal" style="max-width: 500px;">
+    <div class="kiosk-modal-header text-center" style="position: relative;">
+      <h4 class="kiosk-modal-title mb-1"><i class="bi bi-credit-card-2-front"></i> RFID Detected</h4>
+      <button type="button" class="btn-close modal-close-btn" onclick="hideRfidModal()" style="position: absolute; right: 20px; top: 20px;"></button>
+    </div>
+    <div class="kiosk-modal-body p-4" style="background: #f8fafc; text-align: left; max-height: 40vh; overflow-y: auto;">
+      <div class="mb-3">
+        <h6 class="mb-1 text-dark fw-bold" id="rfidFamilyName"></h6>
+        <p class="text-muted small mb-0" id="rfidFamilyAddress"></p>
+      </div>
+      <h6 class="text-muted small fw-bold mb-2">Select the resident present:</h6>
+      <div class="list-group list-group-flush border rounded" id="rfidMembersList">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+  // ── Zone Cascade Logic ──────────────────────────────────────────────────
+  const brgySelect  = document.getElementById('filter-barangay');
+  const zoneSelect  = document.getElementById('filter-zone');
+  const allZoneOpts = Array.from(zoneSelect.options).slice(1); // skip "All Zones"
+
+  function cascadeZones() {
+    const brgyId = brgySelect.value;
+    while (zoneSelect.options.length > 1) zoneSelect.remove(1);
+    allZoneOpts.forEach(opt => {
+      if (!brgyId || opt.dataset.barangay === brgyId) {
+        zoneSelect.add(opt.cloneNode(true));
+      }
+    });
+  }
+  brgySelect.addEventListener('change', cascadeZones);
+  // trigger on load if barangay is selected
+  if (brgySelect.value) {
+    cascadeZones();
+  }
+
+  const walkinModalOverlay = document.getElementById('walkinProfileModalOverlay');
+  const rfidModalOverlay = document.getElementById('rfidMembersModalOverlay');
+  const searchSection = document.getElementById('searchSection');
+  
+  function showWalkinModal() {
+    walkinModalOverlay.classList.add('active');
+    searchSection.style.pointerEvents = 'none';
+  }
+  function hideWalkinModal() {
+    walkinModalOverlay.classList.remove('active');
+    if (!rfidModalOverlay.classList.contains('active')) searchSection.style.pointerEvents = 'auto';
+  }
+  function showRfidModal() {
+    rfidModalOverlay.classList.add('active');
+    searchSection.style.pointerEvents = 'none';
+  }
+  function hideRfidModal() {
+    rfidModalOverlay.classList.remove('active');
+    if (!walkinModalOverlay.classList.contains('active')) searchSection.style.pointerEvents = 'auto';
+  }
+  
+  walkinModalOverlay.addEventListener('click', function(e) {
+    if (e.target === this) hideWalkinModal();
+  });
+  
+  rfidModalOverlay.addEventListener('click', function(e) {
+    if (e.target === this) hideRfidModal();
+  });
+  
+  function openWalkinModal(memberId) {
+    // Hide RFID modal if open
+    hideRfidModal();
+    
+    const content = document.getElementById('walkinProfileModalContent');
+    content.innerHTML = '<div class="p-5 text-center"><div class="spinner-border text-primary" role="status"></div></div>';
+    showWalkinModal();
+    
+    fetch(`/staff/walkin/member/${memberId}/modal/`)
+      .then(res => {
+        if (!res.ok) throw new Error('Network error');
+        return res.text();
+      })
+      .then(html => {
+        content.innerHTML = html;
+        attachClaimFormListener();
+      })
+      .catch(err => {
+        content.innerHTML = '<div class="p-4 text-center text-danger"><i class="bi bi-exclamation-triangle fs-1"></i><p class="mt-2">Failed to load member details.</p></div>';
+      });
+  }
+
+  function attachClaimFormListener() {
+    const form = document.getElementById('walkinClaimForm');
+    if (!form) return;
+    
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const btn = this.querySelector('button[type="submit"]');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+      btn.disabled = true;
+      
+      const formData = new FormData(this);
+      
+      fetch('{% url "staff_walkin_claim" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          hideWalkinModal();
+          Swal.fire({
+            icon: 'success',
+            title: 'Claim Recorded',
+            text: data.message,
+            timer: 2000,
+            showConfirmButton: false
+          });
+        } else {
+          Swal.fire('Error', data.message, 'error');
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+        }
+      })
+      .catch(err => {
+        Swal.fire('Error', 'An unexpected error occurred.', 'error');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      });
+    });
+  }
+
+  // ── RFID Scanner Logic ──────────────────────────────────────────────────
+  const rfidInput = document.getElementById('rfid_uid_input');
+  
+  // Keep focus on hidden input
+  document.addEventListener('click', (e) => {
+    // Only refocus if they aren't typing in the search form or interacting with modals
+    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'TEXTAREA') {
+      rfidInput.focus();
+    }
+  });
+
+  rfidInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const uid = this.value.trim();
+      this.value = '';
+      if (!uid) return;
+      
+      // Fetch family by RFID
+      fetch(`{% url 'staff_walkin_rfid' %}?rfid_uid=${uid}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'success') {
+            // Populate and show RFID modal
+            document.getElementById('rfidFamilyName').textContent = data.family_name + " Family";
+            document.getElementById('rfidFamilyAddress').textContent = `${data.address}, ${data.zone}, ${data.barangay}`;
+            
+            const list = document.getElementById('rfidMembersList');
+            list.innerHTML = '';
+            data.members.forEach(m => {
+              const imgHtml = m.profile_image 
+                ? `<img src="${m.profile_image}" class="rounded-circle" style="width:30px; height:30px; object-fit:cover;">`
+                : `<div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:30px; height:30px; font-size:0.8rem;">${m.name.charAt(0)}</div>`;
+                
+              list.innerHTML += `
+                <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-2" onclick="openWalkinModal('${m.id}')">
+                  ${imgHtml}
+                  <span class="fw-medium">${m.name}</span>
+                  <i class="bi bi-chevron-right ms-auto text-muted"></i>
+                </button>
+              `;
+            });
+            showRfidModal();
+            hideWalkinModal();
+          } else {
+            Swal.fire('Not Found', data.message, 'warning');
+          }
+        })
+        .catch(err => {
+          Swal.fire('Error', 'Failed to read RFID card.', 'error');
+        });
+    }
+  });
+</script>
+{% endblock %}

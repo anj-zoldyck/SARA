@@ -170,6 +170,7 @@ def scan_rfid(request):
                     assistance=assistance,
                     schedule=aid_schedule,
                     created_by=request.user,
+                    claim_type='DISTRIBUTION',
                 )
                 success = f"{family.family_name} successfully claimed {assistance.aid_category.name}."
                 if is_ajax:
@@ -204,6 +205,7 @@ def scan_rfid(request):
                         assistance=assistance,
                         schedule=aid_schedule,
                         created_by=request.user,
+                        claim_type='DISTRIBUTION',
                     )
                     success = f"{member.first_name} {member.last_name} successfully claimed {assistance.aid_category.name}."
                     if is_ajax:
@@ -328,4 +330,142 @@ def scan_rfid(request):
         'hide_sidebar': True,
     })
 
+@login_required(login_url='login')
+@session_protected
+def staff_walkin(request):
+    if request.user.role != 'MSWDO_STAFF':
+        return HttpResponseForbidden("Access Denied")
 
+    query = request.GET.get('q', '').strip()
+    barangay_id = request.GET.get('barangay')
+    zone_id = request.GET.get('zone')
+
+    members = FamilyMember.objects.none()
+    
+    if query or barangay_id or zone_id:
+        members = FamilyMember.objects.filter(family__is_active=True).select_related(
+            'family', 'family__household', 'family__household__zone', 'family__household__barangay'
+        )
+        
+        if query:
+            members = members.filter(
+                Q(first_name__icontains=query) | Q(last_name__icontains=query)
+            )
+        
+        if barangay_id:
+            members = members.filter(family__household__barangay_id=barangay_id)
+            
+        if zone_id:
+            members = members.filter(family__household__zone_id=zone_id)
+            
+        members = members.order_by('last_name', 'first_name')[:50]
+        
+    barangays = Barangay.objects.all().order_by('name')
+    from households.models import Zone
+    all_zones = Zone.objects.select_related('barangay').order_by('name')
+    assistances = Assistance.objects.filter(is_active=True).select_related('program', 'aid_category')
+    
+    return render(request, 'distribution/staff_walkin.html', {
+        'members': members,
+        'barangays': barangays,
+        'all_zones': all_zones,
+        'assistances': assistances,
+        'query': query,
+        'selected_barangay': barangay_id,
+        'selected_zone': zone_id,
+    })
+
+@login_required(login_url='login')
+@session_protected
+def staff_walkin_rfid_lookup(request):
+    if request.user.role != 'MSWDO_STAFF':
+        return JsonResponse({'status': 'error', 'message': 'Access Denied'}, status=403)
+        
+    uid = request.GET.get('rfid_uid', '').strip()
+    if not uid:
+        return JsonResponse({'status': 'error', 'message': 'No RFID provided.'})
+        
+    try:
+        family = Family.objects.get(rfid_uid=uid, is_active=True)
+    except Family.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'No resident registered with this RFID card'})
+        
+    members = family.members.all().order_by('first_name')
+    member_data = []
+    for m in members:
+        member_data.append({
+            'id': m.id,
+            'name': f"{m.first_name} {m.last_name}",
+            'profile_image': m.profile_image.url if m.profile_image else None
+        })
+        
+    return JsonResponse({
+        'status': 'success',
+        'family_name': family.family_name,
+        'address': family.household.address,
+        'barangay': family.household.barangay.name if family.household.barangay else '',
+        'zone': family.household.zone.name if family.household.zone else '',
+        'members': member_data
+    })
+
+@login_required(login_url='login')
+@session_protected
+def staff_walkin_claim(request):
+    if request.user.role != 'MSWDO_STAFF':
+        return HttpResponseForbidden("Access Denied")
+        
+    if request.method == 'POST':
+        member_id = request.POST.get('member_id')
+        assistance_id = request.POST.get('assistance_id')
+        
+        member = get_object_or_404(FamilyMember, id=member_id)
+        assistance = get_object_or_404(Assistance, id=assistance_id, is_active=True)
+        
+        from django.utils import timezone
+        today = timezone.now().date()
+        existing = AidClaim.objects.filter(
+            family_member=member,
+            assistance=assistance,
+            claimed_at__date=today
+        ).exists()
+        
+        if existing:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'This resident has already received this assistance today.'
+            }, status=400)
+            
+        AidClaim.objects.create(
+            family=member.family,
+            family_member=member,
+            assistance=assistance,
+            schedule=None,
+            claim_type='WALK_IN',
+            created_by=request.user,
+        )
+        return JsonResponse({'status': 'success', 'message': f'Walk-in claim recorded for {member.first_name} {member.last_name}.'})
+        
+    return JsonResponse({'status': 'error', 'message': 'Invalid request.'}, status=400)
+
+@login_required
+@session_protected
+def staff_walkin_member_modal(request, member_id):
+    if request.user.role != 'MSWDO_STAFF':
+        return HttpResponseForbidden('Access Denied')
+        
+    member = get_object_or_404(
+        FamilyMember.objects.select_related('family', 'family__household', 'family__household__zone', 'family__household__barangay'),
+        id=member_id
+    )
+    
+    claims = AidClaim.objects.filter(
+        Q(family_member=member) | Q(family=member.family, family_member__isnull=True)
+    ).select_related('assistance__program', 'assistance__aid_category').order_by('-claimed_at')[:5]
+    
+    assistances = Assistance.objects.filter(is_active=True).select_related('program', 'aid_category')
+    
+    return render(request, 'households/partials/walkin_profile_modal.html', {
+        'member': member,
+        'claims': claims,
+        'assistances': assistances
+    })

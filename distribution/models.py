@@ -22,6 +22,15 @@ class AidClaim(models.Model):
         blank=True,
         related_name='claims'
     )
+    CLAIM_TYPE_CHOICES = (
+        ('DISTRIBUTION', 'Distribution Event'),
+        ('WALK_IN', 'Walk-in / Office Visit'),
+    )
+    claim_type = models.CharField(
+        max_length=20,
+        choices=CLAIM_TYPE_CHOICES,
+        default='DISTRIBUTION'
+    )
     schedule = models.ForeignKey('AidSchedule', on_delete=models.CASCADE, null=True)
     claimed_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(

@@ -17,22 +17,24 @@
 <div class="dash-page-header">
   <div>
     <div class="page-breadcrumb">
-      <a href="{% url 'barangay_dashboard' %}" class="breadcrumb-link">
+      <a href="{% if user.role == 'MSWDO_STAFF' %}{% url 'staff_dashboard' %}{% elif user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'barangay_dashboard' %}{% endif %}" class="breadcrumb-link">
         <i class="bi bi-speedometer2"></i> Dashboard
       </a>
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
-      <a href="{% url 'zone_detail' family.household.zone.id %}" class="breadcrumb-link">{{ family.household.zone.name }}</a>
+      <a href="{% if user.role == 'BARANGAY' %}{% url 'zone_detail' family.household.zone.id %}{% else %}{% url 'zone_households' family.household.zone.id %}{% endif %}" class="breadcrumb-link">{{ family.household.zone.name }}</a>
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
-      <a href="{% url 'household_detail' family.household.id %}" class="breadcrumb-link">House {{ family.household.house_number }}</a>
+      <a href="{% if user.role == 'BARANGAY' %}{% url 'household_detail' family.household.id %}{% else %}{% url 'household_info' family.household.id %}{% endif %}" class="breadcrumb-link">House {{ family.household.house_number }}</a>
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
       <span class="breadcrumb-current">{{ family.family_name }}</span>
     </div>
     <div class="d-flex align-items-center gap-2">
       <h1 class="dash-page-title mb-0">{{ family.family_name }} Family</h1>
+      {% if user.role == 'BARANGAY' %}
       <button class="btn-dash-outline" data-bs-toggle="modal" data-bs-target="#editFamilyNameModal"
         title="Edit Family Name" style="padding: 4px 10px;">
         <i class="bi bi-pencil"></i>
       </button>
+      {% endif %}
     </div>
     <p class="dash-page-sub">
       <i class="bi bi-person-lines-fill me-1"></i>
@@ -41,16 +43,20 @@
     </p>
   </div>
   <div class="dash-header-actions">
+    {% if user.role == 'BARANGAY' %}
     <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary">
       <i class="bi bi-plus-lg"></i> Add Member
     </a>
-    <a href="{% url 'household_detail' family.household.id %}" class="btn-dash-outline">
+    {% endif %}
+    <a href="{% if user.role == 'BARANGAY' %}{% url 'household_detail' family.household.id %}{% else %}{% url 'household_info' family.household.id %}{% endif %}" class="btn-dash-outline">
       <i class="bi bi-arrow-left"></i> Back to Household
     </a>
+    {% if user.role == 'BARANGAY' %}
     <button class="btn-dash-outline" style="color: #dc3545; border-color: #dc3545;" data-bs-toggle="modal"
       data-bs-target="#removeFamilyModal">
       <i class="bi bi-trash"></i> Remove Family
     </button>
+    {% endif %}
   </div>
 </div>
 
@@ -64,10 +70,12 @@
         <p class="dash-panel__sub">All registered members of the {{ family.family_name }} family</p>
       </div>
     </div>
+    {% if user.role == 'BARANGAY' %}
     <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary"
       style="font-size:13px; padding:7px 14px;">
       <i class="bi bi-plus-lg"></i> Add Member
     </a>
+    {% endif %}
   </div>
 
   <div class="dash-panel__body p-0">
@@ -109,6 +117,7 @@
             </td>
             <td class="acct-td acct-td--actions">
               <div class="acct-actions">
+                {% if user.role == 'BARANGAY' %}
                 <a href="{% url 'edit_family_member' member.id %}" class="acct-btn acct-btn--edit">
                   <i class="bi bi-pencil"></i><span>Edit</span>
                 </a>
@@ -117,6 +126,9 @@
                         data-member-name="{{ member.first_name }} {{ member.last_name }}">
                   <i class="bi bi-trash"></i><span>Remove</span>
                 </button>
+                {% else %}
+                <span class="text-muted small">-</span>
+                {% endif %}
               </div>
             </td>
           </tr>
@@ -126,9 +138,11 @@
               <div class="acct-empty-state">
                 <i class="bi bi-person-lines-fill"></i>
                 <p>No members added yet.</p>
+                {% if user.role == 'BARANGAY' %}
                 <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary">
                   <i class="bi bi-plus-lg"></i> Add First Member
                 </a>
+                {% endif %}
               </div>
             </td>
           </tr>
@@ -140,7 +154,7 @@
 </div>
 
 <div class="page-back-row">
-  <a href="{% url 'household_detail' family.household.id %}" class="btn-dash-outline">
+  <a href="{% if user.role == 'BARANGAY' %}{% url 'household_detail' family.household.id %}{% else %}{% url 'household_info' family.household.id %}{% endif %}" class="btn-dash-outline">
     <i class="bi bi-arrow-left"></i> Back to Household
   </a>
 </div>

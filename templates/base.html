@@ -293,7 +293,13 @@
         </li>
 
         <li class="sidebar-section-label">Operations</li>
-
+        
+        <li class="sidebar-item">
+          <a href="{% url 'staff_walkin' %}" class="sidebar-link {% if request.resolver_match.url_name == 'staff_walkin' %}active{% endif %}">
+            <i class="bi bi-person-lines-fill"></i>
+            <span>Walk-in Assistance</span>
+          </a>
+        </li>
         <!-- Household Profiling (accordion) -->
         <li class="sidebar-item sidebar-item--accordion">
           <button class="sidebar-link sidebar-accordion-btn" data-target="staffHouseholdSubmenu" aria-expanded="false">

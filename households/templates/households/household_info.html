@@ -148,7 +148,7 @@
             <td class="acct-td">
               <div class="acct-barangay-cell">
                 <div class="acct-avatar">{{ family.family_name|first|upper }}</div>
-                <a href="{% url 'family_members' family.id %}" class="hh-family-link">
+                <a href="{% url 'family_detail' family.id %}" class="hh-family-link">
                   {{ family.family_name }}
                 </a>
               </div>
