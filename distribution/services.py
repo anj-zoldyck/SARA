@@ -7,9 +7,8 @@ def get_active_aid_schedule():
 
     return AidSchedule.objects.filter(
         is_active=True,
+        is_finished=False,
         schedule_datetime__lte=now
-    ).filter(
-        Q(end_datetime__gte=now) | Q(end_datetime__isnull=True)
     ).order_by('-schedule_datetime').first()
 
 def get_active_schedule():
@@ -17,6 +16,6 @@ def get_active_schedule():
 
     return AidSchedule.objects.filter(
         schedule_datetime__lte=now,
-        end_datetime__gte=now,
+        is_finished=False,
         is_active=True
     ).order_by('-schedule_datetime').first()

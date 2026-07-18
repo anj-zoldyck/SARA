@@ -303,22 +303,20 @@ def schedule_status(request):
 
     now = timezone.localtime(timezone.now())
 
-    # Auto-deactivate expired schedules
-    AidSchedule.objects.filter(
-        end_datetime__lt=now, is_active=True
-    ).update(is_active=False)
+    # Auto-deactivate logic removed as is_finished handles completion manually or automatically.
 
     active = AidSchedule.objects.filter(
         schedule_datetime__lte=now,
-        end_datetime__gte=now,
+        is_finished=False,
         is_active=True
     )
     upcoming = AidSchedule.objects.filter(
         schedule_datetime__gt=now,
+        is_finished=False,
         is_active=True
     )
     expired = AidSchedule.objects.filter(
-        end_datetime__lt=now
+        is_finished=True
     )
 
     def fmt(dt):
@@ -331,7 +329,6 @@ def schedule_status(request):
             'aid_type': str(s.assistance) if s.assistance else (s.aid_type or 'N/A'),
             'schedule_datetime': fmt(s.schedule_datetime),
             'iso_datetime': s.schedule_datetime.isoformat() if s.schedule_datetime else None,
-            'end_datetime': fmt(s.end_datetime),
             'location': s.location,
             'barangay': str(s.barangay) if s.barangay else 'All Barangays',
         } for s in qs]
@@ -421,14 +418,11 @@ def barangay_schedule_status(request):
     barangay_obj = request.user.barangay
     now = timezone.localtime(timezone.now())
 
-    # Auto-deactivate expired schedules
-    AidSchedule.objects.filter(
-        end_datetime__lt=now, is_active=True
-    ).update(is_active=False)
+    # Auto-deactivate logic removed
 
     active_schedules = AidSchedule.objects.filter(
         schedule_datetime__lte=now,
-        end_datetime__gte=now,
+        is_finished=False,
         is_active=True
     ).filter(
         Q(barangay=barangay_obj) | Q(barangay__isnull=True)
@@ -436,6 +430,7 @@ def barangay_schedule_status(request):
 
     upcoming_schedules = AidSchedule.objects.filter(
         schedule_datetime__gt=now,
+        is_finished=False,
         is_active=True
     ).filter(
         Q(barangay=barangay_obj) | Q(barangay__isnull=True)
@@ -451,7 +446,6 @@ def barangay_schedule_status(request):
             'beneficiary_type': s.assistance.beneficiary_type if s.assistance else None,
             'schedule_datetime': fmt(s.schedule_datetime),
             'iso_datetime': s.schedule_datetime.isoformat() if s.schedule_datetime else None,
-            'end_datetime': fmt(s.end_datetime),
             'location': s.location,
             'barangay': str(s.barangay) if s.barangay else 'All Barangays',
         } for s in qs]

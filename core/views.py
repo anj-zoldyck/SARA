@@ -78,30 +78,24 @@ def mswdo_dashboard(request):
 
     now = timezone.localtime(timezone.now())
 
-    # Auto-deactivate expired schedules every time dashboard loads
-    AidSchedule.objects.filter(end_datetime__lt=now, is_active=True).update(is_active=False)
     # ACTIVE (ongoing)
     active_schedules = AidSchedule.objects.filter(
         schedule_datetime__lte=now,
-        end_datetime__gte=now,
+        is_finished=False,
         is_active=True
     )
 
     # UPCOMING
     upcoming_schedules = AidSchedule.objects.filter(
         schedule_datetime__gt=now,
+        is_finished=False,
         is_active=True
     )
 
-    # EXPIRED
-    expired_schedules = AidSchedule.objects.filter(
-        end_datetime__lt=now
+    # FINISHED
+    finished_schedules = AidSchedule.objects.filter(
+        is_finished=True
     )
-
-    # Auto-deactivate all expired schedules
-    expired = AidSchedule.objects.filter(end_datetime__lt=now)
-    count = expired.update(is_active=False)
-    print(f"Deactivated {count} expired schedules.")
 
 
     context = {
@@ -125,7 +119,7 @@ def mswdo_dashboard(request):
 
         'active_schedules': active_schedules,
         'upcoming_schedules': upcoming_schedules,
-        'expired_schedules': expired_schedules,
+        'finished_schedules': finished_schedules,
     }
 
     return render(request, 'core/mswdo_dashboard.html', context)
@@ -142,13 +136,10 @@ def barangay_dashboard(request):
 
     now = timezone.localtime(timezone.now())
 
-    # Auto-deactivate expired schedules
-    AidSchedule.objects.filter(end_datetime__lt=now, is_active=True).update(is_active=False)
-
-    # Active: started but not yet ended
+    # Active: started but not yet finished
     active_schedules = AidSchedule.objects.filter(
         schedule_datetime__lte=now,
-        end_datetime__gte=now,
+        is_finished=False,
         is_active=True
     ).filter(
         Q(barangay=barangay_obj) | Q(barangay__isnull=True)
@@ -157,6 +148,7 @@ def barangay_dashboard(request):
     # Upcoming: not yet started
     upcoming_schedules = AidSchedule.objects.filter(
         schedule_datetime__gt=now,
+        is_finished=False,
         is_active=True
     ).filter(
         Q(barangay=barangay_obj) | Q(barangay__isnull=True)
@@ -197,19 +189,17 @@ def staff_dashboard(request):
     now = timezone.localtime(timezone.now())
     today_claims = AidClaim.objects.filter(claimed_at__date=now.date()).count()
 
-    # Auto-deactivate expired schedules
-    AidSchedule.objects.filter(end_datetime__lt=now, is_active=True).update(is_active=False)
-    
     # ACTIVE (ongoing)
     active_schedules = AidSchedule.objects.filter(
         schedule_datetime__lte=now,
-        end_datetime__gte=now,
+        is_finished=False,
         is_active=True
     )
 
     # UPCOMING
     upcoming_schedules = AidSchedule.objects.filter(
         schedule_datetime__gt=now,
+        is_finished=False,
         is_active=True
     )
 

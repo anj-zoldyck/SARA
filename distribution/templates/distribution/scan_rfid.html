@@ -36,6 +36,15 @@
         <i class="bi bi-arrow-left"></i> <span class="d-none d-sm-inline">Back to Dashboard</span>
       </a>
 
+      {% if aid_schedule and not aid_schedule.is_finished and user.role != 'BARANGAY' %}
+      <form method="post" action="{% url 'finish_distribution' aid_schedule.id %}" id="finishDistributionForm" class="d-inline">
+        {% csrf_token %}
+        <button type="button" id="forceFinishBtn" class="btn btn-dash-primary" title="End Distribution Early">
+          <i class="bi bi-flag-fill"></i> <span class="d-none d-sm-inline">Distribution Finished</span>
+        </button>
+      </form>
+      {% endif %}
+
       <div id="statusPill" class="kiosk-status-pill idle">
         <div class="spinner-border spinner-border-sm d-none" role="status" id="statusSpinner"></div>
         <i class="bi bi-upc-scan" id="statusIcon"></i>
@@ -187,6 +196,41 @@
   </div>
 </div>
 
+<!-- Force Finish Confirmation Modal -->
+<div class="modal-overlay" id="forceFinishModal">
+  <div class="kiosk-modal">
+    <div class="kiosk-modal-header">
+      <h2 class="kiosk-modal-title text-danger">End Distribution?</h2>
+      <p class="kiosk-modal-subtitle">There may be unclaimed beneficiaries remaining.</p>
+    </div>
+    <div class="kiosk-modal-body text-center mt-3 mb-3">
+      Are you sure you want to end this distribution? Once finished, no more claims can be processed for this schedule.
+    </div>
+    <div class="kiosk-modal-footer d-flex justify-content-end gap-2 mt-4">
+      <button type="button" class="btn btn-dash-outline" id="cancelForceFinishBtn">Cancel</button>
+      <button type="button" class="btn btn-dash-primary" id="confirmForceFinishBtn">End Distribution</button>
+    </div>
+  </div>
+</div>
+
+<!-- Auto Finish Modal -->
+<div class="modal-overlay" id="autoFinishModal">
+  <div class="kiosk-modal">
+    <div class="kiosk-modal-header text-center">
+      <h2 class="kiosk-modal-title text-success">Distribution Finished</h2>
+      <p class="kiosk-modal-subtitle">All beneficiaries on the list have successfully claimed their assistance.</p>
+    </div>
+    <div class="kiosk-modal-body text-center py-4">
+      <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+      <p class="mt-3 mb-0 text-muted">What would you like to do next?</p>
+    </div>
+    <div class="kiosk-modal-footer d-flex flex-column gap-2 mt-2">
+      <a href="{% if user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="btn btn-dash-primary w-100">Proceed to Dashboard</a>
+      <a href="{% url 'generate_report_stub' %}" class="btn btn-dash-outline w-100">Proceed to Generate Report</a>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block js %}
@@ -207,7 +251,8 @@
 
   // ---------------- Focus Management ----------------
   function focusRfidInput() {
-    if (!memberModal.classList.contains('active') && !successModal.classList.contains('active') && !document.getElementById('errorModal').classList.contains('active')) {
+    const isModalActive = document.querySelector('.modal-overlay.active');
+    if (!isModalActive) {
       rfidInput.focus();
     }
   }
@@ -392,12 +437,21 @@
 
     successModal.classList.add('active');
 
-    // Auto dismiss
-    setTimeout(() => {
-      successModal.classList.remove('active');
-      setStatusIdle();
-      refreshTable(); // immediately trigger table update
-    }, 2500);
+    // Auto dismiss if not finished
+    if (data.distribution_just_finished) {
+      setTimeout(() => {
+        successModal.classList.remove('active');
+        setStatusIdle();
+        refreshTable();
+        document.getElementById('autoFinishModal').classList.add('active');
+      }, 2000);
+    } else {
+      setTimeout(() => {
+        successModal.classList.remove('active');
+        setStatusIdle();
+        refreshTable(); // immediately trigger table update
+      }, 2500);
+    }
   }
 
   cancelModalBtn.addEventListener('click', (e) => {
@@ -405,6 +459,29 @@
     memberModal.classList.remove('active');
     setStatusIdle();
   });
+  
+  // ---------------- Finish Modals ----------------
+  const forceFinishBtn = document.getElementById('forceFinishBtn');
+  if (forceFinishBtn) {
+    forceFinishBtn.addEventListener('click', () => {
+      document.getElementById('forceFinishModal').classList.add('active');
+    });
+  }
+
+  const cancelForceFinishBtn = document.getElementById('cancelForceFinishBtn');
+  if (cancelForceFinishBtn) {
+    cancelForceFinishBtn.addEventListener('click', () => {
+      document.getElementById('forceFinishModal').classList.remove('active');
+      focusRfidInput();
+    });
+  }
+
+  const confirmForceFinishBtn = document.getElementById('confirmForceFinishBtn');
+  if (confirmForceFinishBtn) {
+    confirmForceFinishBtn.addEventListener('click', () => {
+      document.getElementById('finishDistributionForm').submit();
+    });
+  }
 
   // ---------------- Auto-refresh Table ----------------
   function refreshTable() {

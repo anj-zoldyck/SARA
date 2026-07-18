@@ -14,7 +14,7 @@ from accounts.decorators import session_protected, mswdo_or_staff_required
 from accounts.models import User, Barangay
 from households.models import Household, Zone, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
-from distribution.models import AidSchedule, AidClaim
+from distribution.models import AidSchedule, AidClaim, GeneratedBeneficiaryList, GeneratedBeneficiary
 
 from accounts.forms import UserEditForm, CreateUserForm
 from households.forms import HouseholdForm, FamilyForm, FamilyMemberForm
@@ -35,56 +35,80 @@ User = get_user_model()
 
 @login_required
 @session_protected
-def set_aid_schedule(request):
+def schedule_distribution(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
 
     if request.method == 'POST':
-        # NEW: receive assistance ID instead of aid_type string
         assistance_id = request.POST.get('assistance')
         assistance = Assistance.objects.filter(id=assistance_id).first()
 
         if not assistance:
             messages.error(request, "Please select a valid assistance type.")
-            return redirect('mswdo_dashboard')
+            return redirect('schedule_distribution')
 
         start = parse_datetime(request.POST.get('schedule_datetime'))
-        end = parse_datetime(request.POST.get('end_datetime'))
 
-        if not start or not end:
+        if not start:
             messages.error(request, "Invalid date/time format. Please try again.")
-            return redirect('mswdo_dashboard')
+            return redirect('schedule_distribution')
 
         if timezone.is_naive(start):
             start = timezone.make_aware(start)
 
-        if timezone.is_naive(end):
-            end = timezone.make_aware(end)
-
-        if end <= start:
-            messages.error(request, "End date & time must be after the start date & time.")
-            return redirect('mswdo_dashboard')
-
         location = request.POST.get('location')
         barangay_id = request.POST.get('barangay')
         barangay = Barangay.objects.filter(id=barangay_id).first() if barangay_id else None
+        
+        enable_selection = request.POST.get('enable_selection') == 'on'
+        
+        from decimal import Decimal, InvalidOperation
+        
+        budget_raw = request.POST.get('budget', '').strip()
+        per_beneficiary_raw = request.POST.get('per_beneficiary_amount', '').strip()
 
-        # Auto-expire past schedules
-        AidSchedule.objects.filter(
-            end_datetime__lt=timezone.now()
-        ).update(is_active=False)
+        budget = Decimal('0')
+        per_beneficiary_amount = Decimal('0')
+        
+        if enable_selection:
+            try:
+                budget = Decimal(budget_raw) if budget_raw else Decimal('0')
+                per_beneficiary_amount = Decimal(per_beneficiary_raw) if per_beneficiary_raw else Decimal('0')
+            except InvalidOperation:
+                # Handle invalid/non-numeric input gracefully — show a form error,
+                # do not let a bad input crash the whole request
+                # We use Decimal consistent with the rest of this codebase's handling of money values, avoiding floating-point precision issues.
+                messages.error(request, "Invalid numeric input for budget or per-beneficiary amount.")
+                return redirect('schedule_distribution')
 
-        AidSchedule.objects.create(
-            assistance=assistance,       # NEW
+        # Auto-expire logic removed as completion is now state-based (is_finished)
+
+        schedule = AidSchedule.objects.create(
+            assistance=assistance,
             schedule_datetime=start,
-            end_datetime=end,
             location=location,
-            barangay=barangay
+            barangay=barangay,
+            budget=budget if enable_selection else Decimal('0'),
+            per_beneficiary_amount=per_beneficiary_amount if enable_selection else Decimal('0')
         )
 
-        messages.success(request, f"Distribution scheduled successfully: {assistance}")
+        if enable_selection and schedule.budget > Decimal('0') and schedule.per_beneficiary_amount > Decimal('0'):
+            messages.success(request, f"Schedule created — generating your beneficiary list now...")
+            return redirect('generate_beneficiaries', schedule_id=schedule.id)
+        else:
+            messages.success(request, f"Distribution scheduled successfully: {assistance}")
+            return redirect('schedule_distribution')
 
-    return redirect('mswdo_dashboard')
+    # GET
+    assistances = Assistance.objects.select_related(
+        'program', 'aid_category'
+    ).filter(is_active=True).order_by('program__name', 'aid_category__name')
+    barangays = Barangay.objects.all()
+
+    return render(request, 'distribution/schedule_distribution.html', {
+        'assistances': assistances,
+        'barangays': barangays
+    })
 
 
 @login_required
@@ -107,8 +131,8 @@ def scan_rfid(request):
         'assistance__aid_category'
     ).filter(
         is_active=True,
+        is_finished=False,
         schedule_datetime__lte=now,
-        end_datetime__gte=now,
     ).order_by('-schedule_datetime').first()
 
     if not aid_schedule:
@@ -152,6 +176,23 @@ def scan_rfid(request):
                 return JsonResponse({'status': 'error', 'message': error})
             return render(request, 'distribution/scan_rfid.html', {'error': error, 'aid_schedule': aid_schedule})
 
+        # -------- Phase B: Beneficiary List Check --------
+        # If the schedule has a generated beneficiary list, restrict processing to only those on the list.
+        if hasattr(aid_schedule, 'beneficiary_list'):
+            ben_list = aid_schedule.beneficiary_list
+            is_listed = False
+            
+            if assistance.beneficiary_type == 'family':
+                is_listed = ben_list.entries.filter(family=family).exists()
+            else:
+                is_listed = ben_list.entries.filter(household=family.household).exists()
+                
+            if not is_listed:
+                error = "This household is not on the approved beneficiary list for this distribution."
+                if is_ajax:
+                    return JsonResponse({'status': 'error', 'message': error})
+                return render(request, 'distribution/scan_rfid.html', {'error': error, 'aid_schedule': aid_schedule})
+
         # -------- FAMILY-BASED assistance --------
         if assistance.beneficiary_type == 'family':
             already_claimed = AidClaim.objects.filter(
@@ -173,12 +214,27 @@ def scan_rfid(request):
                     claim_type='DISTRIBUTION',
                 )
                 success = f"{family.family_name} successfully claimed {assistance.aid_category.name}."
+                
+                # Completion Check
+                distribution_just_finished = False
+                if hasattr(aid_schedule, 'beneficiary_list'):
+                    ben_list = aid_schedule.beneficiary_list
+                    total_bens = ben_list.entries.filter(family__isnull=False).count()
+                    claimed_families = AidClaim.objects.filter(schedule=aid_schedule).values('family').distinct().count()
+                    if total_bens > 0 and claimed_families >= total_bens:
+                        aid_schedule.is_finished = True
+                        aid_schedule.finished_at = timezone.now()
+                        aid_schedule.finish_reason = 'COMPLETED'
+                        aid_schedule.save()
+                        distribution_just_finished = True
+                        
                 if is_ajax:
                     return JsonResponse({
                         'status': 'success',
                         'message': success,
                         'name': family.family_name,
-                        'assistance_label': f"{assistance.program.name} › {assistance.aid_category.name}"
+                        'assistance_label': f"{assistance.program.name} › {assistance.aid_category.name}",
+                        'distribution_just_finished': distribution_just_finished
                     })
 
         # -------- INDIVIDUAL-BASED assistance --------
@@ -208,13 +264,38 @@ def scan_rfid(request):
                         claim_type='DISTRIBUTION',
                     )
                     success = f"{member.first_name} {member.last_name} successfully claimed {assistance.aid_category.name}."
+                    
+                    # Completion Check
+                    distribution_just_finished = False
+                    if hasattr(aid_schedule, 'beneficiary_list'):
+                        ben_list = aid_schedule.beneficiary_list
+                        is_finished = True
+                        claimed_member_ids = set(AidClaim.objects.filter(schedule=aid_schedule, family_member__isnull=False).values_list('family_member_id', flat=True))
+                        for entry in ben_list.entries.select_related('household').all():
+                            if not is_finished: break
+                            if entry.household:
+                                for fam in entry.household.families.all():
+                                    for m in fam.members.all():
+                                        is_el, _ = check_eligibility(m, assistance)
+                                        if is_el and m.id not in claimed_member_ids:
+                                            is_finished = False
+                                            break
+                                    if not is_finished: break
+                        if is_finished and ben_list.entries.exists():
+                            aid_schedule.is_finished = True
+                            aid_schedule.finished_at = timezone.now()
+                            aid_schedule.finish_reason = 'COMPLETED'
+                            aid_schedule.save()
+                            distribution_just_finished = True
+
                     if is_ajax:
                         return JsonResponse({
                             'status': 'success',
                             'message': success,
                             'name': f"{member.first_name} {member.last_name}",
                             'profile_image': member.profile_image.url if member.profile_image else None,
-                            'assistance_label': f"{assistance.program.name} › {assistance.aid_category.name}"
+                            'assistance_label': f"{assistance.program.name} › {assistance.aid_category.name}",
+                            'distribution_just_finished': distribution_just_finished
                         })
                     eligible_members = None
 
@@ -361,7 +442,6 @@ def staff_walkin(request):
         members = members.order_by('last_name', 'first_name')[:50]
         
     barangays = Barangay.objects.all().order_by('name')
-    from households.models import Zone
     all_zones = Zone.objects.select_related('barangay').order_by('name')
     assistances = Assistance.objects.filter(is_active=True).select_related('program', 'aid_category')
     
@@ -421,7 +501,7 @@ def staff_walkin_claim(request):
         member = get_object_or_404(FamilyMember, id=member_id)
         assistance = get_object_or_404(Assistance, id=assistance_id, is_active=True)
         
-        from django.utils import timezone
+
         today = timezone.now().date()
         existing = AidClaim.objects.filter(
             family_member=member,
@@ -447,6 +527,24 @@ def staff_walkin_claim(request):
         
     return JsonResponse({'status': 'error', 'message': 'Invalid request.'}, status=400)
 
+
+@login_required
+@session_protected
+@mswdo_or_staff_required
+def beneficiary_selection_landing(request):
+    """
+    Landing page for Beneficiary Selection. Lists active schedules with funding allocated.
+    """
+    schedules = AidSchedule.objects.filter(
+        is_active=True,
+        budget__isnull=False, budget__gt=0,
+        per_beneficiary_amount__isnull=False, per_beneficiary_amount__gt=0
+    ).select_related('assistance', 'assistance__program', 'assistance__aid_category').order_by('-schedule_datetime')
+    
+    return render(request, 'distribution/beneficiary_selection_landing.html', {
+        'schedules': schedules,
+    })
+
 @login_required
 @session_protected
 def staff_walkin_member_modal(request, member_id):
@@ -468,4 +566,302 @@ def staff_walkin_member_modal(request, member_id):
         'member': member,
         'claims': claims,
         'assistances': assistances
+    })
+
+@login_required
+@session_protected
+def generate_beneficiaries(request, schedule_id):
+    """
+    Generates a beneficiary list for a specific schedule based on its budget and
+    assistance rules. Saves the results to GeneratedBeneficiaryList.
+    """
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+        
+    schedule = get_object_or_404(AidSchedule, id=schedule_id)
+    
+    if hasattr(schedule, 'beneficiary_list'):
+        messages.error(request, "A beneficiary list has already been generated for this schedule.")
+        return redirect('mswdo_dashboard') # or some schedule detail page
+        
+    if not schedule.budget or not schedule.per_beneficiary_amount or schedule.per_beneficiary_amount <= 0:
+        messages.error(request, "Budget and per-beneficiary amount must be set to generate a list.")
+        return redirect('mswdo_dashboard')
+        
+    from programs.beneficiary_engine import calculate_slot_count, get_eligible_pool, rank_eligible_pool
+    from distribution.models import GeneratedBeneficiaryList, GeneratedBeneficiary
+    
+    slot_count = calculate_slot_count(schedule.budget, schedule.per_beneficiary_amount)
+    
+    # Run the engine
+    pool = get_eligible_pool(schedule.assistance, schedule.barangay, current_schedule=schedule)
+    ranked_pool = rank_eligible_pool(pool, schedule.assistance.prioritization_strategy)
+    # Take top N
+    selected_beneficiaries = ranked_pool[:slot_count]
+    
+    # Create the persistent list
+    ben_list = GeneratedBeneficiaryList.objects.create(
+        schedule=schedule,
+        generated_by=request.user,
+        prioritization_strategy_used=schedule.assistance.prioritization_strategy
+    )
+    
+    # Create individual entries
+    entries = []
+    is_family = schedule.assistance.beneficiary_type == 'family'
+    for ben in selected_beneficiaries:
+        if is_family:
+            entries.append(GeneratedBeneficiary(beneficiary_list=ben_list, family=ben))
+        else:
+            entries.append(GeneratedBeneficiary(beneficiary_list=ben_list, household=ben))
+            
+    GeneratedBeneficiary.objects.bulk_create(entries)
+    
+    messages.success(request, f"Generated {len(selected_beneficiaries)} beneficiaries for this schedule.")
+    return redirect('review_beneficiaries', schedule_id=schedule.id)
+
+@login_required
+@session_protected
+def review_beneficiaries(request, schedule_id):
+    """
+    Displays the generated beneficiary list for review.
+    """
+    if request.user.role not in ('MSWDO', 'MSWDO_STAFF'):
+        return HttpResponseForbidden("Access Denied")
+        
+    schedule = get_object_or_404(AidSchedule, id=schedule_id)
+    
+    if not hasattr(schedule, 'beneficiary_list'):
+        messages.error(request, "No beneficiary list generated for this schedule yet.")
+        return redirect('mswdo_dashboard')
+        
+    ben_list = schedule.beneficiary_list
+    entries = ben_list.entries.select_related('family', 'household', 'family__household__barangay', 'household__barangay')
+    
+    from programs.beneficiary_engine import calculate_slot_count, get_eligible_pool
+    slot_count = calculate_slot_count(schedule.budget, schedule.per_beneficiary_amount)
+    
+    # Get available candidates for manual override
+    pool = get_eligible_pool(schedule.assistance, schedule.barangay, current_schedule=schedule)
+    available_candidates = []
+    
+    is_family = schedule.assistance.beneficiary_type == 'family'
+    if is_family:
+        existing_ids = entries.values_list('family_id', flat=True)
+        available_candidates = [ben for ben in pool if ben.id not in existing_ids]
+    else:
+        existing_ids = entries.values_list('household_id', flat=True)
+        available_candidates = [ben for ben in pool if ben.id not in existing_ids]
+
+    return render(request, 'distribution/review_beneficiaries.html', {
+        'schedule': schedule,
+        'ben_list': ben_list,
+        'entries': entries,
+        'slot_count': slot_count,
+        'total_generated': entries.count(),
+        'budget': schedule.budget,
+        'per_amount': schedule.per_beneficiary_amount,
+        'available_candidates': available_candidates,
+        'is_family': is_family,
+    })
+
+@login_required
+@session_protected
+def manual_override_beneficiary(request, schedule_id):
+    """
+    Allows MSWDO admin to remove a generated entry and replace it with a new one.
+    """
+    if request.user.role not in ('MSWDO', 'MSWDO_STAFF'):
+        return HttpResponseForbidden("Access Denied")
+        
+    schedule = get_object_or_404(AidSchedule, id=schedule_id)
+    if not hasattr(schedule, 'beneficiary_list'):
+        messages.error(request, "No beneficiary list exists for this schedule.")
+        return redirect('review_beneficiaries', schedule_id=schedule.id)
+        
+    ben_list = schedule.beneficiary_list
+    from distribution.models import GeneratedBeneficiary
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'add':
+            is_family = schedule.assistance.beneficiary_type == 'family'
+            
+            # Read an array of IDs from the POST request (can handle one or many)
+            added_count = 0
+            
+            if is_family:
+                family_ids = request.POST.getlist('family_ids[]')
+                if not family_ids:
+                    # fallback to singular for robustness
+                    single_id = request.POST.get('family_id')
+                    if single_id: family_ids = [single_id]
+                
+                if family_ids:
+                    entries_to_create = []
+                    for fid in family_ids:
+                        if not ben_list.entries.filter(family_id=fid).exists():
+                            entries_to_create.append(GeneratedBeneficiary(
+                                beneficiary_list=ben_list,
+                                family_id=fid,
+                                added_manually=True,
+                                added_by=request.user
+                            ))
+                            added_count += 1
+                    
+                    if entries_to_create:
+                        GeneratedBeneficiary.objects.bulk_create(entries_to_create)
+                        
+            else:
+                household_ids = request.POST.getlist('household_ids[]')
+                if not household_ids:
+                    # fallback to singular for robustness
+                    single_id = request.POST.get('household_id')
+                    if single_id: household_ids = [single_id]
+                    
+                if household_ids:
+                    entries_to_create = []
+                    for hid in household_ids:
+                        if not ben_list.entries.filter(household_id=hid).exists():
+                            entries_to_create.append(GeneratedBeneficiary(
+                                beneficiary_list=ben_list,
+                                household_id=hid,
+                                added_manually=True,
+                                added_by=request.user
+                            ))
+                            added_count += 1
+                    
+                    if entries_to_create:
+                        GeneratedBeneficiary.objects.bulk_create(entries_to_create)
+            
+            if added_count > 0:
+                messages.success(request, f"Successfully added {added_count} manual overrides.")
+            else:
+                messages.warning(request, "No valid or new overrides were added.")
+                
+        elif action == 'remove':
+            entry_id = request.POST.get('entry_id')
+            entry = get_object_or_404(GeneratedBeneficiary, id=entry_id, beneficiary_list=ben_list)
+            entry.delete()
+            messages.success(request, "Beneficiary removed from the list.")
+            
+        return redirect('review_beneficiaries', schedule_id=schedule.id)
+            
+    return redirect('review_beneficiaries', schedule_id=schedule.id)
+
+
+@login_required
+@session_protected
+def search_eligible_candidates(request, schedule_id):
+    """
+    AJAX endpoint for searching eligible candidates to manually add to a beneficiary list.
+    """
+    if request.user.role not in ('MSWDO', 'MSWDO_STAFF'):
+        return JsonResponse({'status': 'error', 'message': 'Access Denied'}, status=403)
+        
+    schedule = get_object_or_404(AidSchedule, id=schedule_id)
+    q = request.GET.get('q', '').strip().lower()
+    
+    if not hasattr(schedule, 'beneficiary_list'):
+        return JsonResponse({'status': 'error', 'message': 'No list generated yet.'}, status=400)
+        
+    ben_list = schedule.beneficiary_list
+    entries = ben_list.entries.all()
+    
+    from programs.beneficiary_engine import get_eligible_pool
+    pool = get_eligible_pool(schedule.assistance, schedule.barangay, current_schedule=schedule)
+    
+    is_family = schedule.assistance.beneficiary_type == 'family'
+    results = []
+    
+    if is_family:
+        existing_ids = entries.values_list('family_id', flat=True)
+        available = [ben for ben in pool if ben.id not in existing_ids]
+        
+        for cand in available:
+            name_match = q in cand.family_name.lower()
+            barangay_match = cand.household.barangay and q in cand.household.barangay.name.lower()
+            if not q or name_match or barangay_match:
+                results.append({
+                    'id': cand.id,
+                    'name': f"{cand.family_name} Family",
+                    'subtitle': cand.household.barangay.name if cand.household.barangay else "No Barangay",
+                    'is_family': True
+                })
+    else:
+        existing_ids = entries.values_list('household_id', flat=True)
+        available = [ben for ben in pool if ben.id not in existing_ids]
+        
+        for cand in available:
+            first_family = cand.families.first()
+            head_member = first_family.head_member if first_family else None
+            if not head_member and first_family:
+                head_member = first_family.members.first()
+                
+            head = f"{head_member.first_name} {head_member.last_name}" if head_member else "No Head"
+            
+            name_match = q in head.lower()
+            id_match = q in str(cand.id)
+            barangay_match = cand.barangay and q in cand.barangay.name.lower()
+            
+            if not q or name_match or id_match or barangay_match:
+                results.append({
+                    'id': cand.id,
+                    'name': f"Household ID: {cand.id} ({head})",
+                    'subtitle': cand.barangay.name if cand.barangay else "No Barangay",
+                    'is_family': False
+                })
+                
+    # Limit results to 20 for performance
+    return JsonResponse({'status': 'success', 'results': results[:20]})
+
+@login_required
+@session_protected
+def finish_distribution(request, schedule_id):
+    if request.user.role not in ('MSWDO', 'MSWDO_STAFF'):
+        return HttpResponseForbidden("Access Denied")
+        
+    schedule = get_object_or_404(AidSchedule, id=schedule_id)
+    
+    if request.method == 'POST':
+        schedule.is_finished = True
+        schedule.finished_at = timezone.now()
+        schedule.finished_by = request.user
+        schedule.finish_reason = 'FORCED'
+        schedule.save()
+        messages.success(request, "Distribution has been manually finished.")
+        if request.user.role == 'MSWDO':
+            return redirect('mswdo_dashboard')
+        return redirect('staff_dashboard')
+        
+    return HttpResponseForbidden("Invalid Method")
+
+@login_required
+@session_protected
+def generate_report_stub(request):
+    if request.user.role not in ('MSWDO', 'MSWDO_STAFF'):
+        return HttpResponseForbidden("Access Denied")
+    return render(request, 'distribution/generate_report_stub.html')
+
+@login_required
+@session_protected
+def beneficiary_detail_modal(request, entry_id):
+    """
+    Returns the HTML for the beneficiary detail modal in the review beneficiaries table.
+    """
+    if request.user.role not in ('MSWDO', 'MSWDO_STAFF'):
+        return HttpResponseForbidden("Access Denied")
+        
+    from distribution.models import GeneratedBeneficiary
+    entry = get_object_or_404(
+        GeneratedBeneficiary.objects.select_related(
+            'family', 'family__household', 'family__household__zone', 'family__household__barangay',
+            'household', 'household__zone', 'household__barangay'
+        ),
+        id=entry_id
+    )
+    
+    return render(request, 'distribution/partials/beneficiary_detail_modal.html', {
+        'entry': entry,
     })

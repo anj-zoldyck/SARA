@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Generate Report — SARA{% endblock %}
+{% block navbar_title %}GENERATE REPORT{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<style>
+  .stub-container {
+    text-align: center;
+    padding: 60px 20px;
+  }
+  .stub-icon {
+    font-size: 4rem;
+    color: var(--blue-dark);
+    margin-bottom: 20px;
+  }
+  .stub-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--slate-800);
+    margin-bottom: 10px;
+  }
+  .stub-desc {
+    color: var(--slate-500);
+    max-width: 500px;
+    margin: 0 auto 30px auto;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% if request.user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Generate Report</span>
+    </div>
+    <h1 class="dash-page-title">Generate Report</h1>
+    <p class="dash-page-sub">
+      Distribution summary and claim statistics
+    </p>
+  </div>
+</div>
+
+<div class="dash-panel" style="max-width: 800px; margin: 0 auto;">
+  <div class="dash-panel__body stub-container">
+    <i class="bi bi-tools stub-icon"></i>
+    <h2 class="stub-title">Report Generation Coming Soon</h2>
+    <p class="stub-desc">
+      The comprehensive reporting module is currently under development. In the future, this page will allow you to generate detailed PDF and Excel summaries of distributions, including total claims, specific beneficiary breakdowns, and budget utilization.
+    </p>
+    
+    <a href="{% if request.user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="btn-dash-primary mt-3">
+      <i class="bi bi-arrow-left me-1"></i> Return to Dashboard
+    </a>
+  </div>
+</div>
+{% endblock %}

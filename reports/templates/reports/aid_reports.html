@@ -100,9 +100,9 @@
               {% endif %}
             </h3>
             <!-- Status badge -->
-            {% if sched.end_datetime < now %}
+            {% if sched.is_finished %}
               <span class="rpt-status rpt-status--expired">
-                <i class="bi bi-circle-fill"></i> Expired
+                <i class="bi bi-circle-fill"></i> Finished
               </span>
             {% else %}
               <span class="rpt-status rpt-status--active">
@@ -127,7 +127,7 @@
               {{ sched.schedule_datetime }}
             </span>
             <span class="rpt-card__meta-sep">→</span>
-            <span>{{ sched.end_datetime }}</span>
+            <span>{% if sched.is_finished %}{{ sched.finished_at }}{% else %}Ongoing{% endif %}</span>
             <span class="rpt-card__meta-dot"></span>
             <span>
               <i class="bi bi-geo-alt"></i> {{ sched.location }}

@@ -4,37 +4,38 @@
 </p>
 <div id="active-schedules-list">
   {% if active_schedules %}
-    <div class="sched-list">
-      {% for sched in active_schedules %}
-      <div class="sched-item">
-        <div class="sched-item__badge sched-item__badge--active">Active</div>
-        <div class="sched-item__details">
-          <span class="sched-item__aid">
-            {% if sched.assistance %}
-              {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
-            {% else %}
-              N/A
-            {% endif %}
-          </span>
-          <div class="sched-item__meta">
-            <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
-            <span><i class="bi bi-geo"></i> {{ sched.location }}</span>
-            <span><i class="bi bi-buildings"></i> {{ sched.barangay|default:"All Barangays" }}</span>
-          </div>
+  <div class="sched-list">
+    {% for sched in active_schedules %}
+    <div class="sched-item">
+      <div class="sched-item__badge sched-item__badge--active">Active</div>
+      <div class="sched-item__details">
+        <span class="sched-item__aid">
+          {% if sched.assistance %}
+          {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
+          {% else %}
+          N/A
+          {% endif %}
+        </span>
+        <div class="sched-item__meta">
+          <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
+          <span><i class="bi bi-geo"></i> {{ sched.location }}</span>
+          <span><i class="bi bi-buildings"></i> {{ sched.barangay|default:"All Barangays" }}</span>
         </div>
-        {% if request.user.role == 'MSWDO_STAFF' %}
-        <a href="{% url 'rfid_claim_monitoring' %}" class="btn-dash-primary ms-auto py-1 px-3" style="font-size: 0.85rem;">
-          Distribute
-        </a>
-        {% endif %}
       </div>
-      {% endfor %}
+      {% if request.user.role == 'MSWDO_STAFF' %}
+      <a href="{% url 'rfid_claim_monitoring' %}" class="btn-dash-primary ms-auto py-1 px-3"
+        style="font-size: 0.85rem;">
+        Distribute
+      </a>
+      {% endif %}
     </div>
+    {% endfor %}
+  </div>
   {% else %}
-    <div class="sched-empty">
-      <i class="bi bi-calendar-x"></i>
-      <p>No active scheduled distribution.</p>
-    </div>
+  <div class="sched-empty">
+    <i class="bi bi-calendar-x"></i>
+    <p>No active scheduled distribution.</p>
+  </div>
   {% endif %}
 </div>
 
@@ -44,31 +45,31 @@
 </p>
 <div id="upcoming-schedules-list">
   {% if upcoming_schedules %}
-    <div class="sched-list">
-      {% for sched in upcoming_schedules %}
-      <div class="sched-item">
-        <div class="sched-item__badge sched-item__badge--upcoming">Upcoming</div>
-        <div class="sched-item__details">
-          <span class="sched-item__aid">
-            {% if sched.assistance %}
-              {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
-            {% else %}
-              N/A
-            {% endif %}
-          </span>
-          <div class="sched-item__meta">
-            <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
-            <span><i class="bi bi-geo"></i> {{ sched.location }}</span>
-            <span><i class="bi bi-buildings"></i> {{ sched.barangay|default:"All Barangays" }}</span>
-          </div>
+  <div class="sched-list">
+    {% for sched in upcoming_schedules %}
+    <div class="sched-item">
+      <div class="sched-item__badge sched-item__badge--upcoming">Upcoming</div>
+      <div class="sched-item__details">
+        <span class="sched-item__aid">
+          {% if sched.assistance %}
+          {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
+          {% else %}
+          N/A
+          {% endif %}
+        </span>
+        <div class="sched-item__meta">
+          <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
+          <span><i class="bi bi-geo"></i> {{ sched.location }}</span>
+          <span><i class="bi bi-buildings"></i> {{ sched.barangay|default:"All Barangays" }}</span>
         </div>
       </div>
-      {% endfor %}
     </div>
+    {% endfor %}
+  </div>
   {% else %}
-    <div class="sched-empty">
-      <i class="bi bi-calendar-x"></i>
-      <p>No upcoming scheduled distribution.</p>
-    </div>
+  <div class="sched-empty">
+    <i class="bi bi-calendar-x"></i>
+    <p>No upcoming scheduled distribution.</p>
+  </div>
   {% endif %}
 </div>

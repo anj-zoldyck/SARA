@@ -12,13 +12,15 @@
 {% block content %}
 <!-- ── Django Messages ────────────────────────────────────── -->
 {% if messages %}
-  {% for message in messages %}
-    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
-      <i class="bi bi-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
-      {{ message }}
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-  {% endfor %}
+{% for message in messages %}
+<div
+  class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show"
+  role="alert">
+  <i class="bi bi-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+  {{ message }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endfor %}
 {% endif %}
 <!-- ======================================================
      PAGE HEADER
@@ -81,36 +83,37 @@
     <i class="bi bi-arrow-right-short stat-card__arrow"></i>
   </a>
 
-<!-- Aid Monitoring shortcut -->
-<a href="{% url 'aid_type_list' %}" class="stat-card stat-card--teal">
-  <div class="stat-card__icon">
-    <i class="bi bi-box-seam"></i>
-  </div>
-  <div class="stat-card__body">
-    <span class="stat-card__label">Aid Monitoring</span>
-    <span class="stat-card__value stat-card__value--sm">Manage</span>
-  </div>
-  <i class="bi bi-arrow-right-short stat-card__arrow"></i>
-</a>
+  <!-- Aid Monitoring shortcut -->
+  <a href="{% url 'aid_type_list' %}" class="stat-card stat-card--teal">
+    <div class="stat-card__icon">
+      <i class="bi bi-box-seam"></i>
+    </div>
+    <div class="stat-card__body">
+      <span class="stat-card__label">Aid Monitoring</span>
+      <span class="stat-card__value stat-card__value--sm">Manage</span>
+    </div>
+    <i class="bi bi-arrow-right-short stat-card__arrow"></i>
+  </a>
 
-<!-- Program Management shortcut -->
-<a href="{% url 'program_list' %}" class="stat-card stat-card--amber">
-  <div class="stat-card__icon">
-    <i class="bi bi-heart-pulse"></i>
-  </div>
-  <div class="stat-card__body">
-    <span class="stat-card__label">Aid Programs</span>
-    <span class="stat-card__value stat-card__value--sm">Manage</span>
-  </div>
-  <i class="bi bi-arrow-right-short stat-card__arrow"></i>
-</a>
+  <!-- Program Management shortcut -->
+  <a href="{% url 'program_list' %}" class="stat-card stat-card--amber">
+    <div class="stat-card__icon">
+      <i class="bi bi-heart-pulse"></i>
+    </div>
+    <div class="stat-card__body">
+      <span class="stat-card__label">Aid Programs</span>
+      <span class="stat-card__value stat-card__value--sm">Manage</span>
+    </div>
+    <i class="bi bi-arrow-right-short stat-card__arrow"></i>
+  </a>
 
 </div>
 
 <!-- ======================================================
      DEMOGRAPHICS & RFID STATS
 ====================================================== -->
-<h3 class="dash-section-title mt-4 mb-3" style="font-size: 1.1rem; color: var(--clr-gray-700); font-weight: 600;">Resident Demographics & Stats</h3>
+<h3 class="dash-section-title mt-4 mb-3" style="font-size: 1.1rem; color: var(--clr-gray-700); font-weight: 600;">
+  Resident Demographics & Stats</h3>
 <div class="dash-grid dash-grid--cards">
   <!-- PWDs -->
   <div class="stat-card stat-card--purple" style="--card-color: #8b5cf6;">
@@ -182,69 +185,7 @@
 
       {% include "core/_dashboard_schedule_panel.html" %}
 
-      <!-- Divider -->
-      <div class="dash-divider">
-        <span>Set New Schedule</span>
-      </div>
 
-      <!-- Schedule Form -->
-      <form method="post" action="{% url 'set_aid_schedule' %}" class="sched-form">
-        {% csrf_token %}
-
-        <div class="sched-form__grid">
-
-          <div class="sched-form__field">
-            <label class="sched-form__label">Aid Type</label>
-            <select name="assistance" class="form-select" required>
-              <option value="">-- Select Assistance --</option>
-              {% regroup assistances by program as program_list %}
-              {% for group in program_list %}
-                <optgroup label="{{ group.grouper }}">
-                  {% for a in group.list %}
-                    <option value="{{ a.id }}">
-                      {{ a.aid_category.name }} ({{ a.get_beneficiary_type_display }})
-                    </option>
-                  {% endfor %}
-                </optgroup>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="sched-form__field">
-            <label class="sched-form__label">Start Date & Time</label>
-            <input type="datetime-local" name="schedule_datetime" class="form-control form-control-sm" required>
-          </div>
-
-          <div class="sched-form__field">
-            <label class="sched-form__label">End Date & Time</label>
-            <input type="datetime-local" name="end_datetime" class="form-control form-control-sm" required>
-          </div>
-
-          <div class="sched-form__field">
-            <label class="sched-form__label">Location</label>
-            <input type="text" name="location" class="form-control form-control-sm"
-              placeholder="e.g. Municipal Plaza" required>
-          </div>
-
-          <div class="sched-form__field">
-            <label class="sched-form__label">Barangay</label>
-            <select name="barangay" class="form-select form-select-sm">
-              <option value="">All Barangays</option>
-              {% for b in barangays %}
-                <option value="{{ b.id }}">{{ b.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-
-        </div>
-
-        <div class="sched-form__footer">
-          <button type="submit" class="btn-dash-primary">
-            <i class="bi bi-calendar-plus me-1"></i> Set Schedule
-          </button>
-        </div>
-
-      </form>
     </div>
   </div>
 
@@ -277,7 +218,7 @@
               <td class="text-center">{{ b.household_count }}</td>
               <td class="text-center">{{ b.family_count }}</td>
               <td class="text-center">
-                {{ b.rfid_count }} 
+                {{ b.rfid_count }}
                 <span class="text-muted" style="font-size: 0.8em;">
                   ({% if b.family_count > 0 %}{% widthratio b.rfid_count b.family_count 100 %}{% else %}0{% endif %}%)
                 </span>
@@ -292,21 +233,23 @@
 
   <!-- ── RIGHT: Quick Actions + Aid Shortcuts ────────────── -->
   <div class="dash-side">
-    
+
     <!-- System Operations Overview -->
     <div class="dash-panel mb-4" style="background: linear-gradient(145deg, #ffffff, #f8fafc); border-color: #e2e8f0;">
       <div class="dash-panel__body p-3">
         <h3 class="dash-section-title mb-3" style="font-size: 0.95rem;">System Operations</h3>
-        
-        <div class="d-flex align-items-center justify-content-between p-2 mb-2 rounded" style="background: #eff6ff; border: 1px solid #bfdbfe;">
+
+        <div class="d-flex align-items-center justify-content-between p-2 mb-2 rounded"
+          style="background: #eff6ff; border: 1px solid #bfdbfe;">
           <div class="d-flex align-items-center gap-2">
             <i class="bi bi-box-seam text-primary"></i>
             <span class="fw-medium text-primary-emphasis" style="font-size: 0.9rem;">Today's Claims</span>
           </div>
           <span class="badge bg-primary rounded-pill">{{ today_claims }}</span>
         </div>
-        
-        <div class="d-flex align-items-center justify-content-between p-2 rounded" style="background: #fff7ed; border: 1px solid #fed7aa;">
+
+        <div class="d-flex align-items-center justify-content-between p-2 rounded"
+          style="background: #fff7ed; border: 1px solid #fed7aa;">
           <div class="d-flex align-items-center gap-2">
             <i class="bi bi-envelope text-warning"></i>
             <span class="fw-medium text-warning-emphasis" style="font-size: 0.9rem;">Pending Invites</span>
@@ -327,24 +270,24 @@
 <script>
   // ── Live Clock ─────────────────────────────────────────
   function updateClock() {
-    const now  = new Date();
+    const now = new Date();
     const time = now.toLocaleTimeString('en-PH', {
-      hour:   '2-digit',
+      hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
       hour12: true
     });
-    const day  = now.toLocaleDateString('en-PH', { weekday: 'long' });
+    const day = now.toLocaleDateString('en-PH', { weekday: 'long' });
     const date = now.toLocaleDateString('en-PH', {
       month: 'long',
-      day:   'numeric',
-      year:  'numeric'
+      day: 'numeric',
+      year: 'numeric'
     });
     const timeEl = document.getElementById('dashTime');
-    const dayEl  = document.getElementById('dashDay');
+    const dayEl = document.getElementById('dashDay');
     const dateEl = document.getElementById('dashDate');
     if (timeEl) timeEl.textContent = time;
-    if (dayEl)  dayEl.textContent  = day;
+    if (dayEl) dayEl.textContent = day;
     if (dateEl) dateEl.textContent = date;
   }
   updateClock();
@@ -370,13 +313,13 @@
         const now = new Date();
         const diffMs = schedDate - now;
         if (diffMs > 0 && !isNaN(diffMs)) {
-            const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-            const diffDays = Math.floor(diffHrs / 24);
-            if (diffDays > 0) {
-              countdownHtml = `<span class="badge bg-light text-dark ms-2" style="font-size: 0.75rem;"><i class="bi bi-hourglass-split"></i> In ${diffDays} day${diffDays > 1 ? 's' : ''}</span>`;
-            } else {
-              countdownHtml = `<span class="badge bg-light text-dark ms-2" style="font-size: 0.75rem;"><i class="bi bi-hourglass-split"></i> In ${diffHrs} hr${diffHrs !== 1 ? 's' : ''}</span>`;
-            }
+          const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+          const diffDays = Math.floor(diffHrs / 24);
+          if (diffDays > 0) {
+            countdownHtml = `<span class="badge bg-light text-dark ms-2" style="font-size: 0.75rem;"><i class="bi bi-hourglass-split"></i> In ${diffDays} day${diffDays > 1 ? 's' : ''}</span>`;
+          } else {
+            countdownHtml = `<span class="badge bg-light text-dark ms-2" style="font-size: 0.75rem;"><i class="bi bi-hourglass-split"></i> In ${diffHrs} hr${diffHrs !== 1 ? 's' : ''}</span>`;
+          }
         }
       }
 
@@ -391,7 +334,7 @@
             <span><i class="bi bi-buildings"></i> ${s.barangay}</span>
           </div>
         </div>
-        ${badgeClass === 'active' && userRole === 'MSWDO_STAFF' ? `<a href="{% url 'rfid_claim_monitoring' %}" class="btn-dash-primary ms-auto py-1 px-3" style="font-size: 0.85rem;">Distribute</a>` : ''}
+        ${badgeClass === 'active' && userRole === 'MSWDO_STAFF' ? `<a href="/mswdo/rfid/claim-monitoring/" class="btn-dash-primary ms-auto py-1 px-3" style="font-size: 0.85rem;">Distribute</a>` : ''}
       </div>`;
     }).join('');
     return `<div class="sched-list">${items}</div>`;
@@ -404,9 +347,9 @@
         return res.json();
       })
       .then(data => {
-        const activeEl   = document.getElementById('active-schedules-list');
+        const activeEl = document.getElementById('active-schedules-list');
         const upcomingEl = document.getElementById('upcoming-schedules-list');
-        if (activeEl)   activeEl.innerHTML   = renderScheduleList(data.active,   'active',   'Active');
+        if (activeEl) activeEl.innerHTML = renderScheduleList(data.active, 'active', 'Active');
         if (upcomingEl) upcomingEl.innerHTML = renderScheduleList(data.upcoming, 'upcoming', 'Upcoming');
       })
       .catch(err => {

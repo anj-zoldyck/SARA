@@ -1,0 +1,90 @@
+<div class="p-4" style="background: #f8fafc;">
+    {% if entry.family %}
+    <div class="mb-4">
+        <h5 class="fw-bold text-dark mb-1"><i class="bi bi-people text-primary me-2"></i>{{ entry.family.family_name }} Family</h5>
+        <p class="text-muted small mb-0">
+            <i class="bi bi-geo-alt me-1"></i> House {{ entry.family.household.house_number|default:"N/A" }}, {{ entry.family.household.zone.name|default:"N/A" }}, {{ entry.family.household.barangay.name|default:"N/A" }}
+        </p>
+    </div>
+    
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+            <h6 class="text-muted small fw-bold text-uppercase mb-3">Family Information</h6>
+            <div class="row">
+                <div class="col-sm-6 mb-3">
+                    <span class="text-muted small d-block">Head of Family</span>
+                    <span class="fw-medium">{% with head=entry.family.head_member %}{% if head %}{{ head.first_name }} {{ head.last_name }}{% else %}No Head Designated{% endif %}{% endwith %}</span>
+                </div>
+                <div class="col-sm-6 mb-3">
+                    <span class="text-muted small d-block">Member Count</span>
+                    <span class="fw-medium">{{ entry.family.members.count }} Member(s)</span>
+                </div>
+                <div class="col-sm-12 mb-3">
+                    <span class="text-muted small d-block mb-1">Vulnerabilities</span>
+                    {% for m in entry.family.members.all %}
+                        {% if m.is_senior_citizen %}<span class="badge bg-primary me-1">Senior ({{ m.first_name }})</span>{% endif %}
+                        {% if m.is_pwd %}<span class="badge bg-success me-1">PWD ({{ m.first_name }})</span>{% endif %}
+                        {% if m.is_solo_parent %}<span class="badge bg-warning text-dark me-1">Solo Parent ({{ m.first_name }})</span>{% endif %}
+                    {% endfor %}
+                    {% if not entry.family.members.all %}
+                        <span class="text-muted small">None</span>
+                    {% endif %}
+                </div>
+                <div class="col-sm-12">
+                    <span class="text-muted small d-block">Household Context</span>
+                    <span class="fw-medium small">
+                        {% if entry.family.household.hazard_exposure != 'NONE' %}Exposed to {{ entry.family.household.get_hazard_exposure_display }}.{% else %}No major hazard exposure.{% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% else %}
+    {% with first_family=entry.household.families.first %}
+    {% with individual=first_family.head_member|default:first_family.members.first %}
+    <div class="mb-4">
+        <h5 class="fw-bold text-dark mb-1"><i class="bi bi-person text-primary me-2"></i>{% if individual %}{{ individual.first_name }} {{ individual.last_name }}{% else %}No members registered{% endif %}</h5>
+        <p class="text-muted small mb-0">
+            <i class="bi bi-geo-alt me-1"></i> House {{ entry.household.house_number|default:"N/A" }}, {{ entry.household.zone.name|default:"N/A" }}, {{ entry.household.barangay.name|default:"N/A" }}
+        </p>
+    </div>
+    
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+            <h6 class="text-muted small fw-bold text-uppercase mb-3">Beneficiary Information</h6>
+            <div class="row">
+                <div class="col-sm-6 mb-3">
+                    <span class="text-muted small d-block">Age</span>
+                    <span class="fw-medium">{% if individual and individual.age %}{{ individual.age }}{% else %}N/A{% endif %}</span>
+                </div>
+                <div class="col-sm-6 mb-3">
+                    <span class="text-muted small d-block">Relationship</span>
+                    <span class="fw-medium">{% if individual %}{{ individual.get_relationship_display }}{% else %}N/A{% endif %}</span>
+                </div>
+                <div class="col-sm-12 mb-3">
+                    <span class="text-muted small d-block mb-1">Vulnerabilities</span>
+                    {% if individual %}
+                        {% if individual.is_senior_citizen %}<span class="badge bg-primary me-1">Senior</span>{% endif %}
+                        {% if individual.is_pwd %}<span class="badge bg-success me-1">PWD</span>{% endif %}
+                        {% if individual.is_solo_parent %}<span class="badge bg-warning text-dark me-1">Solo Parent</span>{% endif %}
+                        {% if not individual.is_senior_citizen and not individual.is_pwd and not individual.is_solo_parent %}
+                            <span class="text-muted small">None</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="text-muted small">N/A</span>
+                    {% endif %}
+                </div>
+                <div class="col-sm-12">
+                    <span class="text-muted small d-block">Household Context</span>
+                    <span class="fw-medium small">
+                        {% if entry.household.hazard_exposure != 'NONE' %}Exposed to {{ entry.household.get_hazard_exposure_display }}.{% else %}No major hazard exposure.{% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endwith %}
+    {% endwith %}
+    {% endif %}
+</div>

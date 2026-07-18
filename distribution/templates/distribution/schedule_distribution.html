@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Schedule Distribution — SARA{% endblock %}
+{% block navbar_title %}SCHEDULE DISTRIBUTION{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<style>
+  .toggle-container {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+  .form-check-input:checked {
+    background-color: #134ed5;
+    border-color: #134ed5;
+  }
+  .budget-fields {
+    display: none;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px dashed #cbd5e1;
+  }
+  .budget-fields.show {
+    display: block;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Schedule Distribution</span>
+    </div>
+    <h1 class="dash-page-title">Schedule Distribution</h1>
+    <p class="dash-page-sub">
+      Set up new distribution events and optionally generate beneficiary lists.
+    </p>
+  </div>
+</div>
+
+<div class="dash-panel" style="max-width: 800px; margin: 0 auto;">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-calendar-plus dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">New Distribution Schedule</h2>
+        <p class="dash-panel__sub">Configure the aid type, timing, and location.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-panel__body">
+    <form method="post" action="{% url 'schedule_distribution' %}" class="sched-form">
+      {% csrf_token %}
+
+      <!-- Optional Beneficiary Selection Toggle -->
+      <div class="toggle-container">
+        <div class="form-check form-switch d-flex align-items-center gap-2">
+          <input class="form-check-input" type="checkbox" role="switch" id="enableSelectionToggle" name="enable_selection" style="width: 40px; height: 20px;">
+          <label class="form-check-label fw-semibold text-dark mb-0 ms-2" for="enableSelectionToggle" style="font-size: 1rem;">
+            Enable automated Beneficiary Selection for this distribution
+          </label>
+        </div>
+        <p class="text-muted mb-0 mt-2" style="font-size: 0.85rem; margin-left: 56px;">
+          When enabled, you'll set a budget and per-person amount, and the system will automatically identify and rank eligible beneficiaries based on your configured rules.
+        </p>
+
+        <!-- Budget Fields (Revealed when toggled) -->
+        <div class="budget-fields" id="budgetFieldsContainer">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="sched-form__label">Total Budget (₱)</label>
+              <input type="number" step="0.01" min="0" name="budget" id="budgetInput" class="form-control form-control-sm" placeholder="e.g. 50000.00">
+              <small class="text-muted">Total allocated funds for this event.</small>
+            </div>
+            <div class="col-md-6">
+              <label class="sched-form__label">Amount per Beneficiary (₱)</label>
+              <input type="number" step="0.01" min="0" name="per_beneficiary_amount" id="perAmountInput" class="form-control form-control-sm" placeholder="e.g. 500.00">
+              <small class="text-muted">Value each beneficiary receives.</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sched-form__grid mt-3">
+        <div class="sched-form__field">
+          <label class="sched-form__label">Aid Type <span class="text-danger">*</span></label>
+          <select name="assistance" class="form-select" required>
+            <option value="">-- Select Assistance --</option>
+            {% regroup assistances by program as program_list %}
+            {% for group in program_list %}
+            <optgroup label="{{ group.grouper }}">
+              {% for a in group.list %}
+              <option value="{{ a.id }}">
+                {{ a.aid_category.name }} ({{ a.get_beneficiary_type_display }})
+              </option>
+              {% endfor %}
+            </optgroup>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="sched-form__field">
+          <label class="sched-form__label">Start Date & Time <span class="text-danger">*</span></label>
+          <input type="datetime-local" name="schedule_datetime" class="form-control form-control-sm" required>
+        </div>
+
+
+        <div class="sched-form__field">
+          <label class="sched-form__label">Location <span class="text-danger">*</span></label>
+          <input type="text" name="location" class="form-control form-control-sm" placeholder="e.g. Municipal Plaza" required>
+        </div>
+
+        <div class="sched-form__field">
+          <label class="sched-form__label">Target Barangay (Optional)</label>
+          <select name="barangay" class="form-select form-select-sm">
+            <option value="">All Barangays</option>
+            {% for b in barangays %}
+            <option value="{{ b.id }}">{{ b.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+      <div class="sched-form__footer mt-4 pt-3" style="border-top: 1px solid #e2e8f0;">
+        <button type="submit" class="btn-dash-primary w-100" id="submitBtn">
+          <i class="bi bi-calendar-plus me-1"></i> Create Schedule
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const toggle = document.getElementById('enableSelectionToggle');
+    const budgetFields = document.getElementById('budgetFieldsContainer');
+    const budgetInput = document.getElementById('budgetInput');
+    const perAmountInput = document.getElementById('perAmountInput');
+    const submitBtn = document.getElementById('submitBtn');
+
+    toggle.addEventListener('change', function() {
+      if (this.checked) {
+        budgetFields.classList.add('show');
+        budgetInput.required = true;
+        perAmountInput.required = true;
+        submitBtn.innerHTML = '<i class="bi bi-cpu me-1"></i> Create & Generate Beneficiaries';
+      } else {
+        budgetFields.classList.remove('show');
+        budgetInput.required = false;
+        perAmountInput.required = false;
+        submitBtn.innerHTML = '<i class="bi bi-calendar-plus me-1"></i> Create Schedule';
+      }
+    });
+  });
+</script>
+{% endblock %}

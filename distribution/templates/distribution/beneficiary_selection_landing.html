@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Manage Beneficiary Lists — SARA{% endblock %}
+{% block navbar_title %}Manage Beneficiary Lists{% endblock %}
+
+{% block content %}
+<div class="dash-page-header">
+  <div>
+    <h1 class="dash-page-title">Manage Beneficiary Lists</h1>
+    <p class="dash-page-sub">
+      Review and manage beneficiary lists for your configured distributions.
+    </p>
+  </div>
+</div>
+
+<nav aria-label="breadcrumb">
+  <ol class="page-breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">Dashboard</a></li>
+    <li class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></li>
+    <li class="breadcrumb-item breadcrumb-current" aria-current="page">Manage Beneficiary Lists</li>
+  </ol>
+</nav>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show mt-3" role="alert">
+      <i class="bi bi-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<div class="dash-panel mt-4">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-person-check dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Eligible Schedules</h2>
+        <p class="dash-panel__sub">Schedules with allocated budget and per-beneficiary amounts</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-panel__body p-0">
+    <div class="table-responsive">
+      <table class="table acct-table mb-0">
+        <thead>
+          <tr>
+            <th class="acct-th" style="width: 25%;">Assistance / Program</th>
+            <th class="acct-th">Schedule Date</th>
+            <th class="acct-th">Location</th>
+            <th class="acct-th">Barangay Scope</th>
+            <th class="acct-th text-end pe-4">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sched in schedules %}
+          <tr class="acct-row">
+            <td class="acct-td fw-medium text-dark">
+              {% if sched.assistance %}
+                {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
+              {% else %}
+                N/A
+              {% endif %}
+            </td>
+            <td class="acct-td">
+              <i class="bi bi-clock text-muted me-1"></i>
+              {{ sched.schedule_datetime|date:"M d, Y g:i A" }}
+            </td>
+            <td class="acct-td">
+              <i class="bi bi-geo text-muted me-1"></i>
+              {{ sched.location }}
+            </td>
+            <td class="acct-td">
+              <i class="bi bi-buildings text-muted me-1"></i>
+              {{ sched.barangay|default:"All Barangays" }}
+            </td>
+            <td class="acct-td text-end pe-4">
+              {% if sched.beneficiary_list %}
+              <a href="{% url 'review_beneficiaries' sched.id %}" class="btn-dash-outline">
+                View Beneficiaries
+              </a>
+              {% else %}
+              <a href="{% url 'generate_beneficiaries' sched.id %}" class="btn-dash-primary">
+                Generate Beneficiaries
+              </a>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="p-5 text-center text-muted">
+              <i class="bi bi-calendar-x fs-1 mb-3 d-block opacity-50"></i>
+              <p class="mb-0">No eligible active schedules found.</p>
+              <small class="d-block mt-2">Schedules must have a <strong>budget</strong> and <strong>per-beneficiary amount</strong> configured to generate lists.</small>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
