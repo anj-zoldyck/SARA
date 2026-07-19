@@ -4,25 +4,30 @@
 {% block title %}Assign Staff — SARA{% endblock %}
 {% block navbar_title %}Manage Staff Assignments{% endblock %}
 
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
+{% endblock %}
+
 {% block content %}
 <div class="dash-page-header">
   <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'beneficiary_selection_landing' %}" class="breadcrumb-link">Manage Schedules</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Assign Staff</span>
+    </div>
     <h1 class="dash-page-title">Assign Staff</h1>
     <p class="dash-page-sub">
       Schedule: {{ schedule.assistance.program.name }} › {{ schedule.assistance.aid_category.name }}
     </p>
   </div>
 </div>
-
-<nav aria-label="breadcrumb">
-  <ol class="page-breadcrumb">
-    <li class="breadcrumb-item"><a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">Dashboard</a></li>
-    <li class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></li>
-    <li class="breadcrumb-item"><a href="{% url 'beneficiary_selection_landing' %}" class="breadcrumb-link">Manage Schedules</a></li>
-    <li class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></li>
-    <li class="breadcrumb-item breadcrumb-current" aria-current="page">Assign Staff</li>
-  </ol>
-</nav>
 
 {% if messages %}
   {% for message in messages %}
@@ -48,50 +53,70 @@
       </div>
       
       <div class="dash-panel__body">
-        <form method="post" action="">
+        <form method="post" action="" class="acct-form">
           {% csrf_token %}
           <input type="hidden" name="action" value="assign">
           
-          <div class="mb-3">
-            <label class="form-label fw-medium text-dark" style="font-size: 0.9rem;">Staff Member <span class="text-danger">*</span></label>
-            <select name="staff" class="form-select" required>
-              <option value="">-- Select Staff --</option>
-              {% for user in staff_list %}
-                <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          
-          <div class="mb-3">
-            <label class="form-label fw-medium text-dark" style="font-size: 0.9rem;">Barangay <span class="text-danger">*</span></label>
-            {% if schedule.barangay %}
-              <input type="text" class="form-control bg-light" value="{{ schedule.barangay.name }}" readonly>
-              <input type="hidden" name="barangay" id="barangaySelect" value="{{ schedule.barangay.id }}">
-              <small class="text-muted d-block mt-1">This schedule is locked to {{ schedule.barangay.name }}.</small>
-            {% else %}
-              <select name="barangay" id="barangaySelect" class="form-select" required>
-                <option value="">-- Select Barangay --</option>
-                {% for b in barangays %}
-                  <option value="{{ b.id }}">{{ b.name }}</option>
+          <div class="acct-form__group">
+            <label class="acct-form__label" for="staff">
+              <i class="bi bi-person"></i> Staff Member <span class="acct-form__required">*</span>
+            </label>
+            <div class="acct-form__control-wrap">
+              <select name="staff" id="staff" required>
+                <option value="">-- Select Staff --</option>
+                {% for user in staff_list %}
+                  <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }}</option>
                 {% endfor %}
               </select>
+            </div>
+          </div>
+          
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-buildings"></i> Barangay <span class="acct-form__required">*</span>
+            </label>
+            {% if schedule.barangay %}
+              <div class="acct-form__control-wrap">
+                <div class="d-flex align-items-center gap-2 p-2 bg-light rounded border" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                  <i class="bi bi-info-circle text-primary"></i>
+                  <span class="fw-medium text-dark">{{ schedule.barangay.name }}</span>
+                  <span class="badge bg-primary ms-auto" style="font-size: 11px;">Locked</span>
+                </div>
+                <input type="hidden" name="barangay" id="barangaySelect" value="{{ schedule.barangay.id }}">
+              </div>
+              <p class="acct-form__hint">This schedule is locked to {{ schedule.barangay.name }}.</p>
+            {% else %}
+              <div class="acct-form__control-wrap">
+                <select name="barangay" id="barangaySelect" required>
+                  <option value="">-- Select Barangay --</option>
+                  {% for b in barangays %}
+                    <option value="{{ b.id }}">{{ b.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
             {% endif %}
           </div>
           
-          <div class="mb-3">
-            <label class="form-label fw-medium text-dark" style="font-size: 0.9rem;">Zone <span class="text-muted fw-normal">(Optional)</span></label>
-            <select name="zone" id="zoneSelect" class="form-select">
-              <option value="">-- All Zones (Barangay-wide) --</option>
-              {% for z in zones %}
-                <option value="{{ z.id }}" data-barangay="{{ z.barangay_id }}">{{ z.name }}</option>
-              {% endfor %}
-            </select>
-            <small class="text-muted d-block mt-1">Leave blank to assign the staff to the entire barangay.</small>
+          <div class="acct-form__group">
+            <label class="acct-form__label" for="zone">
+              <i class="bi bi-geo-alt"></i> Zone <span class="text-muted fw-normal" style="font-size: 12px;">(Optional)</span>
+            </label>
+            <div class="acct-form__control-wrap">
+              <select name="zone" id="zoneSelect">
+                <option value="">-- All Zones (Barangay-wide) --</option>
+                {% for z in zones %}
+                  <option value="{{ z.id }}" data-barangay="{{ z.barangay_id }}">{{ z.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <p class="acct-form__hint">Leave blank to assign the staff to the entire barangay.</p>
           </div>
           
-          <button type="submit" class="btn-dash-primary w-100 mt-3">
-            <i class="bi bi-plus-lg me-1"></i> Add Assignment
-          </button>
+          <div class="acct-form__actions">
+            <button type="submit" class="btn-dash-primary">
+              <i class="bi bi-plus-lg"></i> Add Assignment
+            </button>
+          </div>
         </form>
       </div>
     </div>
@@ -116,7 +141,7 @@
               <tr>
                 <th class="acct-th">Staff Name</th>
                 <th class="acct-th">Location</th>
-                <th class="acct-th text-end pe-4">Action</th>
+                <th class="acct-th acct-th--actions">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -134,23 +159,44 @@
                     <span class="badge bg-secondary ms-1">Barangay-wide</span>
                   {% endif %}
                 </td>
-                <td class="acct-td text-end pe-4">
-                  <form method="post" action="" class="d-inline" onsubmit="return confirm('Remove this assignment?');">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="remove">
-                    <input type="hidden" name="assignment_id" value="{{ assignment.id }}">
-                    <button type="submit" class="btn btn-sm btn-outline-danger" style="border: none; border-radius: 6px; padding: 4px 8px;">
-                      <i class="bi bi-trash"></i>
+                <td class="acct-td acct-td--actions">
+                  <div class="acct-actions">
+                    <button type="button" class="acct-btn acct-btn--delete"
+                            onclick="showConfirmModal('Remove this assignment?', function() {
+                                const form = document.createElement('form');
+                                form.method = 'post';
+                                form.action = '';
+                                const csrfInput = document.createElement('input');
+                                csrfInput.type = 'hidden';
+                                csrfInput.name = 'csrfmiddlewaretoken';
+                                csrfInput.value = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                                form.appendChild(csrfInput);
+                                const actionInput = document.createElement('input');
+                                actionInput.type = 'hidden';
+                                actionInput.name = 'action';
+                                actionInput.value = 'remove';
+                                form.appendChild(actionInput);
+                                const assignmentInput = document.createElement('input');
+                                assignmentInput.type = 'hidden';
+                                assignmentInput.name = 'assignment_id';
+                                assignmentInput.value = '{{ assignment.id }}';
+                                form.appendChild(assignmentInput);
+                                document.body.appendChild(form);
+                                form.submit();
+                            }, { title: 'Remove Assignment', confirmText: 'Remove' });">
+                      <i class="bi bi-trash"></i> Remove
                     </button>
-                  </form>
+                  </div>
                 </td>
               </tr>
               {% empty %}
               <tr>
-                <td colspan="3" class="p-5 text-center text-muted">
-                  <i class="bi bi-people fs-1 mb-3 d-block opacity-50"></i>
-                  <p class="mb-0">No staff assigned yet.</p>
-                  <small class="d-block mt-2">Currently, <strong>all MSWDO staff</strong> can process claims for this schedule.</small>
+                <td colspan="3" class="acct-empty">
+                  <div class="acct-empty-state">
+                    <i class="bi bi-people"></i>
+                    <p>No staff assigned yet.</p>
+                    <small>Currently, <strong>all MSWDO staff</strong> can process claims for this schedule.</small>
+                  </div>
                 </td>
               </tr>
               {% endfor %}

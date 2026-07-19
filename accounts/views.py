@@ -16,7 +16,7 @@ from households.models import Household, Zone, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
 from distribution.models import AidSchedule, AidClaim
 
-from accounts.forms import UserEditForm, CreateUserForm, ProfileSettingsForm, ProfilePasswordChangeForm
+from accounts.forms import CreateUserForm, ProfileSettingsForm, ProfilePasswordChangeForm
 from households.forms import HouseholdForm, FamilyForm, FamilyMemberForm
 from programs.forms import ProgramForm, AidCategoryForm, AssistanceForm
 
@@ -184,29 +184,6 @@ def force_password_change(request):
             messages.error(request, "Passwords do not match or are less than 8 characters.")
 
     return render(request, 'accounts/force_password_change.html')
-
-
-@login_required(login_url='login')
-@session_protected
-def edit_user(request, user_id):
-    if request.user.role != 'MSWDO':
-        return HttpResponseForbidden("Access Denied")
-
-    user_obj = get_object_or_404(User, id=user_id, role__in=['BARANGAY', 'MSWDO_STAFF'])
-
-    if request.method == 'POST':
-        form = UserEditForm(request.POST, instance=user_obj)
-        if form.is_valid():
-            form.save()
-            messages.success(request, f"Email for {user_obj.username} updated successfully.")
-            return redirect('user_accounts')
-    else:
-        form = UserEditForm(instance=user_obj)
-
-    return render(request, 'accounts/edit_user.html', {
-        'form': form,
-        'user_obj': user_obj,
-    })
 
 
 @login_required(login_url='login')

@@ -77,23 +77,6 @@ class CreateUserForm(forms.ModelForm):
             raise forms.ValidationError("This username is already taken.")
         return username
 
-class UserEditForm(forms.ModelForm):
-    """
-    Edit form for correcting an existing user's email from the admin side.
-    """
-    email = forms.EmailField(widget=forms.EmailInput(attrs={'class': 'form-control'}))
-
-    class Meta:
-        model = User
-        fields = ['email']
-
-    def clean_email(self):
-        email = self.cleaned_data.get('email')
-        qs = User.objects.filter(email__iexact=email).exclude(pk=self.instance.pk)
-        if qs.exists():
-            raise forms.ValidationError("This email is already in use by another account.")
-        return email
-
 # ============================================================
 # Profile self-service forms (for logged-in users to edit their own profile)
 
@@ -178,11 +161,9 @@ class ProfileSettingsForm(forms.ModelForm):
 
 class ProfilePasswordChangeForm(forms.Form):
     """
-    Self-service password change. Requires the user's CURRENT password
-    (unlike the admin-side UserEditForm reset, which doesn't need it,
-    since an admin resetting someone else's password doesn't need to
-    know their old one). This prevents an unattended logged-in session
-    from being used to silently take over the account.
+    Self-service password change. Requires the user's CURRENT password.
+    This prevents an unattended logged-in session from being used to
+    silently take over the account.
     """
     current_password = forms.CharField(
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Current Password'})

@@ -39,7 +39,7 @@
       {% if aid_schedule and not aid_schedule.is_finished and user.role != 'BARANGAY' %}
       <form method="post" action="{% url 'finish_distribution' aid_schedule.id %}" id="finishDistributionForm" class="d-inline">
         {% csrf_token %}
-        <button type="button" id="forceFinishBtn" class="btn btn-dash-primary" title="End Distribution Early">
+        <button type="button" id="forceFinishBtn" class="btn-dash-outline" style="color: #dc3545; border-color: #dc3545;" title="End Distribution Early">
           <i class="bi bi-flag-fill"></i> <span class="d-none d-sm-inline">Distribution Finished</span>
         </button>
       </form>
@@ -200,15 +200,16 @@
 <div class="modal-overlay" id="forceFinishModal">
   <div class="kiosk-modal">
     <div class="kiosk-modal-header">
-      <h2 class="kiosk-modal-title text-danger">End Distribution?</h2>
+      <h2 class="kiosk-modal-title" style="color: #dc3545;"><i class="bi bi-exclamation-triangle me-2"></i>End Distribution?</h2>
       <p class="kiosk-modal-subtitle">There may be unclaimed beneficiaries remaining.</p>
     </div>
     <div class="kiosk-modal-body text-center mt-3 mb-3">
-      Are you sure you want to end this distribution? Once finished, no more claims can be processed for this schedule.
+      <i class="bi bi-exclamation-triangle-fill" style="font-size: 3rem; color: #dc3545; margin-bottom: 15px;"></i>
+      <p class="mb-0">Are you sure you want to end this distribution? Once finished, no more claims can be processed for this schedule.</p>
     </div>
     <div class="kiosk-modal-footer d-flex justify-content-end gap-2 mt-4">
-      <button type="button" class="btn btn-dash-outline" id="cancelForceFinishBtn">Cancel</button>
-      <button type="button" class="btn btn-dash-primary" id="confirmForceFinishBtn">End Distribution</button>
+      <button type="button" class="btn-dash-outline" id="cancelForceFinishBtn">Cancel</button>
+      <button type="button" class="btn-dash-primary" id="confirmForceFinishBtn" style="background-color: #dc3545; border-color: #dc3545;">End Distribution</button>
     </div>
   </div>
 </div>
@@ -217,16 +218,16 @@
 <div class="modal-overlay" id="autoFinishModal">
   <div class="kiosk-modal">
     <div class="kiosk-modal-header text-center">
-      <h2 class="kiosk-modal-title text-success">Distribution Finished</h2>
+      <h2 class="kiosk-modal-title" style="color: #198754;"><i class="bi bi-check-circle-fill me-2"></i>Distribution Finished</h2>
       <p class="kiosk-modal-subtitle">All beneficiaries on the list have successfully claimed their assistance.</p>
     </div>
     <div class="kiosk-modal-body text-center py-4">
-      <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+      <i class="bi bi-check-circle-fill" style="font-size: 4rem; color: #198754;"></i>
       <p class="mt-3 mb-0 text-muted">What would you like to do next?</p>
     </div>
     <div class="kiosk-modal-footer d-flex flex-column gap-2 mt-2">
-      <a href="{% if user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="btn btn-dash-primary w-100">Proceed to Dashboard</a>
-      <a href="{% url 'generate_report_stub' %}" class="btn btn-dash-outline w-100">Proceed to Generate Report</a>
+      <a href="{% if user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="btn-dash-primary w-100">Proceed to Dashboard</a>
+      <a href="{% url 'generate_report_stub' %}" class="btn-dash-outline w-100">Proceed to Generate Report</a>
     </div>
   </div>
 </div>

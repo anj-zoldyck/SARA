@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
 <link rel="stylesheet" href="{% static 'css/program_list.css' %}">
 <link rel="stylesheet" href="{% static 'css/settings.css' %}">
+<link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -282,8 +283,8 @@
         </div>
         <div class="modal-footer settings-photo-modal-footer">
           {% if user.profile_image %}
-            <button type="submit" form="removePhotoForm" class="acct-btn acct-btn--deactivate"
-                    onclick="return confirm('Remove your profile photo?')">
+            <button type="button" class="acct-btn acct-btn--deactivate"
+                    onclick="showConfirmModal('Remove your profile photo?', function() { document.getElementById('removePhotoForm').submit(); }, { title: 'Remove Photo', confirmText: 'Remove' });">
               <i class="bi bi-trash3"></i><span>Remove Photo</span>
             </button>
           {% endif %}

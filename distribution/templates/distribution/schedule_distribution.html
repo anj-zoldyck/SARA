@@ -6,6 +6,7 @@
 
 {% block css %}
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
 <style>
   .toggle-container {
     background: #f8fafc;
@@ -21,8 +22,10 @@
   .budget-fields {
     display: none;
     margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px dashed #cbd5e1;
+    padding: 16px;
+    background: #eff6ff;
+    border-left: 4px solid #134ed5;
+    border-radius: 0 8px 8px 0;
   }
   .budget-fields.show {
     display: block;
@@ -76,67 +79,95 @@
 
         <!-- Budget Fields (Revealed when toggled) -->
         <div class="budget-fields" id="budgetFieldsContainer">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="sched-form__label">Total Budget (₱)</label>
-              <input type="number" step="0.01" min="0" name="budget" id="budgetInput" class="form-control form-control-sm" placeholder="e.g. 50000.00">
-              <small class="text-muted">Total allocated funds for this event.</small>
-            </div>
-            <div class="col-md-6">
-              <label class="sched-form__label">Amount per Beneficiary (₱)</label>
-              <input type="number" step="0.01" min="0" name="per_beneficiary_amount" id="perAmountInput" class="form-control form-control-sm" placeholder="e.g. 500.00">
-              <small class="text-muted">Value each beneficiary receives.</small>
+          <div class="acct-form">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="acct-form__group">
+                  <label class="acct-form__label" for="budgetInput">
+                    <i class="bi bi-currency-dollar"></i> Total Budget (₱)
+                  </label>
+                  <div class="acct-form__control-wrap">
+                    <input type="number" step="0.01" min="0" name="budget" id="budgetInput" class="form-control" placeholder="e.g. 50000.00">
+                  </div>
+                  <p class="acct-form__hint">Total allocated funds for this event.</p>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="acct-form__group">
+                  <label class="acct-form__label" for="perAmountInput">
+                    <i class="bi bi-person"></i> Amount per Beneficiary (₱)
+                  </label>
+                  <div class="acct-form__control-wrap">
+                    <input type="number" step="0.01" min="0" name="per_beneficiary_amount" id="perAmountInput" class="form-control" placeholder="e.g. 500.00">
+                  </div>
+                  <p class="acct-form__hint">Value each beneficiary receives.</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="sched-form__grid mt-3">
-        <div class="sched-form__field">
-          <label class="sched-form__label">Aid Type <span class="text-danger">*</span></label>
-          <select name="assistance" class="form-select" required>
-            <option value="">-- Select Assistance --</option>
-            {% regroup assistances by program as program_list %}
-            {% for group in program_list %}
-            <optgroup label="{{ group.grouper }}">
-              {% for a in group.list %}
-              <option value="{{ a.id }}">
-                {{ a.aid_category.name }} ({{ a.get_beneficiary_type_display }})
-              </option>
+      <div class="acct-form mt-3">
+        <div class="acct-form__group">
+          <label class="acct-form__label">
+            <i class="bi bi-box-seam"></i> Aid Type <span class="acct-form__required">*</span>
+          </label>
+          <div class="acct-form__control-wrap">
+            <select name="assistance" class="form-select" required>
+              <option value="">-- Select Assistance --</option>
+              {% regroup assistances by program as program_list %}
+              {% for group in program_list %}
+              <optgroup label="{{ group.grouper }}">
+                {% for a in group.list %}
+                <option value="{{ a.id }}">
+                  {{ a.aid_category.name }} ({{ a.get_beneficiary_type_display }})
+                </option>
+                {% endfor %}
+              </optgroup>
               {% endfor %}
-            </optgroup>
-            {% endfor %}
-          </select>
+            </select>
+          </div>
         </div>
 
-        <div class="sched-form__field">
-          <label class="sched-form__label">Start Date & Time <span class="text-danger">*</span></label>
-          <input type="datetime-local" name="schedule_datetime" class="form-control form-control-sm" required>
+        <div class="acct-form__group">
+          <label class="acct-form__label">
+            <i class="bi bi-calendar"></i> Start Date & Time <span class="acct-form__required">*</span>
+          </label>
+          <div class="acct-form__control-wrap">
+            <input type="datetime-local" name="schedule_datetime" class="form-control" required>
+          </div>
         </div>
 
-
-        <div class="sched-form__field">
-          <label class="sched-form__label">Location <span class="text-danger">*</span></label>
-          <input type="text" name="location" class="form-control form-control-sm" placeholder="e.g. Municipal Plaza" required>
+        <div class="acct-form__group">
+          <label class="acct-form__label">
+            <i class="bi bi-geo-alt"></i> Location <span class="acct-form__required">*</span>
+          </label>
+          <div class="acct-form__control-wrap">
+            <input type="text" name="location" class="form-control" placeholder="e.g. Municipal Plaza" required>
+          </div>
         </div>
 
-        <div class="sched-form__field">
-          <label class="sched-form__label">Target Barangay (Optional)</label>
-          <select name="barangay" class="form-select form-select-sm">
-            <option value="">All Barangays</option>
-            {% for b in barangays %}
-            <option value="{{ b.id }}">{{ b.name }}</option>
-            {% endfor %}
-          </select>
+        <div class="acct-form__group">
+          <label class="acct-form__label">
+            <i class="bi bi-buildings"></i> Target Barangay (Optional)
+          </label>
+          <div class="acct-form__control-wrap">
+            <select name="barangay" class="form-select">
+              <option value="">All Barangays</option>
+              {% for b in barangays %}
+              <option value="{{ b.id }}">{{ b.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
         </div>
 
-      <div class="sched-form__footer mt-4 pt-3" style="border-top: 1px solid #e2e8f0;">
-        <button type="submit" class="btn-dash-primary w-100" id="submitBtn">
-          <i class="bi bi-calendar-plus me-1"></i> Create Schedule
-        </button>
+        <div class="acct-form__actions">
+          <button type="submit" class="btn-dash-primary" id="submitBtn">
+            <i class="bi bi-calendar-plus"></i> Create Schedule
+          </button>
+        </div>
       </div>
-
-    </form>
   </div>
 </div>
 {% endblock %}

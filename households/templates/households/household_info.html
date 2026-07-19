@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
 <link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
 <link rel="stylesheet" href="{% static 'css/households.css' %}">
+<link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -172,7 +173,7 @@
                   </a>
                   <a href="{% url 'deactivate_rfid' family.id %}"
                      class="acct-btn acct-btn--deactivate"
-                     onclick="return confirm('Deactivate RFID for {{ family.family_name }}?')">
+                     onclick="event.preventDefault(); showConfirmModal('Deactivate RFID for {{ family.family_name }}?', function() { window.location.href = '{% url 'deactivate_rfid' family.id %}'; }, { title: 'Deactivate RFID', confirmText: 'Deactivate' });">
                     <i class="bi bi-slash-circle"></i><span>Deactivate</span>
                   </a>
                 {% else %}

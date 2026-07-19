@@ -6,8 +6,8 @@
 
 {% block css %}
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
-
 <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
 <!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 <style>
@@ -194,9 +194,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     const marker = L.marker([area.latitude, area.longitude], { icon: floodIcon }).addTo(map);
                     
                     const popupContent = `
-                        <div style="min-width: 200px;">
-                            <h6 style="font-weight: 600;">Flood-Prone Area</h6>
-                            <p style="font-size: 0.85rem; margin-bottom: 0.5rem;">${area.description || 'No description provided.'}</p>
+                        <div style="min-width: 200px; font-family: var(--font);">
+                            <h6 style="font-weight: 700; color: #1e3a8a; margin-bottom: 0.5rem;">Flood-Prone Area</h6>
+                            <p style="font-size: 0.85rem; margin-bottom: 0.5rem; color: #475569;">${area.description || 'No description provided.'}</p>
                             <div class="d-flex gap-2">
                                 <button class="btn btn-sm btn-outline-danger w-100" onclick="deleteArea(${area.id})">Delete</button>
                             </div>
@@ -270,14 +270,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.deleteArea = function(id) {
         pendingDeleteId = id;
-        if (deleteModal) {
-            deleteModal.show();
-        } else {
-            // Fallback if bootstrap is not loaded
-            if (confirm('Remove this flood-prone area?')) {
-                executeDelete(id);
-            }
-        }
+        deleteModal.show();
     };
 
     function executeDelete(id) {
@@ -312,43 +305,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         tempMarker = L.marker([pendingLat, pendingLng], { icon: floodIcon, opacity: 0.6 }).addTo(map);
-        
-        if (addModal) {
-            addModal.show();
-        } else {
-            // Fallback if bootstrap is not loaded
-            const desc = prompt("Enter a description for this flood-prone spot (e.g. 'Low-lying area near creek'):");
-            if (desc === null) {
-                map.removeLayer(tempMarker);
-                tempMarker = null;
-                return;
-            }
-            if (desc.trim() === '') {
-                alert("Description is required.");
-                map.removeLayer(tempMarker);
-                tempMarker = null;
-                return;
-            }
-            fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({
-                    action: 'add',
-                    latitude: pendingLat,
-                    longitude: pendingLng,
-                    description: desc
-                })
-            }).then(res => res.json()).then(data => {
-                if (data.success) {
-                    loadAreas();
-                } else {
-                    alert(data.error || 'Failed to add area');
-                }
-            });
-        }
+        addModal.show();
     });
 
     loadAreas();

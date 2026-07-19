@@ -460,6 +460,8 @@
 
 </div><!-- /.page-wrapper -->
 
+{% include 'partials/confirm_modal.html' %}
+
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -555,6 +557,42 @@
       if (window.innerWidth < 992) closeSidebar();
     });
   });
+
+  // ── Generic Confirmation Modal ───────────────────────────────────────────
+  function showConfirmModal(message, onConfirm, options = {}) {
+    // options: { title: string, confirmText: string }
+    const overlay = document.getElementById('genericConfirmModalOverlay');
+    const messageEl = document.getElementById('genericConfirmMessage');
+    const titleEl = document.getElementById('genericConfirmTitleText');
+    const proceedBtn = document.getElementById('genericConfirmProceedBtn');
+    const cancelBtn = document.getElementById('genericConfirmCancelBtn');
+
+    messageEl.textContent = message;
+    titleEl.textContent = options.title || 'Confirm Action';
+    proceedBtn.textContent = options.confirmText || 'Confirm';
+
+    overlay.classList.add('active');
+
+    // Clone-and-replace the proceed button to clear any previously
+    // attached listener from a prior call to this function — prevents
+    // duplicate/stacked event handlers if this modal is reused multiple
+    // times on the same page without a full reload.
+    const newProceedBtn = proceedBtn.cloneNode(true);
+    proceedBtn.parentNode.replaceChild(newProceedBtn, proceedBtn);
+
+    newProceedBtn.addEventListener('click', function() {
+        overlay.classList.remove('active');
+        onConfirm();
+    });
+
+    cancelBtn.addEventListener('click', function() {
+        overlay.classList.remove('active');
+    });
+
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) overlay.classList.remove('active');
+    });
+  }
 </script>
 
 {% block js %}{% endblock %}

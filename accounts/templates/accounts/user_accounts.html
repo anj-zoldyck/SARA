@@ -8,6 +8,7 @@
 {% block css %}
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -192,15 +193,11 @@
                   <i class="bi bi-eye"></i>
                   <span>Details</span>
                 </button>
-                <a href="{% url 'edit_user' user.id %}" class="acct-btn acct-btn--edit" title="Edit Email">
-                  <i class="bi bi-envelope"></i>
-                  <span>Edit Email</span>
-                </a>
                 {% if user.is_active %}
                 <a href="{% url 'deactivate_user' user.id %}"
                    class="acct-btn acct-btn--deactivate"
                    title="Deactivate account"
-                   onclick="return confirm('Deactivate {{ user.username }} account?')">
+                   onclick="event.preventDefault(); showConfirmModal('Deactivate {{ user.username }} account?', function() { window.location.href = '{% url 'deactivate_user' user.id %}'; }, { title: 'Deactivate Account', confirmText: 'Deactivate' });">
                   <i class="bi bi-slash-circle"></i>
                   <span>Deactivate</span>
                 </a>
@@ -208,7 +205,7 @@
                 <a href="{% url 'activate_user_account' user.id %}"
                    class="acct-btn acct-btn--activate"
                    title="Activate account"
-                   onclick="return confirm('Activate {{ user.username }} account?')">
+                   onclick="event.preventDefault(); showConfirmModal('Activate {{ user.username }} account?', function() { window.location.href = '{% url 'activate_user_account' user.id %}'; }, { title: 'Activate Account', confirmText: 'Activate' });">
                   <i class="bi bi-check-circle"></i>
                   <span>Activate</span>
                 </a>

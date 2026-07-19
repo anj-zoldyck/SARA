@@ -83,9 +83,11 @@
 <div class="dash-page-header">
     <div>
         <div class="page-breadcrumb">
-            <a href="{% url 'beneficiary_selection_landing' %}" class="breadcrumb-link">
-                <i class="bi bi-person-check"></i> Manage Beneficiary Lists
+            <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
+                <i class="bi bi-speedometer2"></i> Dashboard
             </a>
+            <i class="bi bi-chevron-right breadcrumb-sep"></i>
+            <a href="{% url 'beneficiary_selection_landing' %}" class="breadcrumb-link">Manage Schedules</a>
             <i class="bi bi-chevron-right breadcrumb-sep"></i>
             <span class="breadcrumb-current">Review List</span>
         </div>
@@ -226,14 +228,31 @@
                             {% endif %}
                         </td>
                         <td class="acct-td text-end pe-4">
-                            <form method="POST" action="{% url 'manual_override_beneficiary' schedule.id %}" class="d-inline" onsubmit="return confirm('Are you sure you want to remove this beneficiary from the list?');">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="remove">
-                                <input type="hidden" name="entry_id" value="{{ entry.id }}">
-                                <button type="submit" class="acct-btn acct-btn--delete" title="Remove">
-                                    <i class="bi bi-trash"></i> Remove
-                                </button>
-                            </form>
+                            <button type="button" class="acct-btn acct-btn--delete" title="Remove"
+                                    onclick="showConfirmModal('Are you sure you want to remove this beneficiary from the list?', function() {
+                                        const form = document.createElement('form');
+                                        form.method = 'POST';
+                                        form.action = '{% url 'manual_override_beneficiary' schedule.id %}';
+                                        const csrfInput = document.createElement('input');
+                                        csrfInput.type = 'hidden';
+                                        csrfInput.name = 'csrfmiddlewaretoken';
+                                        csrfInput.value = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                                        form.appendChild(csrfInput);
+                                        const actionInput = document.createElement('input');
+                                        actionInput.type = 'hidden';
+                                        actionInput.name = 'action';
+                                        actionInput.value = 'remove';
+                                        form.appendChild(actionInput);
+                                        const entryInput = document.createElement('input');
+                                        entryInput.type = 'hidden';
+                                        entryInput.name = 'entry_id';
+                                        entryInput.value = '{{ entry.id }}';
+                                        form.appendChild(entryInput);
+                                        document.body.appendChild(form);
+                                        form.submit();
+                                    }, { title: 'Remove Beneficiary', confirmText: 'Remove' });">
+                                <i class="bi bi-trash"></i> Remove
+                            </button>
                         </td>
                     </tr>
                     {% endfor %}

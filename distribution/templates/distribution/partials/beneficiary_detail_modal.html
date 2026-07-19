@@ -22,9 +22,9 @@
                 <div class="col-sm-12 mb-3">
                     <span class="text-muted small d-block mb-1">Vulnerabilities</span>
                     {% for m in entry.family.members.all %}
-                        {% if m.is_senior_citizen %}<span class="badge bg-primary me-1">Senior ({{ m.first_name }})</span>{% endif %}
-                        {% if m.is_pwd %}<span class="badge bg-success me-1">PWD ({{ m.first_name }})</span>{% endif %}
-                        {% if m.is_solo_parent %}<span class="badge bg-warning text-dark me-1">Solo Parent ({{ m.first_name }})</span>{% endif %}
+                        {% if m.is_senior_citizen %}<span class="acct-badge acct-badge--active me-1" style="background: #dcfce7; color: #166534;"><i class="bi bi-circle-fill" style="font-size: 7px;"></i> Senior ({{ m.first_name }})</span>{% endif %}
+                        {% if m.is_pwd %}<span class="acct-badge me-1" style="background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe;"><i class="bi bi-circle-fill" style="font-size: 7px;"></i> PWD ({{ m.first_name }})</span>{% endif %}
+                        {% if m.is_solo_parent %}<span class="acct-badge me-1" style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a;"><i class="bi bi-circle-fill" style="font-size: 7px;"></i> Solo Parent ({{ m.first_name }})</span>{% endif %}
                     {% endfor %}
                     {% if not entry.family.members.all %}
                         <span class="text-muted small">None</span>
@@ -65,9 +65,9 @@
                 <div class="col-sm-12 mb-3">
                     <span class="text-muted small d-block mb-1">Vulnerabilities</span>
                     {% if individual %}
-                        {% if individual.is_senior_citizen %}<span class="badge bg-primary me-1">Senior</span>{% endif %}
-                        {% if individual.is_pwd %}<span class="badge bg-success me-1">PWD</span>{% endif %}
-                        {% if individual.is_solo_parent %}<span class="badge bg-warning text-dark me-1">Solo Parent</span>{% endif %}
+                        {% if individual.is_senior_citizen %}<span class="acct-badge acct-badge--active me-1" style="background: #dcfce7; color: #166534;"><i class="bi bi-circle-fill" style="font-size: 7px;"></i> Senior</span>{% endif %}
+                        {% if individual.is_pwd %}<span class="acct-badge me-1" style="background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe;"><i class="bi bi-circle-fill" style="font-size: 7px;"></i> PWD</span>{% endif %}
+                        {% if individual.is_solo_parent %}<span class="acct-badge me-1" style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a;"><i class="bi bi-circle-fill" style="font-size: 7px;"></i> Solo Parent</span>{% endif %}
                         {% if not individual.is_senior_citizen and not individual.is_pwd and not individual.is_solo_parent %}
                             <span class="text-muted small">None</span>
                         {% endif %}

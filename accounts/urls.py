@@ -10,7 +10,6 @@ urlpatterns = [
 
     path('mswdo/users/', views.user_accounts, name='user_accounts'),
     path('mswdo/users/create/', views.create_user, name='create_user'),
-    path('mswdo/users/<int:user_id>/edit/', views.edit_user, name='edit_user'),
     path('mswdo/users/<int:user_id>/deactivate/', views.deactivate_user, name='deactivate_user'),
     path('mswdo/users/<int:user_id>/activate/', views.activate_user_account, name='activate_user_account'),
     
