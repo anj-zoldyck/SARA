@@ -187,6 +187,7 @@
                     data-assistance-category-id="{{ a.aid_category.id }}"
                     data-assistance-category-name="{{ a.aid_category.name }}"
                     data-assistance-beneficiary="{{ a.beneficiary_type }}"
+                    data-assistance-aid-type="{{ a.aid_type }}"
                     data-assistance-min-age="{{ a.minimum_age|default:'' }}"
                     data-assistance-pwd="{{ a.requires_pwd|yesno:'true,false' }}"
                     data-assistance-solo-parent="{{ a.requires_solo_parent|yesno:'true,false' }}"
@@ -549,6 +550,17 @@
             </select>
           </div>
 
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="asst_aid_type">
+              <i class="bi bi-cash-coin"></i> Aid Type &mdash; Cash or Goods-in-Kind
+              <span class="modal-form__required">*</span>
+            </label>
+            <select id="asst_aid_type" name="aid_type" class="modal-form__select" required>
+              <option value="CASH">Cash Assistance</option>
+              <option value="GOODS">Goods-in-Kind (rice, noodles, canned goods, etc.)</option>
+            </select>
+          </div>
+
           <div id="asst_eligibility_group" style="display:none;">
             <div class="modal-form__group">
               <label class="modal-form__label" for="asst_min_age">
@@ -685,6 +697,17 @@
               <option value="">-- Select Type --</option>
               <option value="family">Family</option>
               <option value="individual">Individual</option>
+            </select>
+          </div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="edit_asst_aid_type">
+              <i class="bi bi-cash-coin"></i> Aid Type &mdash; Cash or Goods-in-Kind
+              <span class="modal-form__required">*</span>
+            </label>
+            <select id="edit_asst_aid_type" name="aid_type" class="modal-form__select" required>
+              <option value="CASH">Cash Assistance</option>
+              <option value="GOODS">Goods-in-Kind (rice, noodles, canned goods, etc.)</option>
             </select>
           </div>
 
@@ -930,6 +953,7 @@ document.getElementById('editAssistanceModal').addEventListener('show.bs.modal',
   const categoryId     = btn.dataset.assistanceCategoryId;
   const categoryName   = btn.dataset.assistanceCategoryName;
   const beneficiary    = btn.dataset.assistanceBeneficiary;
+  const aidType        = btn.dataset.assistanceAidType;
   const minAge         = btn.dataset.assistanceMinAge;
   const pwd            = btn.dataset.assistancePwd === 'true';
   const soloParent     = btn.dataset.assistanceSoloParent === 'true';
@@ -968,6 +992,9 @@ document.getElementById('editAssistanceModal').addEventListener('show.bs.modal',
 
   // Set beneficiary type
   editAsstBeneficiary.value = beneficiary;
+
+  // Set aid type
+  document.getElementById('edit_asst_aid_type').value = aidType;
 
   // Show/hide eligibility fields based on current beneficiary type
   if (beneficiary === 'individual') {

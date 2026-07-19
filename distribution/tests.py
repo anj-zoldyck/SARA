@@ -1,11 +1,11 @@
-from django.test import TestCase, RequestFactory
+from django.test import TestCase, RequestFactory, Client
 from django.utils import timezone
 from accounts.models import User, Barangay
 from households.models import Zone, Household, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
 from distribution.models import AidSchedule, AssignedTo, AidClaim
 from distribution.services import is_staff_assigned_to_scan
-from distribution.views import scan_rfid
+from distribution.views import scan_rfid, staff_walkin
 from django.contrib.messages.storage.fallback import FallbackStorage
 
 def add_messages(request):
@@ -207,3 +207,116 @@ class AssignedToTestCase(TestCase):
         request_b.user = self.staff1
         response_b = scan_rfid(request_b, schedule_b.id)
         self.assertFalse(AidClaim.objects.filter(family=self.family_a2, schedule=schedule_b).exists())
+
+class MultiWordNameSearchTestCase(TestCase):
+    """
+    Test Bug 2 fix: Multi-word name search in staff_walkin should work correctly.
+    """
+    def setUp(self):
+        self.barangay = Barangay.objects.create(name='Test Barangay')
+        self.zone = Zone.objects.create(name='Zone 1', barangay=self.barangay)
+        self.household = Household.objects.create(
+            barangay=self.barangay,
+            zone=self.zone,
+            house_number='123',
+            land_use='RESIDENTIAL'
+        )
+        self.family = Family.objects.create(
+            household=self.household,
+            family_name='Dela Cruz Family',
+            is_active=True
+        )
+        
+        # Create members with multi-word names
+        self.member1 = FamilyMember.objects.create(
+            family=self.family,
+            first_name='Juan',
+            middle_name='Reyes',
+            last_name='Dela Cruz'
+        )
+        self.member2 = FamilyMember.objects.create(
+            family=self.family,
+            first_name='Maria',
+            middle_name='Santos',
+            last_name='Garcia'
+        )
+        
+        self.staff = User.objects.create_user(
+            username='staff',
+            email='staff@test.com',
+            role='MSWDO_STAFF',
+            password='pwd'
+        )
+        self.factory = RequestFactory()
+
+    def test_single_word_search(self):
+        """Test that single word searches still work."""
+        request = self.factory.get('/staff/walkin/', {'q': 'Juan'})
+        request.user = self.staff
+        add_messages(request)
+        response = staff_walkin(request)
+        
+        self.assertEqual(response.status_code, 200)
+        # Check that Juan is in the context
+        self.assertIn('Juan', str(response.content))
+        
+        request = self.factory.get('/staff/walkin/', {'q': 'Dela'})
+        request.user = self.staff
+        add_messages(request)
+        response = staff_walkin(request)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Dela Cruz', str(response.content))
+
+    def test_multi_word_search_first_last(self):
+        """Test that 'Juan Dela Cruz' returns results."""
+        request = self.factory.get('/staff/walkin/', {'q': 'Juan Dela Cruz'})
+        request.user = self.staff
+        add_messages(request)
+        response = staff_walkin(request)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Juan', str(response.content))
+        self.assertIn('Dela Cruz', str(response.content))
+
+    def test_multi_word_search_last_first(self):
+        """Test that 'Dela Cruz Juan' returns results (word order shouldn't matter)."""
+        request = self.factory.get('/staff/walkin/', {'q': 'Dela Cruz Juan'})
+        request.user = self.staff
+        add_messages(request)
+        response = staff_walkin(request)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Juan', str(response.content))
+        self.assertIn('Dela Cruz', str(response.content))
+
+    def test_multi_word_search_middle_name(self):
+        """Test that middle name is included in search."""
+        request = self.factory.get('/staff/walkin/', {'q': 'Juan Reyes'})
+        request.user = self.staff
+        add_messages(request)
+        response = staff_walkin(request)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Juan', str(response.content))
+        
+        request = self.factory.get('/staff/walkin/', {'q': 'Reyes Dela Cruz'})
+        request.user = self.staff
+        add_messages(request)
+        response = staff_walkin(request)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Dela Cruz', str(response.content))
+
+    def test_search_returns_no_results_for_nonexistent(self):
+        """Test that non-existent names return no results."""
+        request = self.factory.get('/staff/walkin/', {'q': 'Nonexistent Name'})
+        request.user = self.staff
+        add_messages(request)
+        response = staff_walkin(request)
+        
+        self.assertEqual(response.status_code, 200)
+        # Should not contain any member names
+        content_str = str(response.content)
+        self.assertNotIn('Juan', content_str)
+        self.assertNotIn('Maria', content_str)

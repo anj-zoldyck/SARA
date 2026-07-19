@@ -444,9 +444,17 @@ def staff_walkin(request):
         )
         
         if query:
-            members = members.filter(
-                Q(first_name__icontains=query) | Q(last_name__icontains=query)
-            )
+            # Split query into words and require ALL words to match somewhere across name fields
+            # This correctly handles "Juan", "Dela Cruz", "Juan Dela Cruz", and "Dela Cruz Juan"
+            words = query.split()
+            q_objects = Q()
+            for word in words:
+                q_objects &= (
+                    Q(first_name__icontains=word) |
+                    Q(middle_name__icontains=word) |
+                    Q(last_name__icontains=word)
+                )
+            members = members.filter(q_objects)
         
         if barangay_id:
             members = members.filter(family__household__barangay_id=barangay_id)
@@ -793,15 +801,31 @@ def search_eligible_candidates(request, schedule_id):
         available = [ben for ben in pool if ben.id not in existing_ids]
         
         for cand in available:
-            name_match = q in cand.family_name.lower()
-            barangay_match = cand.household.barangay and q in cand.household.barangay.name.lower()
-            if not q or name_match or barangay_match:
+            # Split query into words and require ALL words to match
+            words = q.split() if q else []
+            if not words:
+                # No query - include all available candidates
                 results.append({
                     'id': cand.id,
                     'name': f"{cand.family_name} Family",
                     'subtitle': cand.household.barangay.name if cand.household.barangay else "No Barangay",
                     'is_family': True
                 })
+            else:
+                # Check if all words match in family name or barangay
+                name_lower = cand.family_name.lower()
+                barangay_name = cand.household.barangay.name.lower() if cand.household.barangay else ""
+                all_words_match = all(
+                    word in name_lower or word in barangay_name
+                    for word in words
+                )
+                if all_words_match:
+                    results.append({
+                        'id': cand.id,
+                        'name': f"{cand.family_name} Family",
+                        'subtitle': cand.household.barangay.name if cand.household.barangay else "No Barangay",
+                        'is_family': True
+                    })
     else:
         existing_ids = entries.values_list('household_id', flat=True)
         available = [ben for ben in pool if ben.id not in existing_ids]
@@ -814,16 +838,31 @@ def search_eligible_candidates(request, schedule_id):
                 
             head = f"{head_member.first_name} {head_member.last_name}" if head_member else "No Head"
             
-            name_match = q in head.lower()
-            barangay_match = cand.barangay and q in cand.barangay.name.lower()
-            
-            if not q or name_match or barangay_match:
+            # Split query into words and require ALL words to match
+            words = q.split() if q else []
+            if not words:
+                # No query - include all available candidates
                 results.append({
                     'id': cand.id,
                     'name': head,
                     'subtitle': cand.barangay.name if cand.barangay else "No Barangay",
                     'is_family': False
                 })
+            else:
+                # Check if all words match in head name or barangay
+                head_lower = head.lower()
+                barangay_name = cand.barangay.name.lower() if cand.barangay else ""
+                all_words_match = all(
+                    word in head_lower or word in barangay_name
+                    for word in words
+                )
+                if all_words_match:
+                    results.append({
+                        'id': cand.id,
+                        'name': head,
+                        'subtitle': cand.barangay.name if cand.barangay else "No Barangay",
+                        'is_family': False
+                    })
                 
     return JsonResponse({'status': 'success', 'results': results[:20]})
 

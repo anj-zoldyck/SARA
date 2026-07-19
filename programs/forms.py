@@ -49,7 +49,7 @@ class AidCategoryForm(forms.ModelForm):
 class AssistanceForm(forms.ModelForm):
     class Meta:
         model = Assistance
-        fields = ['program', 'aid_category', 'beneficiary_type', 'minimum_age', 'requires_pwd', 'requires_solo_parent', 'requires_senior_citizen', 'is_active']
+        fields = ['program', 'aid_category', 'beneficiary_type', 'aid_type', 'minimum_age', 'requires_pwd', 'requires_solo_parent', 'requires_senior_citizen', 'is_active']
         widgets = {
             'program': forms.Select(attrs={
                 'class': 'form-select',
@@ -60,6 +60,9 @@ class AssistanceForm(forms.ModelForm):
                 'id': 'id_aid_category'
             }),
             'beneficiary_type': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'aid_type': forms.Select(attrs={
                 'class': 'form-select'
             }),
             'minimum_age': forms.NumberInput(attrs={
@@ -86,6 +89,7 @@ class AssistanceForm(forms.ModelForm):
         # JavaScript handles dynamic filtering on the frontend
         self.fields['aid_category'].queryset = AidCategory.objects.select_related('program').all()
         self.fields['minimum_age'].required = False
+        self.fields['aid_type'].label = "Aid Type — Cash or Goods-in-Kind"
 
     def clean(self):
         cleaned_data = super().clean()

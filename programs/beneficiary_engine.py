@@ -44,18 +44,19 @@ def evaluate_household_against_rules(household, rules):
 
         elif rule.rule_type == 'SPECIAL_CATEGORY':
             flags = rule.config.get('flags', [])
-            # Rule specifies flags, members must have AT LEAST ONE of these flags (OR logic within the rule)
             if flags:
-                queries = [Q(**{f"{flag}": True}) for flag in flags if flag in ['is_pwd', 'is_solo_parent', 'is_senior_citizen', 'is_indigenous', 'is_out_of_school_youth', 'is_out_of_school_children']]
-                if queries:
-                    # Combine queries with OR logic
-                    query = queries[0]
-                    for q in queries[1:]:
-                        query |= q
-                    # Check if any member in the household satisfies the OR condition
-                    has_matching_member = FamilyMember.objects.filter(family__household=household).filter(query).exists()
-                    if not has_matching_member:
-                        return False
+                has_matching_member = False
+                members = FamilyMember.objects.filter(family__household=household)
+                for member in members:
+                    for flag_name in flags:
+                        if getattr(member, flag_name, False) is True:
+                            has_matching_member = True
+                            break
+                    if has_matching_member:
+                        break
+                
+                if not has_matching_member:
+                    return False
                         
         elif rule.rule_type == 'DAYS_SINCE_LAST_ASSISTANCE':
             # Query AidClaim across ALL assistances for this household's families.
@@ -127,14 +128,18 @@ def evaluate_family_against_rules(family, rules):
         elif rule.rule_type == 'SPECIAL_CATEGORY':
             flags = rule.config.get('flags', [])
             if flags:
-                queries = [Q(**{f"{flag}": True}) for flag in flags if flag in ['is_pwd', 'is_solo_parent', 'is_senior_citizen', 'is_indigenous', 'is_out_of_school_youth', 'is_out_of_school_children']]
-                if queries:
-                    query = queries[0]
-                    for q in queries[1:]:
-                        query |= q
-                    has_matching_member = family.members.filter(query).exists()
-                    if not has_matching_member:
-                        return False
+                has_matching_member = False
+                members = family.members.all()
+                for member in members:
+                    for flag_name in flags:
+                        if getattr(member, flag_name, False) is True:
+                            has_matching_member = True
+                            break
+                    if has_matching_member:
+                        break
+                
+                if not has_matching_member:
+                    return False
                         
         elif rule.rule_type == 'DAYS_SINCE_LAST_ASSISTANCE':
             # Query AidClaim across ALL assistances for this specific family

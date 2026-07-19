@@ -127,6 +127,49 @@ class Assistance(models.Model):
     def eligibility_badges(self):
         return get_eligibility_badges(self)
 
+    def save(self, *args, **kwargs):
+        # Track if boolean flags are changing to avoid unnecessary rule updates
+        if self.pk:
+            try:
+                old_assistance = Assistance.objects.get(pk=self.pk)
+                flags_changed = (
+                    old_assistance.requires_pwd != self.requires_pwd or
+                    old_assistance.requires_solo_parent != self.requires_solo_parent or
+                    old_assistance.requires_senior_citizen != self.requires_senior_citizen
+                )
+            except Assistance.DoesNotExist:
+                flags_changed = True  # New instance, always sync
+        else:
+            flags_changed = True  # New instance, always sync
+        
+        super().save(*args, **kwargs)
+        
+        # Only sync SPECIAL_CATEGORY EligibilityRule if flags changed or this is a new instance
+        # This preserves manually-configured rules when editing unrelated fields
+        if flags_changed:
+            flags = []
+            if self.requires_pwd:
+                flags.append('is_pwd')
+            if self.requires_solo_parent:
+                flags.append('is_solo_parent')
+            if self.requires_senior_citizen:
+                flags.append('is_senior_citizen')
+                
+            if flags:
+                rule, created = EligibilityRule.objects.get_or_create(
+                    assistance=self,
+                    rule_type='SPECIAL_CATEGORY',
+                    defaults={'config': {'flags': flags}, 'is_active': True}
+                )
+                if not created:
+                    # Only update if the flags are different to preserve manual configs
+                    if rule.config.get('flags', []) != flags:
+                        rule.config['flags'] = flags
+                        rule.is_active = True
+                        rule.save(update_fields=['config', 'is_active'])
+            else:
+                EligibilityRule.objects.filter(assistance=self, rule_type='SPECIAL_CATEGORY').delete()
+
 
 # Expected config shapes per rule_type:
 # INCOME_THRESHOLD: {"max_income": 15000}
