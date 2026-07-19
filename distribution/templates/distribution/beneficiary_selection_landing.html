@@ -7,9 +7,9 @@
 {% block content %}
 <div class="dash-page-header">
   <div>
-    <h1 class="dash-page-title">Manage Beneficiary Lists</h1>
+    <h1 class="dash-page-title">Manage Schedules</h1>
     <p class="dash-page-sub">
-      Review and manage beneficiary lists for your configured distributions.
+      Manage beneficiary lists and staff assignments for active distributions.
     </p>
   </div>
 </div>
@@ -18,7 +18,7 @@
   <ol class="page-breadcrumb">
     <li class="breadcrumb-item"><a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">Dashboard</a></li>
     <li class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></li>
-    <li class="breadcrumb-item breadcrumb-current" aria-current="page">Manage Beneficiary Lists</li>
+    <li class="breadcrumb-item breadcrumb-current" aria-current="page">Manage Schedules</li>
   </ol>
 </nav>
 
@@ -35,10 +35,10 @@
 <div class="dash-panel mt-4">
   <div class="dash-panel__header">
     <div class="dash-panel__header-left">
-      <i class="bi bi-person-check dash-panel__icon"></i>
+      <i class="bi bi-calendar-check dash-panel__icon"></i>
       <div>
-        <h2 class="dash-panel__title">Eligible Schedules</h2>
-        <p class="dash-panel__sub">Schedules with allocated budget and per-beneficiary amounts</p>
+        <h2 class="dash-panel__title">Active Schedules</h2>
+        <p class="dash-panel__sub">All active distribution schedules</p>
       </div>
     </div>
   </div>
@@ -78,23 +78,35 @@
               {{ sched.barangay|default:"All Barangays" }}
             </td>
             <td class="acct-td text-end pe-4">
-              {% if sched.beneficiary_list %}
-              <a href="{% url 'review_beneficiaries' sched.id %}" class="btn-dash-outline">
-                View Beneficiaries
-              </a>
-              {% else %}
-              <a href="{% url 'generate_beneficiaries' sched.id %}" class="btn-dash-primary">
-                Generate Beneficiaries
-              </a>
-              {% endif %}
+              <div class="d-flex justify-content-end gap-2">
+                <a href="{% url 'assign_staff' sched.id %}" class="btn-dash-outline">
+                  <i class="bi bi-person-badge"></i> Assign Staff
+                </a>
+                
+                {% if sched.budget > 0 %}
+                  {% if sched.beneficiary_list %}
+                  <a href="{% url 'review_beneficiaries' sched.id %}" class="btn-dash-outline">
+                    View Beneficiaries
+                  </a>
+                  {% else %}
+                  <a href="{% url 'generate_beneficiaries' sched.id %}" class="btn-dash-primary">
+                    Generate Beneficiaries
+                  </a>
+                  {% endif %}
+                {% else %}
+                  <span class="btn-dash-outline disabled text-muted border-0" title="No budget allocated for beneficiary generation">
+                    N/A
+                  </span>
+                {% endif %}
+              </div>
             </td>
           </tr>
           {% empty %}
           <tr>
             <td colspan="5" class="p-5 text-center text-muted">
               <i class="bi bi-calendar-x fs-1 mb-3 d-block opacity-50"></i>
-              <p class="mb-0">No eligible active schedules found.</p>
-              <small class="d-block mt-2">Schedules must have a <strong>budget</strong> and <strong>per-beneficiary amount</strong> configured to generate lists.</small>
+              <p class="mb-0">No active schedules found.</p>
+              <small class="d-block mt-2">Go to Schedule Distribution to create one.</small>
             </td>
           </tr>
           {% endfor %}

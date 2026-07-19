@@ -264,6 +264,8 @@
   </div>
 </div>
 
+{% include "core/_schedule_selector_modal.html" %}
+
 {% endblock %}
 
 {% block js %}
@@ -334,7 +336,7 @@
             <span><i class="bi bi-buildings"></i> ${s.barangay}</span>
           </div>
         </div>
-        ${badgeClass === 'active' && userRole === 'MSWDO_STAFF' ? `<a href="/mswdo/rfid/claim-monitoring/" class="btn-dash-primary ms-auto py-1 px-3" style="font-size: 0.85rem;">Distribute</a>` : ''}
+        ${badgeClass === 'active' && userRole === 'MSWDO_STAFF' ? `<a href="/mswdo/schedule/${s.id}/rfid/scan/" class="btn-dash-primary ms-auto py-1 px-3" style="font-size: 0.85rem;">Distribute</a>` : ''}
       </div>`;
     }).join('');
     return `<div class="sched-list">${items}</div>`;

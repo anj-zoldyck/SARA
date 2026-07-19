@@ -132,3 +132,30 @@ class GeneratedBeneficiary(models.Model):
                     return f"{first_member.first_name} {first_member.last_name}"
             return f"{self.household.address} (No members registered)"
         return "Unknown Beneficiary"
+
+# ----------------- AssignedTo Model -----------------
+# This model handles staff assignments for distribution schedules.
+class AssignedTo(models.Model):
+    schedule = models.ForeignKey('AidSchedule', on_delete=models.CASCADE, related_name='assignments')
+    
+    # Note: staff must have the MSWDO_STAFF role. We do not enforce this at the model
+    # level (e.g. via limit_choices_to={'role': 'MSWDO_STAFF'}) because model-level
+    # constraints can sometimes break if a user's role changes historically, and it's
+    # cleaner to validate this strictly in the form/view layer when creating assignments.
+    staff = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='distribution_assignments')
+    
+    barangay = models.ForeignKey('accounts.Barangay', on_delete=models.CASCADE)
+    
+    # Zone is optional to allow for flexible assignments:
+    # - If zone is set, the staff is assigned strictly to that specific zone within the barangay.
+    # - If zone is blank (None), it acts as a "barangay-wide" assignment, meaning the staff
+    #   can process claims for ANY household within that barangay.
+    zone = models.ForeignKey('households.Zone', on_delete=models.CASCADE, null=True, blank=True,
+                              help_text="Optional — leave blank if staff is assigned to the whole barangay, not a specific zone.")
+    
+    assigned_at = models.DateTimeField(auto_now_add=True)
+    assigned_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='+')
+
+    class Meta:
+        # A staff member shouldn't be assigned to the exact same schedule+barangay+zone combo twice
+        unique_together = ('schedule', 'staff', 'barangay', 'zone')

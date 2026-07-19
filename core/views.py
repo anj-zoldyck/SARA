@@ -120,6 +120,7 @@ def mswdo_dashboard(request):
         'active_schedules': active_schedules,
         'upcoming_schedules': upcoming_schedules,
         'finished_schedules': finished_schedules,
+        'assigned_schedule_ids': [], # MSWDO is not assigned to specific locations
     }
 
     return render(request, 'core/mswdo_dashboard.html', context)
@@ -209,6 +210,7 @@ def staff_dashboard(request):
         'today_claims': today_claims,
         'active_schedules': active_schedules,
         'upcoming_schedules': upcoming_schedules,
+        'assigned_schedule_ids': list(request.user.distribution_assignments.values_list('schedule_id', flat=True)),
     }
 
     return render(request, 'core/staff_dashboard.html', context)

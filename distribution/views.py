@@ -23,7 +23,7 @@ from programs.eligibility import check_eligibility, get_eligibility_badges
 # from distribution.forms import AidScheduleForm  # if any
 
 from django.utils.safestring import mark_safe
-from distribution.services import get_active_aid_schedule, get_active_schedule
+from distribution.services import get_active_aid_schedule, get_active_schedule, is_staff_assigned_to_scan
 from django.utils.dateparse import parse_datetime
 from django_otp.plugins.otp_email.models import EmailDevice
 from django.urls import reverse
@@ -113,32 +113,38 @@ def schedule_distribution(request):
 
 @login_required
 @session_protected
-def scan_rfid(request):
+def scan_rfid(request, schedule_id):
     if request.user.role not in ('MSWDO', 'MSWDO_STAFF', 'BARANGAY'):
-        return HttpResponseForbidden("Access Denied")
+        messages.error(request, "Access Denied.")
+        return redirect('login')
 
     error = None
     success = None
     family = None
     family_members = None
 
-    now = timezone.now()
-
-    # Get active schedule with assistance preloaded
-    aid_schedule = AidSchedule.objects.select_related(
+    aid_schedule = get_object_or_404(AidSchedule.objects.select_related(
         'assistance',
         'assistance__program',
         'assistance__aid_category'
-    ).filter(
-        is_active=True,
-        is_finished=False,
-        schedule_datetime__lte=now,
-    ).order_by('-schedule_datetime').first()
+    ), id=schedule_id)
 
-    if not aid_schedule:
-        error = "No active distribution schedule right now."
+    if not aid_schedule.is_active or aid_schedule.is_finished:
+        error = "This schedule is no longer active or has finished."
     elif not aid_schedule.assistance:
-        error = "Active schedule has no assistance type configured. Please contact admin."
+        error = "This schedule has no assistance type configured. Please contact admin."
+        
+    # -------- STAFF ASSIGNMENT ENFORCEMENT --------
+    # This acts as a hard block against direct URL access.
+    # If the user is unassigned to this schedule, they cannot access the kiosk view at all.
+    if not is_staff_assigned_to_scan(request.user, aid_schedule):
+        messages.error(request, "Access Denied — You are not assigned to process claims for this distribution.")
+        if request.user.role == 'MSWDO':
+            return redirect('mswdo_dashboard')
+        elif request.user.role == 'MSWDO_STAFF':
+            return redirect('staff_dashboard')
+        else:
+            return redirect('barangay_dashboard')
 
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Accept') == 'application/json' or 'application/json' in request.content_type
 
@@ -192,6 +198,15 @@ def scan_rfid(request):
                 if is_ajax:
                     return JsonResponse({'status': 'error', 'message': error})
                 return render(request, 'distribution/scan_rfid.html', {'error': error, 'aid_schedule': aid_schedule})
+
+        # -------- Phase B.1: Staff Assignment Check --------
+        # Check if the staff member is assigned to process claims for this schedule/location.
+        # This is independent of the beneficiary list check. Both can coexist.
+        if not is_staff_assigned_to_scan(request.user, aid_schedule, family.household):
+            error = "You are not assigned to process claims for this location."
+            if is_ajax:
+                return JsonResponse({'status': 'error', 'message': error})
+            return render(request, 'distribution/scan_rfid.html', {'error': error, 'aid_schedule': aid_schedule})
 
         # -------- FAMILY-BASED assistance --------
         if assistance.beneficiary_type == 'family':
@@ -533,12 +548,10 @@ def staff_walkin_claim(request):
 @mswdo_or_staff_required
 def beneficiary_selection_landing(request):
     """
-    Landing page for Beneficiary Selection. Lists active schedules with funding allocated.
+    Landing page for Beneficiary Selection and Staff Assignment. Lists active schedules.
     """
     schedules = AidSchedule.objects.filter(
-        is_active=True,
-        budget__isnull=False, budget__gt=0,
-        per_beneficiary_amount__isnull=False, per_beneficiary_amount__gt=0
+        is_active=True
     ).select_related('assistance', 'assistance__program', 'assistance__aid_category').order_by('-schedule_datetime')
     
     return render(request, 'distribution/beneficiary_selection_landing.html', {
@@ -802,19 +815,95 @@ def search_eligible_candidates(request, schedule_id):
             head = f"{head_member.first_name} {head_member.last_name}" if head_member else "No Head"
             
             name_match = q in head.lower()
-            id_match = q in str(cand.id)
             barangay_match = cand.barangay and q in cand.barangay.name.lower()
             
-            if not q or name_match or id_match or barangay_match:
+            if not q or name_match or barangay_match:
                 results.append({
                     'id': cand.id,
-                    'name': f"Household ID: {cand.id} ({head})",
+                    'name': head,
                     'subtitle': cand.barangay.name if cand.barangay else "No Barangay",
                     'is_family': False
                 })
                 
-    # Limit results to 20 for performance
     return JsonResponse({'status': 'success', 'results': results[:20]})
+
+
+@login_required
+@session_protected
+def assign_staff(request, schedule_id):
+    """
+    Manage staff assignments for a specific schedule.
+    Allows MSWDO Admin to assign MSWDO_STAFF to specific barangays/zones.
+    """
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+        
+    schedule = get_object_or_404(AidSchedule, id=schedule_id)
+    from distribution.models import AssignedTo
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'assign':
+            staff_id = request.POST.get('staff')
+            zone_id = request.POST.get('zone')
+            
+            # Inherit barangay from schedule if set, else read from POST
+            if schedule.barangay:
+                barangay_id = schedule.barangay.id
+            else:
+                barangay_id = request.POST.get('barangay')
+            
+            if not staff_id or not barangay_id:
+                messages.error(request, "Staff and Barangay are required.")
+                return redirect('assign_staff', schedule_id=schedule.id)
+                
+            staff_user = get_object_or_404(User, id=staff_id, role='MSWDO_STAFF')
+            barangay = get_object_or_404(Barangay, id=barangay_id)
+            
+            # Ensure the selected barangay matches the schedule's barangay if the schedule is scope-locked
+            if schedule.barangay and barangay != schedule.barangay:
+                messages.error(request, "This schedule is locked to a specific barangay.")
+                return redirect('assign_staff', schedule_id=schedule.id)
+                
+            zone = None
+            if zone_id:
+                zone = get_object_or_404(Zone, id=zone_id, barangay=barangay)
+                
+            # Check for existing
+            if AssignedTo.objects.filter(schedule=schedule, staff=staff_user, barangay=barangay, zone=zone).exists():
+                messages.error(request, "This staff member is already assigned to this exact location.")
+            else:
+                AssignedTo.objects.create(
+                    schedule=schedule,
+                    staff=staff_user,
+                    barangay=barangay,
+                    zone=zone,
+                    assigned_by=request.user
+                )
+                messages.success(request, f"Assigned {staff_user.first_name} {staff_user.last_name} successfully.")
+                
+        elif action == 'remove':
+            assignment_id = request.POST.get('assignment_id')
+            assignment = get_object_or_404(AssignedTo, id=assignment_id, schedule=schedule)
+            assignment.delete()
+            messages.success(request, "Staff assignment removed.")
+            
+        return redirect('assign_staff', schedule_id=schedule.id)
+        
+    # GET
+    assignments = schedule.assignments.select_related('staff', 'barangay', 'zone').order_by('barangay__name', 'zone__name', 'staff__first_name')
+    staff_list = User.objects.filter(role='MSWDO_STAFF', is_active=True).order_by('first_name')
+    barangays = Barangay.objects.all().order_by('name')
+    zones = Zone.objects.select_related('barangay').all() # Useful for cascading
+    
+    return render(request, 'distribution/assign_staff.html', {
+        'schedule': schedule,
+        'assignments': assignments,
+        'staff_list': staff_list,
+        'barangays': barangays,
+        'zones': zones,
+    })
 
 @login_required
 @session_protected

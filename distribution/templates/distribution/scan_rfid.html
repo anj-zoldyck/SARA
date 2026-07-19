@@ -327,7 +327,7 @@
       data.append('rfid_uid', uid);
       if (memberId) data.append('family_member', memberId);
 
-      const response = await fetch("{% url 'scan_rfid' %}", {
+      const response = await fetch("{% url 'scan_rfid' aid_schedule.id %}", {
         method: 'POST',
         headers: {
           'X-Requested-With': 'XMLHttpRequest'
@@ -487,7 +487,7 @@
   function refreshTable() {
     const barangayFilterEl = document.getElementById('barangayFilter');
     const brgy = barangayFilterEl ? barangayFilterEl.value : '';
-    fetch("{% url 'scan_rfid' %}?barangay=" + brgy, {
+    fetch("{% url 'scan_rfid' aid_schedule.id %}?barangay=" + brgy, {
       headers: { 'Accept': 'text/html' }
     })
       .then(response => response.text())

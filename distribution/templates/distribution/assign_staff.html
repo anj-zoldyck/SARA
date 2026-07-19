@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Assign Staff — SARA{% endblock %}
+{% block navbar_title %}Manage Staff Assignments{% endblock %}
+
+{% block content %}
+<div class="dash-page-header">
+  <div>
+    <h1 class="dash-page-title">Assign Staff</h1>
+    <p class="dash-page-sub">
+      Schedule: {{ schedule.assistance.program.name }} › {{ schedule.assistance.aid_category.name }}
+    </p>
+  </div>
+</div>
+
+<nav aria-label="breadcrumb">
+  <ol class="page-breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">Dashboard</a></li>
+    <li class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></li>
+    <li class="breadcrumb-item"><a href="{% url 'beneficiary_selection_landing' %}" class="breadcrumb-link">Manage Schedules</a></li>
+    <li class="breadcrumb-sep"><i class="bi bi-chevron-right"></i></li>
+    <li class="breadcrumb-item breadcrumb-current" aria-current="page">Assign Staff</li>
+  </ol>
+</nav>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show mt-3" role="alert">
+      <i class="bi bi-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<div class="row g-4 mt-2">
+  <div class="col-md-5">
+    <div class="dash-panel">
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-person-plus dash-panel__icon"></i>
+          <div>
+            <h2 class="dash-panel__title">New Assignment</h2>
+            <p class="dash-panel__sub">Assign a staff member to a location</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="dash-panel__body">
+        <form method="post" action="">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="assign">
+          
+          <div class="mb-3">
+            <label class="form-label fw-medium text-dark" style="font-size: 0.9rem;">Staff Member <span class="text-danger">*</span></label>
+            <select name="staff" class="form-select" required>
+              <option value="">-- Select Staff --</option>
+              {% for user in staff_list %}
+                <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label fw-medium text-dark" style="font-size: 0.9rem;">Barangay <span class="text-danger">*</span></label>
+            {% if schedule.barangay %}
+              <input type="text" class="form-control bg-light" value="{{ schedule.barangay.name }}" readonly>
+              <input type="hidden" name="barangay" id="barangaySelect" value="{{ schedule.barangay.id }}">
+              <small class="text-muted d-block mt-1">This schedule is locked to {{ schedule.barangay.name }}.</small>
+            {% else %}
+              <select name="barangay" id="barangaySelect" class="form-select" required>
+                <option value="">-- Select Barangay --</option>
+                {% for b in barangays %}
+                  <option value="{{ b.id }}">{{ b.name }}</option>
+                {% endfor %}
+              </select>
+            {% endif %}
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label fw-medium text-dark" style="font-size: 0.9rem;">Zone <span class="text-muted fw-normal">(Optional)</span></label>
+            <select name="zone" id="zoneSelect" class="form-select">
+              <option value="">-- All Zones (Barangay-wide) --</option>
+              {% for z in zones %}
+                <option value="{{ z.id }}" data-barangay="{{ z.barangay_id }}">{{ z.name }}</option>
+              {% endfor %}
+            </select>
+            <small class="text-muted d-block mt-1">Leave blank to assign the staff to the entire barangay.</small>
+          </div>
+          
+          <button type="submit" class="btn-dash-primary w-100 mt-3">
+            <i class="bi bi-plus-lg me-1"></i> Add Assignment
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-7">
+    <div class="dash-panel">
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-list-check dash-panel__icon"></i>
+          <div>
+            <h2 class="dash-panel__title">Current Assignments</h2>
+            <p class="dash-panel__sub">Staff currently assigned to this schedule</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="dash-panel__body p-0">
+        <div class="table-responsive">
+          <table class="table acct-table mb-0">
+            <thead>
+              <tr>
+                <th class="acct-th">Staff Name</th>
+                <th class="acct-th">Location</th>
+                <th class="acct-th text-end pe-4">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for assignment in assignments %}
+              <tr class="acct-row">
+                <td class="acct-td fw-medium text-dark">
+                  {{ assignment.staff.first_name }} {{ assignment.staff.last_name }}
+                </td>
+                <td class="acct-td">
+                  <i class="bi bi-geo-alt text-muted me-1"></i>
+                  {{ assignment.barangay.name }}
+                  {% if assignment.zone %}
+                    <span class="badge bg-light text-dark ms-1">{{ assignment.zone.name }}</span>
+                  {% else %}
+                    <span class="badge bg-secondary ms-1">Barangay-wide</span>
+                  {% endif %}
+                </td>
+                <td class="acct-td text-end pe-4">
+                  <form method="post" action="" class="d-inline" onsubmit="return confirm('Remove this assignment?');">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="remove">
+                    <input type="hidden" name="assignment_id" value="{{ assignment.id }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger" style="border: none; border-radius: 6px; padding: 4px 8px;">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </form>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="3" class="p-5 text-center text-muted">
+                  <i class="bi bi-people fs-1 mb-3 d-block opacity-50"></i>
+                  <p class="mb-0">No staff assigned yet.</p>
+                  <small class="d-block mt-2">Currently, <strong>all MSWDO staff</strong> can process claims for this schedule.</small>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const barangaySelect = document.getElementById('barangaySelect');
+    const zoneSelect = document.getElementById('zoneSelect');
+    const allZoneOptions = Array.from(zoneSelect.options).slice(1); // keep the default blank option
+    
+    function filterZones() {
+      const selectedB = barangaySelect.value;
+      zoneSelect.value = ''; // reset zone
+      
+      allZoneOptions.forEach(opt => {
+        if (!selectedB || opt.dataset.barangay === selectedB) {
+          opt.style.display = '';
+        } else {
+          opt.style.display = 'none';
+        }
+      });
+    }
+    
+    barangaySelect.addEventListener('change', filterZones);
+    filterZones(); // Initial filter
+  });
+</script>
+{% endblock %}

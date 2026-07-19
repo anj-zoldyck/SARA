@@ -1,0 +1,153 @@
+<!-- Schedule Selector Modal -->
+<div class="modal-overlay" id="scheduleSelectorModal">
+  <div class="kiosk-modal" style="max-width: 500px; width: 90%;">
+    <div class="kiosk-modal__header">
+      <h2 class="kiosk-modal__title">Select Schedule to Scan</h2>
+      <button class="kiosk-modal__close" type="button" onclick="closeScheduleSelector()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="kiosk-modal__body p-3" style="max-height: 60vh; overflow-y: auto;">
+      {% if active_schedules %}
+        <div class="d-flex flex-column gap-2">
+          {% for s in active_schedules %}
+            <a href="{% url 'scan_rfid' s.id %}" class="text-decoration-none schedule-selector-item" style="display: block; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; transition: all 0.2s ease;">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <strong class="text-dark d-block mb-1">
+                    {% if s.assistance %}
+                      {{ s.assistance.program.name }} › {{ s.assistance.aid_category.name }}
+                    {% else %}
+                      {{ s.aid_type|default:"N/A" }}
+                    {% endif %}
+                    {% if s.id in assigned_schedule_ids %}
+                      <span class="badge bg-primary ms-2" style="font-size: 0.7rem; vertical-align: middle;">Assigned to You</span>
+                    {% endif %}
+                  </strong>
+                  <div class="text-muted" style="font-size: 0.85rem;">
+                    <i class="bi bi-buildings me-1"></i> {{ s.barangay|default:"All Barangays" }}<br>
+                    <i class="bi bi-clock me-1"></i> {{ s.schedule_datetime|date:"M d, Y g:i A" }}
+                  </div>
+                </div>
+                <i class="bi bi-chevron-right text-muted"></i>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="text-center text-muted py-4">
+          <i class="bi bi-calendar-x fs-1 opacity-50 d-block mb-2"></i>
+          <p class="mb-0">No active schedules available for scanning.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<style>
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1300;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Modal Container */
+.kiosk-modal {
+  background: #ffffff;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  transform: translateY(20px);
+  transition: all 0.3s ease;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.modal-overlay.active .kiosk-modal {
+  transform: translateY(0);
+}
+
+/* Header */
+.kiosk-modal__header {
+  padding: 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kiosk-modal__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+  color: #1e293b;
+}
+
+.kiosk-modal__close {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: #64748b;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+.kiosk-modal__close:hover {
+  color: #ef4444;
+}
+
+/* List Items */
+.schedule-selector-item:hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+</style>
+
+<script>
+  function openScheduleSelector() {
+    // If only one schedule exists, we could redirect immediately if we had its URL, 
+    // but the template loop makes it easy to just show it in the modal, 
+    // or we can auto-click if there's exactly one.
+    const container = document.getElementById('scheduleSelectorModal');
+    const links = container.querySelectorAll('a');
+    if (links.length === 1) {
+      window.location.href = links[0].href;
+      return;
+    }
+    container.classList.add('active');
+  }
+
+  function closeScheduleSelector() {
+    document.getElementById('scheduleSelectorModal').classList.remove('active');
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const overlay = document.getElementById('scheduleSelectorModal');
+    if (overlay) {
+      overlay.addEventListener('click', function (e) {
+        if (e.target === this) {
+          this.classList.remove('active');
+        }
+      });
+    }
+  });
+</script>
