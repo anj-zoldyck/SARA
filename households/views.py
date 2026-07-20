@@ -300,8 +300,8 @@ def add_family(request, household_id):
 @login_required
 @session_protected
 def family_detail(request, family_id):
-    # Allow Barangay Admin AND MSWDO Staff
-    if request.user.role not in ('BARANGAY', 'MSWDO_STAFF'):
+    # Allow Barangay Admin, MSWDO Admin, and MSWDO Staff
+    if request.user.role not in ('BARANGAY', 'MSWDO', 'MSWDO_STAFF'):
         return HttpResponseForbidden("Access Denied")
 
     # Scope the query differently per role
@@ -315,7 +315,7 @@ def family_detail(request, family_id):
             household__barangay=request.user.barangay
         )
     else:
-        # MSWDO Staff has system-wide read access — no barangay restriction
+        # MSWDO Admin and MSWDO Staff have system-wide read access — no barangay restriction
         family = get_object_or_404(
             Family.objects.select_related(
                 'household', 'household__zone', 'household__barangay'
@@ -522,7 +522,7 @@ def edit_family_member(request, member_id):
 @login_required
 @session_protected
 def member_details_modal(request, member_id):
-    if request.user.role not in ('BARANGAY', 'MSWDO_STAFF'):
+    if request.user.role not in ('BARANGAY', 'MSWDO', 'MSWDO_STAFF'):
         return HttpResponseForbidden('Access Denied')
 
     if request.user.role == 'BARANGAY':
@@ -532,6 +532,7 @@ def member_details_modal(request, member_id):
             family__household__barangay=request.user.barangay
         )
     else:
+        # MSWDO Admin and MSWDO Staff have system-wide read access — no barangay restriction
         member = get_object_or_404(FamilyMember, id=member_id)
 
     claims = AidClaim.objects.filter(

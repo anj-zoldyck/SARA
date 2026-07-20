@@ -181,8 +181,14 @@ def register_rfid(request, family_id=None):
 @login_required
 @session_protected
 def deactivate_rfid(request, family_id):
-    if request.user.role != 'MSWDO':
-        return HttpResponseForbidden("Access Denied")
+    if request.user.role not in ('MSWDO', 'MSWDO_STAFF'):
+        messages.error(request, "You are not authorized to deactivate RFID cards.")
+        if request.user.role == 'MSWDO':
+            return redirect('mswdo_dashboard')
+        elif request.user.role == 'MSWDO_STAFF':
+            return redirect('staff_dashboard')
+        else:
+            return redirect('barangay_dashboard')
 
     family = get_object_or_404(Family, id=family_id)
 
