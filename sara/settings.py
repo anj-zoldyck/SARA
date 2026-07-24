@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'django_otp',
     'django_otp.plugins.otp_email',
     'django_otp.plugins.otp_totp',  # optional TOTP
+    'django_extensions',
 ]
 
 MIDDLEWARE = [
