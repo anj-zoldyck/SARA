@@ -1,6 +1,7 @@
 from django import forms
 # pyrefly: ignore [missing-import]
 from .models import Household, Family, FamilyMember, SeniorCitizenProfile, SoloParentProfile, PWDProfile, SOLO_PARENT_CATEGORY_CHOICES
+from accounts.utils import validate_image_file
 
 # ----------------- Household Form -----------------
 
@@ -103,6 +104,12 @@ class FamilyMemberForm(forms.ModelForm):
             'is_out_of_school_children': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'profile_image': forms.FileInput(attrs={'class': 'd-none', 'id': 'profile_image_input', 'accept': 'image/*'}),
         }
+
+    def clean_profile_image(self):
+        profile_image = self.cleaned_data.get('profile_image')
+        if profile_image:
+            validate_image_file(profile_image)
+        return profile_image
 
 # ----------------- Special Profile Forms -----------------
 

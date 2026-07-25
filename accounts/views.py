@@ -12,6 +12,7 @@ from django.db.models import Count, Q
 
 from accounts.decorators import session_protected
 from accounts.models import User, Barangay
+from accounts.utils import validate_image_file
 from households.models import Household, Zone, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
 from distribution.models import AidSchedule, AidClaim
@@ -61,7 +62,9 @@ def login_view(request):
 
         if user is not None:
             if not user.is_active:
-                messages.error(request, "Account is deactivated.")
+                # Use generic message to prevent account enumeration - attackers cannot distinguish
+                # "this email exists but is deactivated" from "this email doesn't exist" or "wrong password"
+                messages.error(request, "Invalid username or password.")
             else:
                 cache.delete(cache_key)  # Reset attempts on successful login
                 login(request, user)
@@ -339,9 +342,13 @@ def update_profile_photo(request):
     This view sidesteps that entirely: it touches ONLY profile_image.
     """
     if request.method == 'POST' and request.FILES.get('profile_image'):
-        request.user.profile_image = request.FILES['profile_image']
-        request.user.save(update_fields=['profile_image'])
-        messages.success(request, "Profile photo updated successfully.")
+        try:
+            validate_image_file(request.FILES['profile_image'])
+            request.user.profile_image = request.FILES['profile_image']
+            request.user.save(update_fields=['profile_image'])
+            messages.success(request, "Profile photo updated successfully.")
+        except ValidationError as e:
+            messages.error(request, str(e))
     else:
         messages.error(request, "Please choose an image to upload.")
 
