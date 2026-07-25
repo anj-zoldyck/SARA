@@ -285,3 +285,13 @@
   top: -9999px;
   opacity: 0;
 }
+
+/* Pulse animation for status icon */
+#statusIcon {
+  animation: pulse-icon 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse-icon {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(1.15); }
+}

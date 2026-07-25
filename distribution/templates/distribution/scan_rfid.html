@@ -193,6 +193,11 @@
     <h2 class="success-title">Notice</h2>
     <p class="error-modal-message" id="errorModalMsg">Something went wrong.</p>
     <button class="btn btn-dash-primary w-100 mt-3" id="closeErrorBtn">OK</button>
+    <div class="mt-3 text-muted" style="font-size: 0.85rem;">
+      <div class="spinner-border spinner-border-sm me-1" role="status"
+        style="width: 12px; height: 12px; border-width: 2px;"></div>
+      Returning to scan in a moment
+    </div>
   </div>
 </div>
 
@@ -249,6 +254,8 @@
 
   const csrfToken = '{{ csrf_token }}';
   let currentUid = '';
+  let isProcessing = false;
+  let errorModalTimeout = null;
 
   // ---------------- Focus Management ----------------
   function focusRfidInput() {
@@ -296,6 +303,7 @@
   }
 
   function setStatusIdle() {
+    isProcessing = false;
     statusPill.classList.add('idle');
     statusPill.classList.remove('processing');
     statusIcon.classList.remove('d-none');
@@ -309,10 +317,17 @@
     document.getElementById('errorModalMsg').textContent = msg;
     document.getElementById('errorModal').classList.add('active');
     setStatusIdle();
+
+    if (errorModalTimeout) clearTimeout(errorModalTimeout);
+    errorModalTimeout = setTimeout(() => {
+      document.getElementById('errorModal').classList.remove('active');
+      focusRfidInput();
+    }, 3000);
   }
 
   document.getElementById('closeErrorBtn').addEventListener('click', () => {
     document.getElementById('errorModal').classList.remove('active');
+    if (errorModalTimeout) clearTimeout(errorModalTimeout);
     focusRfidInput();
   });
 
@@ -346,11 +361,22 @@
 
   // ---------------- Main Flow ----------------
   rfidInput.addEventListener('keydown', async (e) => {
+    if (isProcessing && e.key !== 'Enter') {
+      e.preventDefault();
+      return;
+    }
     if (e.key === 'Enter') {
       e.preventDefault();
+
+      if (isProcessing) {
+        rfidInput.value = '';
+        return;
+      }
+
       const uid = rfidInput.value.trim();
       if (!uid) return;
 
+      isProcessing = true;
       currentUid = uid;
       setStatusProcessing();
 

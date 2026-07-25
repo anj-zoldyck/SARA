@@ -234,3 +234,261 @@ class EligibilityRuleTests(TestCase):
         # Verify the rule updates to match the new boolean flags
         rule.refresh_from_db()
         self.assertEqual(rule.config['flags'], ['is_senior_citizen'])
+
+
+class RFIDEligibilityTests(TestCase):
+    """
+    Tests for RFID registration requirement in beneficiary generation.
+    Only households/families with registered RFID cards can be included in beneficiary lists.
+    """
+    
+    def setUp(self):
+        self.barangay = Barangay.objects.create(name="Test Barangay")
+        self.zone = Zone.objects.create(barangay=self.barangay, name="Zone 1")
+        self.program = Program.objects.create(name="Test Program")
+        self.category = AidCategory.objects.create(program=self.program, name="Test Category")
+        
+    def test_family_with_rfid_passes_pool_filter(self):
+        """
+        A family WITH a registered RFID should pass the pool filter
+        (assuming it also passes all other rules).
+        """
+        household = Household.objects.create(
+            house_number="123",
+            barangay=self.barangay,
+            zone=self.zone
+        )
+        family_with_rfid = Family.objects.create(
+            household=household,
+            family_name="RFID Family",
+            rfid_uid="1234567890"
+        )
+        FamilyMember.objects.create(
+            family=family_with_rfid,
+            first_name="John",
+            last_name="Doe"
+        )
+        
+        assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='family',
+            aid_type='CASH'
+        )
+        
+        eligible_pool = get_eligible_pool(assistance, barangay=self.barangay)
+        self.assertIn(family_with_rfid, eligible_pool)
+    
+    def test_family_without_rfid_excluded_from_pool(self):
+        """
+        A family WITHOUT RFID should be excluded from get_eligible_pool(),
+        even if it would otherwise pass every EligibilityRule.
+        """
+        household = Household.objects.create(
+            house_number="456",
+            barangay=self.barangay,
+            zone=self.zone
+        )
+        family_without_rfid = Family.objects.create(
+            household=household,
+            family_name="No RFID Family",
+            rfid_uid=None
+        )
+        FamilyMember.objects.create(
+            family=family_without_rfid,
+            first_name="Jane",
+            last_name="Smith"
+        )
+        
+        assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='family',
+            aid_type='CASH'
+        )
+        
+        eligible_pool = get_eligible_pool(assistance, barangay=self.barangay)
+        self.assertNotIn(family_without_rfid, eligible_pool)
+    
+    def test_family_with_empty_rfid_excluded_from_pool(self):
+        """
+        A family with empty string RFID should be excluded from get_eligible_pool().
+        """
+        household = Household.objects.create(
+            house_number="789",
+            barangay=self.barangay,
+            zone=self.zone
+        )
+        family_with_empty_rfid = Family.objects.create(
+            household=household,
+            family_name="Empty RFID Family",
+            rfid_uid=""
+        )
+        FamilyMember.objects.create(
+            family=family_with_empty_rfid,
+            first_name="Bob",
+            last_name="Jones"
+        )
+        
+        assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='family',
+            aid_type='CASH'
+        )
+        
+        eligible_pool = get_eligible_pool(assistance, barangay=self.barangay)
+        self.assertNotIn(family_with_empty_rfid, eligible_pool)
+    
+    def test_household_with_rfid_family_eligible_for_individual_assistance(self):
+        """
+        For individual-based assistance, a household with at least one family
+        having an RFID card should be eligible.
+        """
+        household = Household.objects.create(
+            house_number="101",
+            barangay=self.barangay,
+            zone=self.zone
+        )
+        family_with_rfid = Family.objects.create(
+            household=household,
+            family_name="RFID Family",
+            rfid_uid="9876543210"
+        )
+        FamilyMember.objects.create(
+            family=family_with_rfid,
+            first_name="Senior",
+            last_name="Citizen",
+            is_senior_citizen=True
+        )
+        
+        assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='individual',
+            aid_type='CASH'
+        )
+        
+        eligible_pool = get_eligible_pool(assistance, barangay=self.barangay)
+        self.assertIn(household, eligible_pool)
+    
+    def test_household_without_rfid_family_excluded_from_individual_assistance(self):
+        """
+        A household where NONE of its families have an RFID card should be excluded
+        from individual-based assistance pool.
+        """
+        household = Household.objects.create(
+            house_number="102",
+            barangay=self.barangay,
+            zone=self.zone
+        )
+        family_without_rfid = Family.objects.create(
+            household=household,
+            family_name="No RFID Family",
+            rfid_uid=None
+        )
+        FamilyMember.objects.create(
+            family=family_without_rfid,
+            first_name="Senior",
+            last_name="Citizen",
+            is_senior_citizen=True
+        )
+        
+        assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='individual',
+            aid_type='CASH'
+        )
+        
+        eligible_pool = get_eligible_pool(assistance, barangay=self.barangay)
+        self.assertNotIn(household, eligible_pool)
+    
+    def test_household_with_multiple_families_one_rfid_eligible(self):
+        """
+        Edge case: A household with multiple families, where only ONE family has RFID.
+        The household should still be considered eligible (at least one path to claiming exists).
+        """
+        household = Household.objects.create(
+            house_number="103",
+            barangay=self.barangay,
+            zone=self.zone
+        )
+        
+        # Family with RFID
+        family_with_rfid = Family.objects.create(
+            household=household,
+            family_name="RFID Family",
+            rfid_uid="1111111111"
+        )
+        FamilyMember.objects.create(
+            family=family_with_rfid,
+            first_name="Senior1",
+            last_name="Citizen",
+            is_senior_citizen=True
+        )
+        
+        # Family without RFID
+        family_without_rfid = Family.objects.create(
+            household=household,
+            family_name="No RFID Family",
+            rfid_uid=None
+        )
+        FamilyMember.objects.create(
+            family=family_without_rfid,
+            first_name="Senior2",
+            last_name="Citizen",
+            is_senior_citizen=True
+        )
+        
+        assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='individual',
+            aid_type='CASH'
+        )
+        
+        eligible_pool = get_eligible_pool(assistance, barangay=self.barangay)
+        self.assertIn(household, eligible_pool)
+    
+    def test_two_seniors_one_family_same_rfid_eligible(self):
+        """
+        Test the "2 seniors in 1 family, same RFID" scenario end-to-end.
+        The household should be included in the pool since it has RFID via its one family.
+        Multiple eligible individual beneficiaries within the same family share one RFID card
+        — this is existing, working behavior in scan_rfid's member-selection flow.
+        """
+        household = Household.objects.create(
+            house_number="104",
+            barangay=self.barangay,
+            zone=self.zone
+        )
+        
+        # One family with RFID, two senior members
+        family = Family.objects.create(
+            household=household,
+            family_name="Multi-Senior Family",
+            rfid_uid="2222222222"
+        )
+        FamilyMember.objects.create(
+            family=family,
+            first_name="Senior",
+            last_name="One",
+            is_senior_citizen=True
+        )
+        FamilyMember.objects.create(
+            family=family,
+            first_name="Senior",
+            last_name="Two",
+            is_senior_citizen=True
+        )
+        
+        assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='individual',
+            aid_type='CASH'
+        )
+        
+        eligible_pool = get_eligible_pool(assistance, barangay=self.barangay)
+        self.assertIn(household, eligible_pool)

@@ -1,7 +1,7 @@
 import random
 from datetime import timedelta
 from django.utils import timezone
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, Exists, OuterRef
 from households.models import Household, Family, FamilyMember, FloodProneArea, WeatherSnapshot
 from distribution.models import AidClaim
 from households.constants import get_tcws_signal
@@ -201,6 +201,11 @@ def get_eligible_pool(assistance, barangay=None, current_schedule=None):
         excluded_ids = active_entries.values_list('family_id', flat=True)
         qs = qs.exclude(id__in=excluded_ids)
         
+        # RFID-registration check: exclude families without a registered RFID card.
+        # A family without RFID cannot physically claim aid during distribution (claiming requires an RFID scan),
+        # so including them in a generated list would waste a funded slot on someone who can't actually receive it.
+        qs = qs.exclude(rfid_uid__isnull=True).exclude(rfid_uid='')
+        
         for family in qs:
             if evaluate_family_against_rules(family, rules):
                 eligible_pool.append(family)
@@ -220,6 +225,18 @@ def get_eligible_pool(assistance, barangay=None, current_schedule=None):
             active_entries = active_entries.exclude(beneficiary_list__schedule=current_schedule)
         excluded_ids = active_entries.values_list('household_id', flat=True)
         qs = qs.exclude(id__in=excluded_ids)
+        
+        # RFID-registration check: exclude households where NONE of their families have a registered RFID card.
+        # For individual-based assistance, beneficiaries claim via their family's shared RFID card.
+        # A household is eligible if at least one family has an RFID card (providing a path to claiming).
+        # Multiple eligible individual beneficiaries within the same family correctly share one RFID card
+        # — this is existing, working behavior in scan_rfid's member-selection flow and is NOT being changed here.
+        # We use Exists for efficient filtering without N+1 queries.
+        has_rfid_family = Family.objects.filter(
+            household=OuterRef('pk'),
+            rfid_uid__isnull=False
+        ).exclude(rfid_uid='')
+        qs = qs.annotate(has_rfid=Exists(has_rfid_family)).filter(has_rfid=True)
         
         for household in qs:
             if evaluate_household_against_rules(household, rules):

@@ -9,6 +9,32 @@
 <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
 <link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
 <link rel="stylesheet" href="{% static 'css/households.css' %}">
+<link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
+<style>
+.badge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 50px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-right: 8px;
+  margin-bottom: 8px;
+}
+.badge-chip--senior {
+  background-color: rgba(13, 110, 253, 0.12);
+  color: #0d6efd;
+}
+.badge-chip--pwd {
+  background-color: rgba(25, 135, 84, 0.12);
+  color: #198754;
+}
+.badge-chip--solo {
+  background-color: rgba(255, 193, 7, 0.12);
+  color: #b38600;
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -36,71 +62,34 @@
   </div>
 </div>
 
-{% if error %}
-<div class="form-error-block">
-  <i class="bi bi-exclamation-triangle form-error-block__icon"></i>
-  <div>
-    <p class="form-error-block__title">Unable to register RFID</p>
-    <p class="acct-form__error" style="margin:0;">{{ error }}</p>
-  </div>
-</div>
-{% endif %}
-
-{% if success %}
-<div class="form-error-block" style="background:#f0fdf4; border-color:#bbf7d0;">
-  <i class="bi bi-check-circle form-error-block__icon" style="color:#166534;"></i>
-  <div>
-    <p class="form-error-block__title" style="color:#166534;">Success</p>
-    <p class="acct-form__error" style="margin:0; color:#166534;">{{ success }}</p>
-  </div>
-</div>
-{% endif %}
 
 <div class="form-page-layout">
 
   <!-- Form Panel -->
   <div class="dash-panel form-panel">
-    <div class="dash-panel__header">
-      <div class="dash-panel__header-left">
-        <i class="bi bi-credit-card-2-front dash-panel__icon"></i>
-        <div>
-          <h2 class="dash-panel__title">RFID Card Registration</h2>
-          <p class="dash-panel__sub">Scan or enter the RFID UID to link it to this family</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="dash-panel__body">
-      <form method="post" class="acct-form">
+    <div class="dash-panel__body" style="text-align: center; padding: 40px 20px;">
+      <form method="post" class="acct-form" id="rfidForm">
         {% csrf_token %}
 
-        <div class="acct-form__group">
-          <label class="acct-form__label" for="rfid_uid">
-            <i class="bi bi-credit-card-2-front"></i> RFID UID
-            <span class="acct-form__required">*</span>
-          </label>
-          <div class="acct-form__control-wrap">
-            <input
-              type="text"
-              name="rfid_uid"
-              id="rfid_uid"
-              class="form-control"
-              placeholder="Scan or type the RFID UID"
-              autofocus
-              required
-            >
-          </div>
-          <p class="acct-form__hint">
-            <i class="bi bi-info-circle"></i>
-            Tap the RFID card on the reader, or manually type the UID if scanning is unavailable.
-          </p>
+        <div id="statusPill" class="kiosk-status-pill idle" style="margin: 0 auto 20px auto; display: inline-flex;">
+          <div class="spinner-border spinner-border-sm d-none" role="status" id="statusSpinner"></div>
+          <i class="bi bi-upc-scan" id="statusIcon"></i>
+          <span id="statusText">Waiting for RFID</span>
         </div>
 
-        <div class="acct-form__actions">
-          <a href="{% url 'register_rfid' %}" class="btn-dash-outline">Cancel</a>
-          <button type="submit" class="btn-dash-primary">
-            <i class="bi bi-check-circle"></i> Register RFID
-          </button>
+        <input
+          type="text"
+          name="rfid_uid"
+          id="rfidHiddenInput"
+          autocomplete="off"
+          autofocus
+          required
+        >
+
+        <div style="margin-top: 30px;">
+          <a href="{% url 'register_rfid' %}" class="btn-dash-outline">
+            <i class="bi bi-arrow-left"></i> Cancel
+          </a>
         </div>
       </form>
     </div>
@@ -135,6 +124,26 @@
                 {% endif %}
               </span>
             </div>
+            {% if has_senior or has_pwd or has_solo_parent %}
+            <div class="mt-3">
+              {% if has_senior %}<span class="badge-chip badge-chip--senior"><i class="bi bi-person-heart"></i> Senior Citizen</span>{% endif %}
+              {% if has_pwd %}<span class="badge-chip badge-chip--pwd"><i class="bi bi-universal-access"></i> PWD</span>{% endif %}
+              {% if has_solo_parent %}<span class="badge-chip badge-chip--solo"><i class="bi bi-person-arms-up"></i> Solo Parent</span>{% endif %}
+            </div>
+            {% endif %}
+            {% if selected_family.rfid_uid %}
+            <div class="mt-3 d-flex gap-2">
+              <button type="button" class="btn-dash-primary" onclick="document.getElementById('rfidHiddenInput').focus();">
+                <i class="bi bi-arrow-clockwise"></i> Update RFID
+              </button>
+              <form method="post" action="{% url 'deactivate_rfid' selected_family.id %}?redirect_to=register_rfid" class="d-inline" onsubmit="return confirm('Are you sure you want to deactivate this RFID? This action cannot be undone.');">
+                {% csrf_token %}
+                <button type="submit" class="btn-dash-outline" style="color: #dc3545; border-color: #dc3545;">
+                  <i class="bi bi-x-circle"></i> Deactivate
+                </button>
+              </form>
+            </div>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -170,4 +179,136 @@
 
 </div>
 
+<!-- Error Modal -->
+<div class="modal-overlay" id="errorModal">
+  <div class="kiosk-modal success-modal">
+    <div class="error-modal-icon">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+    </div>
+    <h2 class="success-title">Notice</h2>
+    <p class="error-modal-message" id="errorModalMsg">Something went wrong.</p>
+    <button class="btn btn-dash-primary w-100 mt-3" id="closeErrorBtn">OK</button>
+  </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal-overlay" id="successModal">
+  <div class="kiosk-modal success-modal">
+    <button type="button" class="btn-close" id="closeSuccessBtn" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);">&times;</button>
+    <div class="success-avatar-container">
+      <div class="success-avatar" id="successAvatar">
+        {{ selected_family.family_name|first|upper }}
+      </div>
+      <div class="success-badge">
+        <i class="bi bi-check-lg"></i>
+      </div>
+    </div>
+    <h2 class="success-title" id="successTitle">{{ selected_family.family_name }}</h2>
+    <p class="success-subtitle" id="successSubtitle">RFID Registered</p>
+    <div class="mt-4 text-muted" style="font-size: 0.85rem;">
+      <div class="spinner-border spinner-border-sm me-1" role="status" style="width: 12px; height: 12px; border-width: 2px;"></div>
+      Closing in a moment
+    </div>
+  </div>
+</div>
+
+<!-- Data attributes for Django context -->
+<div id="djangoContext" 
+     data-error="{{ error|default_if_none:'' }}" 
+     data-success="{{ success|default_if_none:'' }}"
+     data-success-type="{{ success_type|default_if_none:'' }}"
+     style="display: none;"></div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+  const rfidInput = document.getElementById('rfidHiddenInput');
+  const errorModal = document.getElementById('errorModal');
+  const successModal = document.getElementById('successModal');
+  const closeErrorBtn = document.getElementById('closeErrorBtn');
+  const closeSuccessBtn = document.getElementById('closeSuccessBtn');
+  const djangoContext = document.getElementById('djangoContext');
+  const statusPill = document.getElementById('statusPill');
+  const statusSpinner = document.getElementById('statusSpinner');
+  const statusIcon = document.getElementById('statusIcon');
+  const statusText = document.getElementById('statusText');
+  let modalTimeout = null;
+
+  // Autofocus fallback for browsers that may not respect autofocus on hidden inputs
+  document.addEventListener('DOMContentLoaded', function() {
+    if (rfidInput) rfidInput.focus();
+  });
+
+  // Status pill state helpers
+  function setStatusProcessing() {
+    statusPill.classList.remove('idle');
+    statusPill.classList.add('processing');
+    statusIcon.classList.add('d-none');
+    statusSpinner.classList.remove('d-none');
+    statusText.textContent = "Processing...";
+  }
+
+  function setStatusIdle() {
+    statusPill.classList.add('idle');
+    statusPill.classList.remove('processing');
+    statusIcon.classList.remove('d-none');
+    statusSpinner.classList.add('d-none');
+    statusText.textContent = "Waiting for RFID";
+    rfidInput.value = '';
+    rfidInput.focus();
+  }
+
+  // Auto-submit on Enter key (RFID reader behavior)
+  rfidInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      setStatusProcessing();
+      // Brief delay to show processing state before submit
+      setTimeout(() => {
+        document.getElementById('rfidForm').submit();
+      }, 300);
+    }
+  });
+
+  // Close error modal
+  closeErrorBtn.addEventListener('click', () => {
+    if (modalTimeout) clearTimeout(modalTimeout);
+    errorModal.classList.remove('active');
+    rfidInput.focus();
+  });
+
+  // Close success modal
+  closeSuccessBtn.addEventListener('click', () => {
+    if (modalTimeout) clearTimeout(modalTimeout);
+    successModal.classList.remove('active');
+    rfidInput.focus();
+  });
+
+  // Show modals on page load based on Django context
+  document.addEventListener('DOMContentLoaded', () => {
+    const error = djangoContext.dataset.error;
+    const success = djangoContext.dataset.success;
+    const successType = djangoContext.dataset.successType;
+
+    if (error) {
+      document.getElementById('errorModalMsg').textContent = error;
+      errorModal.classList.add('active');
+    }
+
+    if (success) {
+      if (successType === 'updated') {
+        document.getElementById('successSubtitle').textContent = 'RFID Updated';
+      } else if (successType === 'deactivated') {
+        document.getElementById('successSubtitle').textContent = 'RFID Deactivated';
+      } else {
+        document.getElementById('successSubtitle').textContent = 'RFID Registered';
+      }
+      successModal.classList.add('active');
+      modalTimeout = setTimeout(() => {
+        successModal.classList.remove('active');
+      }, 5000);
+    }
+  });
+</script>
 {% endblock %}

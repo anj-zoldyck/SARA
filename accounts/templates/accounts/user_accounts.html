@@ -36,6 +36,8 @@
   </div>
 </div>
 
+<div id="accountsPageContent">
+
 <!-- ── Summary Strip ──────────────────────────────────────── -->
 <div class="acct-summary-strip">
   <div class="acct-summary-item">
@@ -181,7 +183,7 @@
             </td>
             <td class="acct-td acct-td--actions">
               <div class="acct-actions">
-                <button type="button" class="acct-btn acct-btn--edit text-primary border-0 bg-transparent" data-bs-toggle="modal" data-bs-target="#userModal{{ user.id }}" title="View Details">
+                <button type="button" class="btn-dash-outline" onclick="openUserModal({{ user.id }})" title="View Details">
                   <i class="bi bi-eye"></i>
                   <span>Details</span>
                 </button>
@@ -224,85 +226,86 @@
   </div>
 
 </div>
+</div>
 
 {% for user in users %}
 <!-- User Details Modal -->
-<div class="modal fade" id="userModal{{ user.id }}" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered sara-modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-person-badge me-2 text-primary"></i>User Details</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="modal-overlay" id="userModalOverlay{{ user.id }}">
+  <div class="kiosk-modal" style="max-width: 600px;">
+    <div class="kiosk-modal-header d-flex justify-content-between align-items-center">
+      <div>
+        <h5 class="kiosk-modal-title mb-0"><i class="bi bi-person-badge me-2 text-primary"></i>User Details</h5>
       </div>
-      <div class="modal-body p-4">
-        
-        <div class="d-flex align-items-center mb-4">
-          <div class="topbar-avatar me-3" style="width: 60px; height: 60px; flex-shrink: 0;">
-            {% if user.profile_image %}
-              <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name }}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
-            {% else %}
-              <span class="avatar-initials" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #e9ecef; color: #495057; border-radius: 50%; font-weight: 600; font-size: 1.5rem;">
-                {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
-              </span>
-            {% endif %}
-          </div>
-          <div>
-            <h4 class="mb-0 fw-bold">{{ user.first_name }} {% if user.middle_name %}{{ user.middle_name }} {% endif %}{{ user.last_name }} {% if user.suffix %}{{ user.suffix }}{% endif %}</h4>
-            <div class="text-muted">@{{ user.username }}</div>
-          </div>
+      <button type="button" class="btn-close" onclick="closeUserModal({{ user.id }})" aria-label="Close"></button>
+    </div>
+    <div class="kiosk-modal-body">
+      
+      <div class="d-flex align-items-center mb-4">
+        <div class="topbar-avatar me-3" style="width: 60px; height: 60px; flex-shrink: 0;">
+          {% if user.profile_image %}
+            <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name }}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+          {% else %}
+            <span class="avatar-initials" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #e9ecef; color: #495057; border-radius: 50%; font-weight: 600; font-size: 1.5rem;">
+              {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+            </span>
+          {% endif %}
         </div>
+        <div>
+          <h4 class="mb-0 fw-bold">{{ user.first_name }} {% if user.middle_name %}{{ user.middle_name }} {% endif %}{{ user.last_name }} {% if user.suffix %}{{ user.suffix }}{% endif %}</h4>
+          <div class="text-muted">@{{ user.username }}</div>
+        </div>
+      </div>
 
-        <div class="row g-3">
-          <div class="col-sm-6">
-            <div class="text-muted small fw-bold text-uppercase">Role</div>
-            <div>{{ user.get_role_display }}</div>
-          </div>
-          <div class="col-sm-6">
-            <div class="text-muted small fw-bold text-uppercase">Barangay</div>
-            <div>{% if user.role == 'BARANGAY' and user.barangay %}{{ user.barangay.name }}{% else %}-{% endif %}</div>
-          </div>
-          
-          <div class="col-sm-6">
-            <div class="text-muted small fw-bold text-uppercase">Email</div>
-            <div>{{ user.email }}</div>
-          </div>
-          <div class="col-sm-6">
-            <div class="text-muted small fw-bold text-uppercase">Contact Number</div>
-            <div>{{ user.contact_number|default:"-" }}</div>
-          </div>
-          
-          <div class="col-sm-6">
-            <div class="text-muted small fw-bold text-uppercase">Position</div>
-            <div>{{ user.position|default:"-" }}</div>
-          </div>
-          <div class="col-sm-6">
-            <div class="text-muted small fw-bold text-uppercase">Sex</div>
-            <div>{{ user.get_sex_display|default:"-" }}</div>
-          </div>
-          
-          <div class="col-sm-6">
-            <div class="text-muted small fw-bold text-uppercase">Birthdate & Age</div>
-            <div>{% if user.birthdate %}{{ user.birthdate|date:"M d, Y" }} ({{ user.age }} yrs){% else %}-{% endif %}</div>
-          </div>
-          <div class="col-sm-6">
-            <div class="text-muted small fw-bold text-uppercase">Place of Birth</div>
-            <div>{{ user.birth_place|default:"-" }}</div>
-          </div>
-          
-          <div class="col-sm-6">
-            <div class="text-muted small fw-bold text-uppercase">Civil Status</div>
-            <div>{{ user.get_civil_status_display|default:"-" }}</div>
-          </div>
-          <div class="col-sm-6">
-            <div class="text-muted small fw-bold text-uppercase">Citizenship</div>
-            <div>{{ user.citizenship|default:"-" }}</div>
-          </div>
+      <div class="row g-3">
+        <div class="col-sm-6">
+          <div class="text-muted small fw-bold text-uppercase">Role</div>
+          <div>{{ user.get_role_display }}</div>
+        </div>
+        <div class="col-sm-6">
+          <div class="text-muted small fw-bold text-uppercase">Barangay</div>
+          <div>{% if user.role == 'BARANGAY' and user.barangay %}{{ user.barangay.name }}{% else %}-{% endif %}</div>
         </div>
         
+        <div class="col-sm-6">
+          <div class="text-muted small fw-bold text-uppercase">Email</div>
+          <div>{{ user.email }}</div>
+        </div>
+        <div class="col-sm-6">
+          <div class="text-muted small fw-bold text-uppercase">Contact Number</div>
+          <div>{{ user.contact_number|default:"-" }}</div>
+        </div>
+        
+        <div class="col-sm-6">
+          <div class="text-muted small fw-bold text-uppercase">Position</div>
+          <div>{{ user.position|default:"-" }}</div>
+        </div>
+        <div class="col-sm-6">
+          <div class="text-muted small fw-bold text-uppercase">Sex</div>
+          <div>{{ user.get_sex_display|default:"-" }}</div>
+        </div>
+        
+        <div class="col-sm-6">
+          <div class="text-muted small fw-bold text-uppercase">Birthdate & Age</div>
+          <div>{% if user.birthdate %}{{ user.birthdate|date:"M d, Y" }} ({{ user.age }} yrs){% else %}-{% endif %}</div>
+        </div>
+        <div class="col-sm-6">
+          <div class="text-muted small fw-bold text-uppercase">Place of Birth</div>
+          <div>{{ user.birth_place|default:"-" }}</div>
+        </div>
+        
+        <div class="col-sm-6">
+          <div class="text-muted small fw-bold text-uppercase">Civil Status</div>
+          <div>{{ user.get_civil_status_display|default:"-" }}</div>
+        </div>
+        <div class="col-sm-6">
+          <div class="text-muted small fw-bold text-uppercase">Citizenship</div>
+          <div>{{ user.citizenship|default:"-" }}</div>
+        </div>
       </div>
-      <div class="modal-footer border-top-0 pt-0">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-      </div>
+      
+    </div>
+    <div class="kiosk-modal-footer text-end">
+      <button type="button" class="btn-dash-outline" onclick="closeUserModal({{ user.id }})">Close</button>
     </div>
   </div>
 </div>
@@ -329,6 +332,36 @@
     } else {
       barangayFilterContainer.style.display = 'none';
       barangayFilter.value = ''; // Reset when hidden
+    }
+  }
+
+  const accountsPageContent = document.getElementById('accountsPageContent');
+
+  function openUserModal(userId) {
+    const overlay = document.getElementById('userModalOverlay' + userId);
+    if (overlay) {
+      overlay.classList.add('active');
+      accountsPageContent.style.pointerEvents = 'none';
+      
+      // Add click-to-dismiss on overlay
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) {
+          closeUserModal(userId);
+        }
+      });
+    }
+  }
+
+  function closeUserModal(userId) {
+    const overlay = document.getElementById('userModalOverlay' + userId);
+    if (overlay) {
+      overlay.classList.remove('active');
+      
+      // Check if any other user modal is still active before restoring pointer-events
+      const anyModalActive = document.querySelectorAll('.modal-overlay.active').length > 0;
+      if (!anyModalActive) {
+        accountsPageContent.style.pointerEvents = 'auto';
+      }
     }
   }
 </script>

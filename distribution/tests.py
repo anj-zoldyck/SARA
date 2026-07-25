@@ -3,10 +3,11 @@ from django.utils import timezone
 from accounts.models import User, Barangay
 from households.models import Zone, Household, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
-from distribution.models import AidSchedule, AssignedTo, AidClaim
+from distribution.models import AidSchedule, AssignedTo, AidClaim, GeneratedBeneficiaryList, GeneratedBeneficiary
 from distribution.services import is_staff_assigned_to_scan
-from distribution.views import scan_rfid, staff_walkin
+from distribution.views import scan_rfid, staff_walkin, search_eligible_candidates
 from django.contrib.messages.storage.fallback import FallbackStorage
+import json
 
 def add_messages(request):
     setattr(request, 'session', 'session')
@@ -320,3 +321,208 @@ class MultiWordNameSearchTestCase(TestCase):
         content_str = str(response.content)
         self.assertNotIn('Juan', content_str)
         self.assertNotIn('Maria', content_str)
+
+
+class RFIDSearchExclusionTests(TestCase):
+    """
+    Tests for RFID registration requirement in manual override search (search_eligible_candidates).
+    Households/families without RFID should never appear as selectable search results.
+    """
+    
+    def setUp(self):
+        self.barangay = Barangay.objects.create(name='Test Barangay')
+        self.zone = Zone.objects.create(name='Zone 1', barangay=self.barangay)
+        
+        # Create MSWDO user for authentication
+        self.mswdo = User.objects.create_user(
+            username='mswdo',
+            email='mswdo@test.com',
+            role='MSWDO',
+            password='pwd'
+        )
+        
+        # Create program and assistance
+        self.program = Program.objects.create(name='Test Program')
+        self.category = AidCategory.objects.create(program=self.program, name='Test Category')
+        
+        # Family-based assistance
+        self.family_assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='family',
+            aid_type='CASH'
+        )
+        
+        # Individual-based assistance
+        self.individual_assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='individual',
+            aid_type='CASH'
+        )
+        
+        # Create schedule with beneficiary list
+        self.schedule = AidSchedule.objects.create(
+            assistance=self.family_assistance,
+            schedule_datetime=timezone.now(),
+            location='Plaza',
+            is_active=True,
+            is_finished=False
+        )
+        
+        # Create beneficiary list
+        self.ben_list = GeneratedBeneficiaryList.objects.create(
+            schedule=self.schedule,
+            generated_by=self.mswdo,
+            prioritization_strategy_used='RANDOM'
+        )
+        
+        self.factory = RequestFactory()
+    
+    def test_family_with_rfid_appears_in_search(self):
+        """
+        A family WITH RFID should appear in search_eligible_candidates results.
+        """
+        household = Household.objects.create(
+            house_number='123',
+            barangay=self.barangay,
+            zone=self.zone,
+            land_use='RESIDENTIAL',
+            hazard_exposure='NONE'
+        )
+        family_with_rfid = Family.objects.create(
+            household=household,
+            family_name='RFID Family',
+            rfid_uid='1234567890'
+        )
+        FamilyMember.objects.create(
+            family=family_with_rfid,
+            first_name='John',
+            last_name='Doe'
+        )
+        
+        # Update schedule to use family assistance
+        self.schedule.assistance = self.family_assistance
+        self.schedule.save()
+        
+        request = self.factory.get(f'/search/{self.schedule.id}/', {'q': 'RFID Family'})
+        request.user = self.mswdo
+        response = search_eligible_candidates(request, self.schedule.id)
+        
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(data['status'], 'success')
+        self.assertEqual(len(data['results']), 1)
+        self.assertEqual(data['results'][0]['id'], family_with_rfid.id)
+    
+    def test_family_without_rfid_excluded_from_search(self):
+        """
+        A family WITHOUT RFID should NOT appear in search_eligible_candidates results,
+        even when searched by exact matching name.
+        """
+        household = Household.objects.create(
+            house_number='456',
+            barangay=self.barangay,
+            zone=self.zone,
+            land_use='RESIDENTIAL',
+            hazard_exposure='NONE'
+        )
+        family_without_rfid = Family.objects.create(
+            household=household,
+            family_name='No RFID Family',
+            rfid_uid=None
+        )
+        FamilyMember.objects.create(
+            family=family_without_rfid,
+            first_name='Jane',
+            last_name='Smith'
+        )
+        
+        # Update schedule to use family assistance
+        self.schedule.assistance = self.family_assistance
+        self.schedule.save()
+        
+        request = self.factory.get(f'/search/{self.schedule.id}/', {'q': 'No RFID Family'})
+        request.user = self.mswdo
+        response = search_eligible_candidates(request, self.schedule.id)
+        
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(data['status'], 'success')
+        self.assertEqual(len(data['results']), 0)
+    
+    def test_household_with_rfid_family_appears_in_individual_search(self):
+        """
+        For individual-based assistance, a household with at least one family having RFID
+        should appear in search results.
+        """
+        household = Household.objects.create(
+            house_number='101',
+            barangay=self.barangay,
+            zone=self.zone,
+            land_use='RESIDENTIAL',
+            hazard_exposure='NONE'
+        )
+        family_with_rfid = Family.objects.create(
+            household=household,
+            family_name='RFID Family',
+            rfid_uid='9876543210'
+        )
+        head_member = FamilyMember.objects.create(
+            family=family_with_rfid,
+            first_name='Senior',
+            last_name='Citizen',
+            relationship='HEAD'
+        )
+        
+        # Update schedule to use individual assistance
+        self.schedule.assistance = self.individual_assistance
+        self.schedule.save()
+        
+        request = self.factory.get(f'/search/{self.schedule.id}/', {'q': 'Senior Citizen'})
+        request.user = self.mswdo
+        response = search_eligible_candidates(request, self.schedule.id)
+        
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(data['status'], 'success')
+        self.assertEqual(len(data['results']), 1)
+        self.assertEqual(data['results'][0]['id'], household.id)
+    
+    def test_household_without_rfid_family_excluded_from_individual_search(self):
+        """
+        A household where NONE of its families have RFID should NOT appear in
+        search_eligible_candidates results for individual-based assistance.
+        """
+        household = Household.objects.create(
+            house_number='102',
+            barangay=self.barangay,
+            zone=self.zone,
+            land_use='RESIDENTIAL',
+            hazard_exposure='NONE'
+        )
+        family_without_rfid = Family.objects.create(
+            household=household,
+            family_name='No RFID Family',
+            rfid_uid=None
+        )
+        head_member = FamilyMember.objects.create(
+            family=family_without_rfid,
+            first_name='Senior',
+            last_name='Citizen',
+            middle_name='NoRFID',
+            relationship='HEAD'
+        )
+        
+        # Update schedule to use individual assistance
+        self.schedule.assistance = self.individual_assistance
+        self.schedule.save()
+        
+        request = self.factory.get(f'/search/{self.schedule.id}/', {'q': 'Senior NoRFID'})
+        request.user = self.mswdo
+        response = search_eligible_candidates(request, self.schedule.id)
+        
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(data['status'], 'success')
+        self.assertEqual(len(data['results']), 0)

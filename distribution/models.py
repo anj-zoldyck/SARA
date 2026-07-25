@@ -144,7 +144,8 @@ class AssignedTo(models.Model):
     # cleaner to validate this strictly in the form/view layer when creating assignments.
     staff = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='distribution_assignments')
     
-    barangay = models.ForeignKey('accounts.Barangay', on_delete=models.CASCADE)
+    barangay = models.ForeignKey('accounts.Barangay', on_delete=models.CASCADE, null=True, blank=True,
+                                help_text="Optional — leave blank for municipal-wide assignment (all barangays).")
     
     # Zone is optional to allow for flexible assignments:
     # - If zone is set, the staff is assigned strictly to that specific zone within the barangay.

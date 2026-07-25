@@ -42,6 +42,7 @@ def register_rfid(request, family_id=None):
     if family_id:
         selected_family = get_object_or_404(Family, id=family_id)
         error = success = None
+        success_type = None
 
         if request.method == 'POST':
             rfid_uid = request.POST.get('rfid_uid')
@@ -52,14 +53,30 @@ def register_rfid(request, family_id=None):
                 if existing:
                     error = f"RFID already assigned to {existing.family_name}."
                 else:
+                    was_registered = bool(selected_family.rfid_uid)
                     selected_family.rfid_uid = rfid_uid
                     selected_family.save()
-                    success = f"RFID successfully registered to {selected_family.family_name}."
+                    if was_registered:
+                        success = f"RFID successfully updated for {selected_family.family_name}."
+                        success_type = 'updated'
+                    else:
+                        success = f"RFID successfully registered to {selected_family.family_name}."
+                        success_type = 'registered'
+
+        # Compute family member category flags
+        members = selected_family.members.all()
+        has_senior = members.filter(is_senior_citizen=True).exists()
+        has_pwd = members.filter(is_pwd=True).exists()
+        has_solo_parent = members.filter(is_solo_parent=True).exists()
 
         return render(request, 'accounts/register_rfid_form.html', {
             'selected_family': selected_family,
             'error': error,
             'success': success,
+            'success_type': success_type,
+            'has_senior': has_senior,
+            'has_pwd': has_pwd,
+            'has_solo_parent': has_solo_parent,
             'requires_auth': True,
         })
 
@@ -200,6 +217,11 @@ def deactivate_rfid(request, family_id):
     else:
         messages.warning(request, f"{family.family_name} does not have an RFID to deactivate.")
 
+    # Check if we should redirect back to register_rfid form
+    redirect_to = request.GET.get('redirect_to')
+    if redirect_to == 'register_rfid':
+        return redirect('register_rfid_family', family_id=family.id)
+    
     return redirect('household_info', household_id=family.household.id)
 
 

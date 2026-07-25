@@ -89,11 +89,13 @@
               <div class="acct-form__control-wrap">
                 <select name="barangay" id="barangaySelect" required>
                   <option value="">-- Select Barangay --</option>
+                  <option value="ALL">🌐 All Barangays (Municipal-wide)</option>
                   {% for b in barangays %}
                     <option value="{{ b.id }}">{{ b.name }}</option>
                   {% endfor %}
                 </select>
               </div>
+              <p class="acct-form__hint">Selecting 'All Barangays' assigns this staff member to process claims across the entire municipality for this schedule.</p>
             {% endif %}
           </div>
           
@@ -151,12 +153,16 @@
                   {{ assignment.staff.first_name }} {{ assignment.staff.last_name }}
                 </td>
                 <td class="acct-td">
-                  <i class="bi bi-geo-alt text-muted me-1"></i>
-                  {{ assignment.barangay.name }}
-                  {% if assignment.zone %}
-                    <span class="badge bg-light text-dark ms-1">{{ assignment.zone.name }}</span>
+                  {% if assignment.barangay %}
+                    <i class="bi bi-geo-alt text-muted me-1"></i>{{ assignment.barangay.name }}
+                    {% if assignment.zone %}
+                      <span class="badge bg-light text-dark ms-1">{{ assignment.zone.name }}</span>
+                    {% else %}
+                      <span class="badge bg-secondary ms-1">Barangay-wide</span>
+                    {% endif %}
                   {% else %}
-                    <span class="badge bg-secondary ms-1">Barangay-wide</span>
+                    <i class="bi bi-globe text-muted me-1"></i>
+                    <span class="badge bg-primary ms-1">All Barangays (Municipal-wide)</span>
                   {% endif %}
                 </td>
                 <td class="acct-td acct-td--actions">
@@ -220,13 +226,26 @@
       const selectedB = barangaySelect.value;
       zoneSelect.value = ''; // reset zone
       
-      allZoneOptions.forEach(opt => {
-        if (!selectedB || opt.dataset.barangay === selectedB) {
-          opt.style.display = '';
-        } else {
+      // Handle "All Barangays" selection
+      if (selectedB === 'ALL') {
+        // Hide all zone options and disable the select
+        allZoneOptions.forEach(opt => {
           opt.style.display = 'none';
-        }
-      });
+        });
+        zoneSelect.disabled = true;
+        zoneSelect.title = "Not applicable for municipal-wide assignments";
+      } else {
+        // Enable and filter zones normally
+        zoneSelect.disabled = false;
+        zoneSelect.title = "";
+        allZoneOptions.forEach(opt => {
+          if (!selectedB || opt.dataset.barangay === selectedB) {
+            opt.style.display = '';
+          } else {
+            opt.style.display = 'none';
+          }
+        });
+      }
     }
     
     barangaySelect.addEventListener('change', filterZones);

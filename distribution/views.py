@@ -898,16 +898,22 @@ def assign_staff(request, schedule_id):
                 return redirect('assign_staff', schedule_id=schedule.id)
                 
             staff_user = get_object_or_404(User, id=staff_id, role='MSWDO_STAFF')
-            barangay = get_object_or_404(Barangay, id=barangay_id)
             
-            # Ensure the selected barangay matches the schedule's barangay if the schedule is scope-locked
-            if schedule.barangay and barangay != schedule.barangay:
-                messages.error(request, "This schedule is locked to a specific barangay.")
-                return redirect('assign_staff', schedule_id=schedule.id)
+            # Handle "ALL" barangay value for municipal-wide assignment
+            if barangay_id == 'ALL':
+                barangay = None
+                zone = None  # Zone must be None for municipal-wide assignments
+            else:
+                barangay = get_object_or_404(Barangay, id=barangay_id)
                 
-            zone = None
-            if zone_id:
-                zone = get_object_or_404(Zone, id=zone_id, barangay=barangay)
+                # Ensure the selected barangay matches the schedule's barangay if the schedule is scope-locked
+                if schedule.barangay and barangay != schedule.barangay:
+                    messages.error(request, "This schedule is locked to a specific barangay.")
+                    return redirect('assign_staff', schedule_id=schedule.id)
+                    
+                zone = None
+                if zone_id:
+                    zone = get_object_or_404(Zone, id=zone_id, barangay=barangay)
                 
             # Check for existing
             if AssignedTo.objects.filter(schedule=schedule, staff=staff_user, barangay=barangay, zone=zone).exists():

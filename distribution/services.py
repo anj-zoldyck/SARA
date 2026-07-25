@@ -28,9 +28,9 @@ def is_staff_assigned_to_scan(user, schedule, household=None):
       (open access — this feature is additive/optional, matching the
       same fallback pattern used for the beneficiary-list restriction).
     - If assignments exist, the user must have an AssignedTo record
-      matching the household's barangay, AND either matching the
-      household's zone specifically OR have a barangay-wide assignment
-      (zone=None) for that barangay.
+      matching the household's barangay (or have a municipal-wide assignment
+      with barangay=None), AND either matching the household's zone
+      specifically OR have a barangay-wide assignment (zone=None) for that barangay.
     """
     from .models import AssignedTo
     
@@ -48,12 +48,14 @@ def is_staff_assigned_to_scan(user, schedule, household=None):
     barangay = household.barangay
     zone = household.zone
     
-    # User must have an assignment for this schedule and barangay
+    # User must have an assignment for this schedule
+    # AND (assignment.barangay is None OR assignment.barangay == household.barangay)
     # AND (assignment.zone is None OR assignment.zone == household.zone)
     return AssignedTo.objects.filter(
         schedule=schedule,
-        staff=user,
-        barangay=barangay
+        staff=user
+    ).filter(
+        Q(barangay__isnull=True) | Q(barangay=barangay)
     ).filter(
         Q(zone__isnull=True) | Q(zone=zone)
     ).exists()
