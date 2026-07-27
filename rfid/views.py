@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.utils import timezone
 from datetime import date
 from django.db.models import Count, Q
+from django.db import transaction, IntegrityError
 
 from accounts.decorators import session_protected, mswdo_or_staff_required
 from accounts.models import User, Barangay
@@ -49,19 +50,28 @@ def register_rfid(request, family_id=None):
             if not rfid_uid:
                 error = "Please scan an RFID card."
             else:
-                existing = Family.objects.filter(rfid_uid=rfid_uid).exclude(id=selected_family.id).first()
-                if existing:
-                    error = f"RFID already assigned to {existing.family_name}."
-                else:
-                    was_registered = bool(selected_family.rfid_uid)
-                    selected_family.rfid_uid = rfid_uid
-                    selected_family.save()
-                    if was_registered:
-                        success = f"RFID successfully updated for {selected_family.family_name}."
-                        success_type = 'updated'
-                    else:
-                        success = f"RFID successfully registered to {selected_family.family_name}."
-                        success_type = 'registered'
+                try:
+                    with transaction.atomic():
+                        # Use select_for_update to lock the row and prevent race conditions
+                        selected_family = Family.objects.select_for_update().get(id=selected_family.id)
+                        
+                        # Check for existing RFID assignment (excluding current family)
+                        existing = Family.objects.filter(rfid_uid=rfid_uid).exclude(id=selected_family.id).first()
+                        if existing:
+                            error = f"RFID already assigned to {existing.family_name}."
+                        else:
+                            was_registered = bool(selected_family.rfid_uid)
+                            selected_family.rfid_uid = rfid_uid
+                            selected_family.save()
+                            if was_registered:
+                                success = f"RFID successfully updated for {selected_family.family_name}."
+                                success_type = 'updated'
+                            else:
+                                success = f"RFID successfully registered to {selected_family.family_name}."
+                                success_type = 'registered'
+                except IntegrityError:
+                    # Database-level constraint violation (defense in depth)
+                    error = "RFID is already assigned to another family. Please choose a different card."
 
         # Compute family member category flags
         members = selected_family.members.all()
