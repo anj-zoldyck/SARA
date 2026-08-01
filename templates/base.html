@@ -1,40 +1,42 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>{% block title %}SARA{% endblock %}</title>
   <link rel="icon" type="image/x-icon" sizes="16x16" href="{% static 'images/SARA.ico' %}">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- Prevent caching of protected pages to avoid showing stale content when session expires -->
+  <!-- Prevent caching of protected pages to avoid showing stale content when session expires -->
   <script>
-    (function() {
-      var pageRequiresAuth = {{ requires_auth|default:"false"|lower }};
-      var isLoginPage = window.location.pathname === '/login/';
+    (function () {
+      var pageRequiresAuth = {{ requires_auth|default: "false" | lower
+    }};
+    var isLoginPage = window.location.pathname === '/login/';
 
-      function isSessionAlive() {
-        return document.cookie.split(';').some(function(c) {
-          return c.trim().startsWith('sara_auth=1');
-        });
-      }
-
-      window.addEventListener('pageshow', function(e) {
-        if (e.persisted) {
-          if (pageRequiresAuth && !isSessionAlive()) {
-            // Protected page, session gone — go to login
-            document.documentElement.style.visibility = 'hidden';
-            window.location.replace('/login/');
-          } else if (isLoginPage && isSessionAlive()) {
-            // Login page cached but user is logged in — go to dashboard
-            document.documentElement.style.visibility = 'hidden';
-            window.location.replace('/mswdo/dashboard/');
-          } else {
-            document.documentElement.style.visibility = 'visible';
-          }
-        }
+    function isSessionAlive() {
+      return document.cookie.split(';').some(function (c) {
+        return c.trim().startsWith('sara_auth=1');
       });
-    })();
+    }
+
+    window.addEventListener('pageshow', function (e) {
+      if (e.persisted) {
+        if (pageRequiresAuth && !isSessionAlive()) {
+          // Protected page, session gone — go to login
+          document.documentElement.style.visibility = 'hidden';
+          window.location.replace('/login/');
+        } else if (isLoginPage && isSessionAlive()) {
+          // Login page cached but user is logged in — go to dashboard
+          document.documentElement.style.visibility = 'hidden';
+          window.location.replace('/mswdo/dashboard/');
+        } else {
+          document.documentElement.style.visibility = 'visible';
+        }
+      }
+    });
+    }) ();
   </script>
 
   <!-- Bootstrap -->
@@ -42,11 +44,13 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
   <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
 
   <!-- GLOBAL STYLES -->
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
   <link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
+  <link rel="stylesheet" href="{% static 'css/loading_modal.css' %}">
 
   <!-- PAGE STYLES -->
   {% block css %}{% endblock %}
@@ -55,387 +59,402 @@
 <body>
 
 
-<div class="page-wrapper">
+  <div class="page-wrapper">
 
-  <!-- ==================== TOPBAR ==================== -->
-  <nav class="topbar" id="topbar">
+    <!-- ==================== TOPBAR ==================== -->
+    <nav class="topbar" id="topbar">
 
-    <!-- LEFT: Burger (mobile, authenticated only) + Brand -->
-    <div class="topbar-left">
+      <!-- LEFT: Burger (mobile, authenticated only) + Brand -->
+      <div class="topbar-left">
 
-      {% if user.is_authenticated and not hide_sidebar %}
-      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
-        <i class="bi bi-list"></i>
-      </button>
-      {% endif %}
+        {% if user.is_authenticated and not hide_sidebar %}
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+          <i class="bi bi-list"></i>
+        </button>
+        {% endif %}
 
-      <a class="topbar-brand" href="#">
-        <img src="{% static 'images/logo.jpg' %}" alt="SARA Logo" class="topbar-logo">
-        <img src="{% static 'images/SRP.png' %}" alt="SRP Logo" class="topbar-logo topbar-logo--srp">
-        <div class="topbar-title-group">
-          <span class="topbar-title">{% block navbar_title %}SARA SYSTEM{% endblock %}</span>
-          <span class="topbar-subtitle">Santa Rita Automated Relief Assistance</span>
-        </div>
-      </a>
+        <a class="topbar-brand" href="#">
+          <img src="{% static 'images/logo.jpg' %}" alt="SARA Logo" class="topbar-logo">
+          <img src="{% static 'images/SRP.png' %}" alt="SRP Logo" class="topbar-logo topbar-logo--srp">
+          <div class="topbar-title-group">
+            <span class="topbar-title">{% block navbar_title %}SARA SYSTEM{% endblock %}</span>
+            <span class="topbar-subtitle">Santa Rita Automated Relief Assistance</span>
+          </div>
+        </a>
 
-    </div>
+      </div>
 
-    <!-- RIGHT: User profile (authenticated only) or Login -->
-    <div class="topbar-right">
-      {% if user.is_authenticated %}
-      <div class="topbar-user" id="userDropdownToggle">
-        <div class="topbar-avatar">
-          {% if user.profile_image %}
+      <!-- RIGHT: User profile (authenticated only) or Login -->
+      <div class="topbar-right">
+        {% if user.is_authenticated %}
+        <div class="topbar-user" id="userDropdownToggle">
+          <div class="topbar-avatar">
+            {% if user.profile_image %}
             <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name }}">
-          {% else %}
+            {% else %}
             <span class="avatar-initials">
               {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
             </span>
-          {% endif %}
+            {% endif %}
+          </div>
+          <div class="topbar-user-info">
+            <span class="topbar-username">{{ user.get_full_name|default:user.username }}</span>
+            <span class="topbar-role">{{ user.role|default:"User" }}</span>
+          </div>
+          <i class="bi bi-chevron-down topbar-chevron" id="userChevron"></i>
         </div>
-        <div class="topbar-user-info">
-          <span class="topbar-username">{{ user.get_full_name|default:user.username }}</span>
-          <span class="topbar-role">{{ user.role|default:"User" }}</span>
-        </div>
-        <i class="bi bi-chevron-down topbar-chevron" id="userChevron"></i>
-      </div>
 
-      <!-- User Dropdown -->
-      <div class="user-dropdown" id="userDropdown">
-        <a href="#" class="user-dropdown-item">
-          <i class="bi bi-person"></i> My Profile
-        </a>
-        <a href="{% url 'settings' %}" class="user-dropdown-item">
-          <i class="bi bi-gear"></i> Settings
-        </a>
-        <div class="user-dropdown-divider"></div>
-        <a href="{% url 'logout' %}" class="user-dropdown-item user-dropdown-item--danger">
-          <i class="bi bi-box-arrow-right"></i> Logout
-        </a>
-      </div>
-      {% else %}
+        <!-- User Dropdown -->
+        <div class="user-dropdown" id="userDropdown">
+          <a href="#" class="user-dropdown-item">
+            <i class="bi bi-person"></i> My Profile
+          </a>
+          <a href="{% url 'settings' %}" class="user-dropdown-item">
+            <i class="bi bi-gear"></i> Settings
+          </a>
+          <div class="user-dropdown-divider"></div>
+          <a href="{% url 'logout' %}" class="user-dropdown-item user-dropdown-item--danger">
+            <i class="bi bi-box-arrow-right"></i> Logout
+          </a>
+        </div>
+        {% else %}
         {% if request.resolver_match.url_name != 'login' %}
-        <a href="{% url 'login' %}" class="btn btn-primary shadow-sm" style="background-color: #134ed5; border: none; font-weight: 600; padding: 0.5rem 1.25rem; border-radius: 8px;">
+        <a href="{% url 'login' %}" class="btn btn-primary shadow-sm"
+          style="background-color: #134ed5; border: none; font-weight: 600; padding: 0.5rem 1.25rem; border-radius: 8px;">
           <i class="bi bi-box-arrow-in-right me-1"></i> Login
         </a>
         {% endif %}
-      {% endif %}
-    </div>
+        {% endif %}
+      </div>
 
-  </nav>
+    </nav>
 
-  <!-- ==================== SIDEBAR OVERLAY (mobile) ==================== -->
-  {% if user.is_authenticated and not hide_sidebar %}
-  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <!-- ==================== SIDEBAR OVERLAY (mobile) ==================== -->
+    {% if user.is_authenticated and not hide_sidebar %}
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-  <!-- ==================== SIDEBAR ==================== -->
-  <aside class="sidebar" id="sidebar">
+    <!-- ==================== SIDEBAR ==================== -->
+    <aside class="sidebar" id="sidebar">
 
-    <!-- Sidebar Header -->
-    <div class="sidebar-header">
-      <div class="sidebar-user-card">
-        <div class="sidebar-avatar">
-          {% if user.profile_image %}
+      <!-- Sidebar Header -->
+      <div class="sidebar-header">
+        <div class="sidebar-user-card">
+          <div class="sidebar-avatar">
+            {% if user.profile_image %}
             <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name }}">
-          {% else %}
+            {% else %}
             <span class="avatar-initials avatar-initials--lg">
               {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
             </span>
-          {% endif %}
-        </div>
-        <div class="sidebar-user-info">
-          <span class="sidebar-username">{{ user.get_full_name|default:user.username }}</span>
-          <span class="sidebar-role-badge">{{ user.role|default:"User" }}</span>
+            {% endif %}
+          </div>
+          <div class="sidebar-user-info">
+            <span class="sidebar-username">{{ user.get_full_name|default:user.username }}</span>
+            <span class="sidebar-role-badge">{{ user.role|default:"User" }}</span>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Sidebar Navigation -->
-    <nav class="sidebar-body">
-      <ul class="sidebar-nav">
+      <!-- Sidebar Navigation -->
+      <nav class="sidebar-body">
+        <ul class="sidebar-nav">
 
-        <!-- ========== MSWDO NAVIGATION ========== -->
-        {% if user.role == 'MSWDO' %}
+          <!-- ========== MSWDO NAVIGATION ========== -->
+          {% if user.role == 'MSWDO' %}
 
-        <li class="sidebar-section-label">Main</li>
+          <li class="sidebar-section-label">Main</li>
 
-        <!-- Dashboard -->
-        <li class="sidebar-item">
-          <a href="{% url 'mswdo_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'mswdo_dashboard' %}active{% endif %}">
-            <i class="bi bi-speedometer2"></i>
-            <span>Dashboard</span>
-          </a>
-        </li>
+          <!-- Dashboard -->
+          <li class="sidebar-item">
+            <a href="{% url 'mswdo_dashboard' %}"
+              class="sidebar-link {% if request.resolver_match.url_name == 'mswdo_dashboard' %}active{% endif %}">
+              <i class="bi bi-speedometer2"></i>
+              <span>Dashboard</span>
+            </a>
+          </li>
 
-        <li class="sidebar-section-label">Management</li>
+          <li class="sidebar-section-label">Management</li>
 
-        <!-- Household Profiling (accordion) -->
-        <li class="sidebar-item sidebar-item--accordion">
-          <button class="sidebar-link sidebar-accordion-btn" data-target="householdSubmenu"
-            aria-expanded="false">
-            <i class="bi bi-house-door"></i>
-            <span>Household Profiling</span>
-            <i class="bi bi-chevron-down sidebar-arrow"></i>
-          </button>
-          <ul class="sidebar-submenu" id="householdSubmenu">
-            <li>
-              <a href="{% url 'barangay_list' %}" class="sidebar-sublink">
-                <i class="bi bi-person-lines-fill"></i>
-                <span>Residents</span>
-              </a>
-            </li>
-            <li>
-              <a href="{% url 'household_map' %}" class="sidebar-sublink {% if request.resolver_match.url_name == 'household_map' %}active{% endif %}">
-                <i class="bi bi-map"></i>
-                <span>Household Map</span>
-              </a>
-            </li>
-            <li>
-              <a href="{% url 'household_vulnerability_map' %}" class="sidebar-sublink {% if request.resolver_match.url_name == 'household_vulnerability_map' %}active{% endif %}">
-                <i class="bi bi-shield-exclamation"></i>
-                <span>Vulnerability Map</span>
-              </a>
-            </li>
-            <li>
-              <a href="{% url 'register_rfid' %}" class="sidebar-sublink">
-                <i class="bi bi-credit-card-2-front"></i>
-                <span>RFID Registration</span>
-              </a>
-            </li>
-          </ul>
-        </li>
+          <!-- Household Profiling (accordion) -->
+          <li class="sidebar-item sidebar-item--accordion">
+            <button class="sidebar-link sidebar-accordion-btn" data-target="householdSubmenu" aria-expanded="false">
+              <i class="bi bi-house-door"></i>
+              <span>Household Profiling</span>
+              <i class="bi bi-chevron-down sidebar-arrow"></i>
+            </button>
+            <ul class="sidebar-submenu" id="householdSubmenu">
+              <li>
+                <a href="{% url 'barangay_list' %}" class="sidebar-sublink">
+                  <i class="bi bi-person-lines-fill"></i>
+                  <span>Residents</span>
+                </a>
+              </li>
+              <li>
+                <a href="{% url 'household_map' %}"
+                  class="sidebar-sublink {% if request.resolver_match.url_name == 'household_map' %}active{% endif %}">
+                  <i class="bi bi-map"></i>
+                  <span>Household Map</span>
+                </a>
+              </li>
+              <li>
+                <a href="{% url 'household_vulnerability_map' %}"
+                  class="sidebar-sublink {% if request.resolver_match.url_name == 'household_vulnerability_map' %}active{% endif %}">
+                  <i class="bi bi-shield-exclamation"></i>
+                  <span>Vulnerability Map</span>
+                </a>
+              </li>
+              <li>
+                <a href="{% url 'register_rfid' %}" class="sidebar-sublink">
+                  <i class="bi bi-credit-card-2-front"></i>
+                  <span>RFID Registration</span>
+                </a>
+              </li>
+            </ul>
+          </li>
 
-        <!-- Aid Programs (accordion) -->
-        <li class="sidebar-item sidebar-item--accordion">
-          <button class="sidebar-link sidebar-accordion-btn" data-target="aidSubmenu"
-            aria-expanded="false">
-            <i class="bi bi-gift"></i>
-            <span>Aid Programs</span>
-            <i class="bi bi-chevron-down sidebar-arrow"></i>
-          </button>
-          <ul class="sidebar-submenu" id="aidSubmenu">
-            <li>
-              <a href="{% url 'schedule_distribution' %}" class="sidebar-sublink {% if request.resolver_match.url_name == 'schedule_distribution' %}active{% endif %}">
-                <i class="bi bi-calendar-plus"></i>
-                <span>Schedule Distribution</span>
-              </a>
-            </li>
-            <li>
-              <a href="{% url 'beneficiary_selection_landing' %}" class="sidebar-sublink {% if request.resolver_match.url_name == 'beneficiary_selection_landing' %}active{% endif %}">
-                <i class="bi bi-person-check"></i>
-                <span>Beneficiary Selection</span>
-              </a>
-            </li>
-            <li>
-              <a href="{% url 'aid_type_list' %}" class="sidebar-sublink">
-                <i class="bi bi-truck"></i>
-                <span>Distribution Monitoring</span>
-              </a>
-            </li>
-            <li>
-              <a href="#" class="sidebar-sublink">
-                <i class="bi bi-clock-history"></i>
-                <span>Aid History</span>
-              </a>
-            </li>
-          </ul>
-        </li>
+          <!-- Aid Programs (accordion) -->
+          <li class="sidebar-item sidebar-item--accordion">
+            <button class="sidebar-link sidebar-accordion-btn" data-target="aidSubmenu" aria-expanded="false">
+              <i class="bi bi-gift"></i>
+              <span>Aid Programs</span>
+              <i class="bi bi-chevron-down sidebar-arrow"></i>
+            </button>
+            <ul class="sidebar-submenu" id="aidSubmenu">
+              <li>
+                <a href="{% url 'schedule_distribution' %}"
+                  class="sidebar-sublink {% if request.resolver_match.url_name == 'schedule_distribution' %}active{% endif %}">
+                  <i class="bi bi-calendar-plus"></i>
+                  <span>Schedule Distribution</span>
+                </a>
+              </li>
+              <li>
+                <a href="{% url 'beneficiary_selection_landing' %}"
+                  class="sidebar-sublink {% if request.resolver_match.url_name == 'beneficiary_selection_landing' %}active{% endif %}">
+                  <i class="bi bi-person-check"></i>
+                  <span>Beneficiary Selection</span>
+                </a>
+              </li>
+              <li>
+                <a href="{% url 'aid_type_list' %}" class="sidebar-sublink">
+                  <i class="bi bi-truck"></i>
+                  <span>Distribution Monitoring</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-sublink">
+                  <i class="bi bi-clock-history"></i>
+                  <span>Aid History</span>
+                </a>
+              </li>
+            </ul>
+          </li>
 
-        <li class="sidebar-section-label">Data & Insights</li>
+          <li class="sidebar-section-label">Data & Insights</li>
 
-        <!-- Analytics -->
-        <li class="sidebar-item">
-          <a href="{% url 'analytics' %}" class="sidebar-link {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}">
-            <i class="bi bi-bar-chart-line"></i>
-            <span>Analytics</span>
-          </a>
-        </li>
+          <!-- Analytics -->
+          <li class="sidebar-item">
+            <a href="{% url 'analytics' %}"
+              class="sidebar-link {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}">
+              <i class="bi bi-bar-chart-line"></i>
+              <span>Analytics</span>
+            </a>
+          </li>
 
-        <!-- Reports -->
-        <li class="sidebar-item">
-          <a href="{% url 'aid_reports' %}" class="sidebar-link {% if request.resolver_match.url_name == 'aid_reports' %}active{% endif %}">
-            <i class="bi bi-file-earmark-bar-graph"></i>
-            <span>Reports</span>
-          </a>
-        </li>
+          <!-- Reports -->
+          <li class="sidebar-item">
+            <a href="{% url 'aid_reports' %}"
+              class="sidebar-link {% if request.resolver_match.url_name == 'aid_reports' %}active{% endif %}">
+              <i class="bi bi-file-earmark-bar-graph"></i>
+              <span>Reports</span>
+            </a>
+          </li>
 
-        <!-- Barangays -->
-        <li class="sidebar-item">
-          <a href="{% url 'barangay_list' %}" class="sidebar-link">
-            <i class="bi bi-geo-alt"></i>
-            <span>Barangays</span>
-          </a>
-        </li>
+          <!-- Barangays -->
+          <li class="sidebar-item">
+            <a href="{% url 'barangay_list' %}" class="sidebar-link">
+              <i class="bi bi-geo-alt"></i>
+              <span>Barangays</span>
+            </a>
+          </li>
 
-        <li class="sidebar-section-label">System</li>
+          <li class="sidebar-section-label">System</li>
 
-        <!-- User Management -->
-        <li class="sidebar-item">
-          <a href="{% url 'user_accounts' %}" class="sidebar-link">
-            <i class="bi bi-people"></i>
-            <span>User Management</span>
-          </a>
-        </li>
+          <!-- User Management -->
+          <li class="sidebar-item">
+            <a href="{% url 'user_accounts' %}" class="sidebar-link">
+              <i class="bi bi-people"></i>
+              <span>User Management</span>
+            </a>
+          </li>
 
-        <!-- Settings -->
-        <li class="sidebar-item">
-          <a href="{% url 'settings' %}" class="sidebar-link">
-            <i class="bi bi-gear"></i>
-            <span>Settings</span>
-          </a>
-        </li>
+          <!-- Settings -->
+          <li class="sidebar-item">
+            <a href="{% url 'settings' %}" class="sidebar-link">
+              <i class="bi bi-gear"></i>
+              <span>Settings</span>
+            </a>
+          </li>
 
-        {% endif %}
+          {% endif %}
 
-        <!-- ========== MSWDO STAFF NAVIGATION ========== -->
-        {% if user.role == 'MSWDO_STAFF' %}
+          <!-- ========== MSWDO STAFF NAVIGATION ========== -->
+          {% if user.role == 'MSWDO_STAFF' %}
 
-        <li class="sidebar-section-label">Main</li>
+          <li class="sidebar-section-label">Main</li>
 
-        <li class="sidebar-item">
-          <a href="{% url 'staff_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'staff_dashboard' %}active{% endif %}">
-            <i class="bi bi-speedometer2"></i>
-            <span>Dashboard</span>
-          </a>
-        </li>
+          <li class="sidebar-item">
+            <a href="{% url 'staff_dashboard' %}"
+              class="sidebar-link {% if request.resolver_match.url_name == 'staff_dashboard' %}active{% endif %}">
+              <i class="bi bi-speedometer2"></i>
+              <span>Dashboard</span>
+            </a>
+          </li>
 
-        <li class="sidebar-section-label">Operations</li>
-        
-        <li class="sidebar-item">
-          <a href="{% url 'staff_walkin' %}" class="sidebar-link {% if request.resolver_match.url_name == 'staff_walkin' %}active{% endif %}">
-            <i class="bi bi-person-lines-fill"></i>
-            <span>Walk-in Assistance</span>
-          </a>
-        </li>
-        <!-- Household Profiling (accordion) -->
-        <li class="sidebar-item sidebar-item--accordion">
-          <button class="sidebar-link sidebar-accordion-btn" data-target="staffHouseholdSubmenu" aria-expanded="false">
-            <i class="bi bi-house-door"></i>
-            <span>Household Profiling</span>
-            <i class="bi bi-chevron-down sidebar-arrow"></i>
-          </button>
-          <ul class="sidebar-submenu" id="staffHouseholdSubmenu">
-            <li>
-              <a href="{% url 'barangay_list' %}" class="sidebar-sublink">
-                <i class="bi bi-person-lines-fill"></i>
-                <span>Residents</span>
-              </a>
-            </li>
-            <li>
-              <a href="{% url 'household_map' %}" class="sidebar-sublink {% if request.resolver_match.url_name == 'household_map' %}active{% endif %}">
-                <i class="bi bi-map"></i>
-                <span>Household Map</span>
-              </a>
-            </li>
-            <li>
-              <a href="{% url 'household_vulnerability_map' %}" class="sidebar-sublink {% if request.resolver_match.url_name == 'household_vulnerability_map' %}active{% endif %}">
-                <i class="bi bi-shield-exclamation"></i>
-                <span>Vulnerability Map</span>
-              </a>
-            </li>
-            <li>
-              <a href="{% url 'register_rfid' %}" class="sidebar-sublink">
-                <i class="bi bi-credit-card-2-front"></i>
-                <span>RFID Registration</span>
-              </a>
-            </li>
-          </ul>
-        </li>
+          <li class="sidebar-section-label">Operations</li>
 
-        <!-- Aid Programs (accordion) -->
-        <li class="sidebar-item sidebar-item--accordion">
-          <button class="sidebar-link sidebar-accordion-btn" data-target="staffAidSubmenu" aria-expanded="false">
-            <i class="bi bi-gift"></i>
-            <span>Aid Programs</span>
-            <i class="bi bi-chevron-down sidebar-arrow"></i>
-          </button>
-          <ul class="sidebar-submenu" id="staffAidSubmenu">
-            <li>
-              <a href="{% url 'aid_type_list' %}" class="sidebar-sublink">
-                <i class="bi bi-truck"></i>
-                <span>Distribution Monitoring</span>
-              </a>
-            </li>
-          </ul>
-        </li>
+          <li class="sidebar-item">
+            <a href="{% url 'staff_walkin' %}"
+              class="sidebar-link {% if request.resolver_match.url_name == 'staff_walkin' %}active{% endif %}">
+              <i class="bi bi-person-lines-fill"></i>
+              <span>Walk-in Assistance</span>
+            </a>
+          </li>
+          <!-- Household Profiling (accordion) -->
+          <li class="sidebar-item sidebar-item--accordion">
+            <button class="sidebar-link sidebar-accordion-btn" data-target="staffHouseholdSubmenu"
+              aria-expanded="false">
+              <i class="bi bi-house-door"></i>
+              <span>Household Profiling</span>
+              <i class="bi bi-chevron-down sidebar-arrow"></i>
+            </button>
+            <ul class="sidebar-submenu" id="staffHouseholdSubmenu">
+              <li>
+                <a href="{% url 'barangay_list' %}" class="sidebar-sublink">
+                  <i class="bi bi-person-lines-fill"></i>
+                  <span>Residents</span>
+                </a>
+              </li>
+              <li>
+                <a href="{% url 'household_map' %}"
+                  class="sidebar-sublink {% if request.resolver_match.url_name == 'household_map' %}active{% endif %}">
+                  <i class="bi bi-map"></i>
+                  <span>Household Map</span>
+                </a>
+              </li>
+              <li>
+                <a href="{% url 'household_vulnerability_map' %}"
+                  class="sidebar-sublink {% if request.resolver_match.url_name == 'household_vulnerability_map' %}active{% endif %}">
+                  <i class="bi bi-shield-exclamation"></i>
+                  <span>Vulnerability Map</span>
+                </a>
+              </li>
+              <li>
+                <a href="{% url 'register_rfid' %}" class="sidebar-sublink">
+                  <i class="bi bi-credit-card-2-front"></i>
+                  <span>RFID Registration</span>
+                </a>
+              </li>
+            </ul>
+          </li>
 
-        {% endif %}
+          <!-- Aid Programs (accordion) -->
+          <li class="sidebar-item sidebar-item--accordion">
+            <button class="sidebar-link sidebar-accordion-btn" data-target="staffAidSubmenu" aria-expanded="false">
+              <i class="bi bi-gift"></i>
+              <span>Aid Programs</span>
+              <i class="bi bi-chevron-down sidebar-arrow"></i>
+            </button>
+            <ul class="sidebar-submenu" id="staffAidSubmenu">
+              <li>
+                <a href="{% url 'aid_type_list' %}" class="sidebar-sublink">
+                  <i class="bi bi-truck"></i>
+                  <span>Distribution Monitoring</span>
+                </a>
+              </li>
+            </ul>
+          </li>
 
-        <!-- ========== BARANGAY NAVIGATION ========== -->
-        {% if user.role == 'BARANGAY' %}
+          {% endif %}
 
-        <li class="sidebar-section-label">Main</li>
+          <!-- ========== BARANGAY NAVIGATION ========== -->
+          {% if user.role == 'BARANGAY' %}
 
-        <li class="sidebar-item">
-          <a href="{% url 'barangay_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'barangay_dashboard' %}active{% endif %}">
-            <i class="bi bi-speedometer2"></i>
-            <span>{{ user.barangay }} Dashboard</span>
-          </a>
-        </li>
+          <li class="sidebar-section-label">Main</li>
 
-        <li class="sidebar-section-label">Management</li>
+          <li class="sidebar-item">
+            <a href="{% url 'barangay_dashboard' %}"
+              class="sidebar-link {% if request.resolver_match.url_name == 'barangay_dashboard' %}active{% endif %}">
+              <i class="bi bi-speedometer2"></i>
+              <span>{{ user.barangay }} Dashboard</span>
+            </a>
+          </li>
 
-        <li class="sidebar-item">
-          <a href="#" class="sidebar-link">
-            <i class="bi bi-map"></i>
-            <span>Zones</span>
-          </a>
-        </li>
+          <li class="sidebar-section-label">Management</li>
 
-        <li class="sidebar-item">
-          <a href="#" class="sidebar-link">
-            <i class="bi bi-house-door"></i>
-            <span>Households</span>
-          </a>
-        </li>
+          <li class="sidebar-item">
+            <a href="#" class="sidebar-link">
+              <i class="bi bi-map"></i>
+              <span>Zones</span>
+            </a>
+          </li>
 
-        <li class="sidebar-item">
-          <a href="{% url 'household_map' %}" class="sidebar-link {% if request.resolver_match.url_name == 'household_map' %}active{% endif %}">
-            <i class="bi bi-map"></i>
-            <span>Household Map</span>
-          </a>
-        </li>
+          <li class="sidebar-item">
+            <a href="#" class="sidebar-link">
+              <i class="bi bi-house-door"></i>
+              <span>Households</span>
+            </a>
+          </li>
 
-        <li class="sidebar-item">
-          <a href="{% url 'household_vulnerability_map' %}" class="sidebar-link {% if request.resolver_match.url_name == 'household_vulnerability_map' %}active{% endif %}">
-            <i class="bi bi-shield-exclamation"></i>
-            <span>Vulnerability Map</span>
-          </a>
-        </li>
+          <li class="sidebar-item">
+            <a href="{% url 'household_map' %}"
+              class="sidebar-link {% if request.resolver_match.url_name == 'household_map' %}active{% endif %}">
+              <i class="bi bi-map"></i>
+              <span>Household Map</span>
+            </a>
+          </li>
 
-        <li class="sidebar-item">
-          <a href="#" class="sidebar-link">
-            <i class="bi bi-people"></i>
-            <span>Families</span>
-          </a>
-        </li>
+          <li class="sidebar-item">
+            <a href="{% url 'household_vulnerability_map' %}"
+              class="sidebar-link {% if request.resolver_match.url_name == 'household_vulnerability_map' %}active{% endif %}">
+              <i class="bi bi-shield-exclamation"></i>
+              <span>Vulnerability Map</span>
+            </a>
+          </li>
 
-        <li class="sidebar-section-label">Data & Insights</li>
-        <li class="sidebar-item">
-          <a href="{% url 'barangay_analytics' %}" class="sidebar-link {% if request.resolver_match.url_name == 'barangay_analytics' %}active{% endif %}">
-            <i class="bi bi-bar-chart-line"></i>
-            <span>Analytics</span>
-          </a>
-        </li>
+          <li class="sidebar-item">
+            <a href="#" class="sidebar-link">
+              <i class="bi bi-people"></i>
+              <span>Families</span>
+            </a>
+          </li>
 
-        {% endif %}
+          <li class="sidebar-section-label">Data & Insights</li>
+          <li class="sidebar-item">
+            <a href="{% url 'barangay_analytics' %}"
+              class="sidebar-link {% if request.resolver_match.url_name == 'barangay_analytics' %}active{% endif %}">
+              <i class="bi bi-bar-chart-line"></i>
+              <span>Analytics</span>
+            </a>
+          </li>
 
-      </ul>
-    </nav>
+          {% endif %}
 
-    <!-- Sidebar Footer: Logout -->
-    <div class="sidebar-footer">
-      <a href="{% url 'logout' %}" class="sidebar-link sidebar-logout">
-        <i class="bi bi-box-arrow-right"></i>
-        <span>Logout</span>
-      </a>
-    </div>
+        </ul>
+      </nav>
 
-  </aside>
-  {% endif %}
+      <!-- Sidebar Footer: Logout -->
+      <div class="sidebar-footer">
+        <a href="{% url 'logout' %}" class="sidebar-link sidebar-logout">
+          <i class="bi bi-box-arrow-right"></i>
+          <span>Logout</span>
+        </a>
+      </div>
 
-  <!-- ==================== MAIN CONTENT ==================== -->
-  <main class="{% if user.is_authenticated and not hide_sidebar %}main-content{% endif %}">
+    </aside>
+    {% endif %}
+
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <main class="{% if user.is_authenticated and not hide_sidebar %}main-content{% endif %}">
       <!-- ── Django Messages (global) ──────────────────────────── 
       {% if messages %}
         <div style="padding: 1rem 1rem 0;">
@@ -449,154 +468,192 @@
         </div>
       {% endif %} -->
 
-    {% block content %}{% endblock %}
-  </main>
+      {% block content %}{% endblock %}
+    </main>
 
-  <!-- ==================== FOOTER ==================== -->
-  <footer class="{% if user.is_authenticated and not hide_sidebar %}footer footer--dashboard{% else %}footer{% endif %}">
-    <div class="footer-content">
-      <p>&copy; 2025 SARA &mdash; Santa Rita Automated Relief Assistance System. All Rights Reserved.</p>
+    <!-- ==================== FOOTER ==================== -->
+    <footer
+      class="{% if user.is_authenticated and not hide_sidebar %}footer footer--dashboard{% else %}footer{% endif %}">
+      <div class="footer-content">
+        <p>&copy; 2025 SARA &mdash; Santa Rita Automated Relief Assistance System. All Rights Reserved.</p>
+      </div>
+    </footer>
+
+  </div><!-- /.page-wrapper -->
+
+  {% include 'partials/confirm_modal.html' %}
+
+  <!-- Global Loading Modal -->
+  <div class="modal-overlay" id="loadingModalOverlay">
+    <div class="kiosk-modal loading-modal-box">
+      <div class="loading-modal-icon-wrap">
+        <svg class="loading-modal-svg" viewBox="0 0 100 100">
+          <circle class="loading-ring-track" cx="50" cy="50" r="42" />
+          <circle class="loading-ring-spin" cx="50" cy="50" r="42" />
+          <path class="loading-checkmark" d="M30 52 L44 66 L72 34" />
+        </svg>
+      </div>
+      <p class="loading-modal-text" id="loadingModalText">Loading...</p>
     </div>
-  </footer>
+  </div>
 
-</div><!-- /.page-wrapper -->
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-{% include 'partials/confirm_modal.html' %}
+  <script>
+    // ── Elements ──────────────────────────────────────────────────────────────
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const userDropdown = document.getElementById('userDropdown');
+    const userDropToggle = document.getElementById('userDropdownToggle');
+    const userChevron = document.getElementById('userChevron');
 
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
-<script>
-  // ── Elements ──────────────────────────────────────────────────────────────
-  const sidebar        = document.getElementById('sidebar');
-  const sidebarToggle  = document.getElementById('sidebarToggle');
-  const sidebarOverlay = document.getElementById('sidebarOverlay');
-  const userDropdown   = document.getElementById('userDropdown');
-  const userDropToggle = document.getElementById('userDropdownToggle');
-  const userChevron    = document.getElementById('userChevron');
-
-  // ── Mobile Sidebar Toggle ─────────────────────────────────────────────────
-  function openSidebar() {
-    sidebar?.classList.add('sidebar--open');
-    sidebarOverlay?.classList.add('sidebar-overlay--visible');
-    document.body.style.overflow = 'hidden';
-  }
-
-  function closeSidebar() {
-    sidebar?.classList.remove('sidebar--open');
-    sidebarOverlay?.classList.remove('sidebar-overlay--visible');
-    document.body.style.overflow = '';
-  }
-
-  sidebarToggle?.addEventListener('click', () => {
-    sidebar?.classList.contains('sidebar--open') ? closeSidebar() : openSidebar();
-  });
-
-  sidebarOverlay?.addEventListener('click', closeSidebar);
-
-  // ── User Dropdown ─────────────────────────────────────────────────────────
-  userDropToggle?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const isOpen = userDropdown?.classList.toggle('user-dropdown--open');
-    if (userChevron) {
-      userChevron.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+    // ── Mobile Sidebar Toggle ─────────────────────────────────────────────────
+    function openSidebar() {
+      sidebar?.classList.add('sidebar--open');
+      sidebarOverlay?.classList.add('sidebar-overlay--visible');
+      document.body.style.overflow = 'hidden';
     }
-  });
 
-  document.addEventListener('click', () => {
-    userDropdown?.classList.remove('user-dropdown--open');
-    if (userChevron) userChevron.style.transform = 'rotate(0deg)';
-  });
+    function closeSidebar() {
+      sidebar?.classList.remove('sidebar--open');
+      sidebarOverlay?.classList.remove('sidebar-overlay--visible');
+      document.body.style.overflow = '';
+    }
 
-  // ── Sidebar Accordion Submenus ────────────────────────────────────────────
-  document.querySelectorAll('.sidebar-accordion-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const targetId  = btn.dataset.target;
-      const submenu   = document.getElementById(targetId);
-      const arrow     = btn.querySelector('.sidebar-arrow');
-      const isOpen    = submenu?.classList.contains('submenu--open');
+    sidebarToggle?.addEventListener('click', () => {
+      sidebar?.classList.contains('sidebar--open') ? closeSidebar() : openSidebar();
+    });
 
-      // Close all open submenus first
-      document.querySelectorAll('.sidebar-submenu.submenu--open').forEach(sm => {
-        sm.classList.remove('submenu--open');
-        sm.style.maxHeight = null;
+    sidebarOverlay?.addEventListener('click', closeSidebar);
+
+    // ── User Dropdown ─────────────────────────────────────────────────────────
+    userDropToggle?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = userDropdown?.classList.toggle('user-dropdown--open');
+      if (userChevron) {
+        userChevron.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+      }
+    });
+
+    document.addEventListener('click', () => {
+      userDropdown?.classList.remove('user-dropdown--open');
+      if (userChevron) userChevron.style.transform = 'rotate(0deg)';
+    });
+
+    // ── Sidebar Accordion Submenus ────────────────────────────────────────────
+    document.querySelectorAll('.sidebar-accordion-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.target;
+        const submenu = document.getElementById(targetId);
+        const arrow = btn.querySelector('.sidebar-arrow');
+        const isOpen = submenu?.classList.contains('submenu--open');
+
+        // Close all open submenus first
+        document.querySelectorAll('.sidebar-submenu.submenu--open').forEach(sm => {
+          sm.classList.remove('submenu--open');
+          sm.style.maxHeight = null;
+        });
+        document.querySelectorAll('.sidebar-accordion-btn').forEach(b => {
+          b.classList.remove('accordion-active');
+          const arr = b.querySelector('.sidebar-arrow');
+          if (arr) arr.style.transform = 'rotate(0deg)';
+        });
+
+        // Toggle clicked one
+        if (!isOpen && submenu) {
+          submenu.classList.add('submenu--open');
+          submenu.style.maxHeight = submenu.scrollHeight + 'px';
+          btn.classList.add('accordion-active');
+          if (arrow) arrow.style.transform = 'rotate(180deg)';
+        }
       });
-      document.querySelectorAll('.sidebar-accordion-btn').forEach(b => {
-        b.classList.remove('accordion-active');
-        const arr = b.querySelector('.sidebar-arrow');
-        if (arr) arr.style.transform = 'rotate(0deg)';
-      });
+    });
 
-      // Toggle clicked one
-      if (!isOpen && submenu) {
+    // Auto-open submenu if a sub-link is active on page load
+    document.querySelectorAll('.sidebar-sublink.active').forEach(link => {
+      const submenu = link.closest('.sidebar-submenu');
+      if (submenu) {
+        const btn = document.querySelector(`[data-target="${submenu.id}"]`);
         submenu.classList.add('submenu--open');
         submenu.style.maxHeight = submenu.scrollHeight + 'px';
-        btn.classList.add('accordion-active');
-        if (arrow) arrow.style.transform = 'rotate(180deg)';
+        if (btn) {
+          btn.classList.add('accordion-active');
+          const arrow = btn.querySelector('.sidebar-arrow');
+          if (arrow) arrow.style.transform = 'rotate(180deg)';
+        }
       }
     });
-  });
 
-  // Auto-open submenu if a sub-link is active on page load
-  document.querySelectorAll('.sidebar-sublink.active').forEach(link => {
-    const submenu = link.closest('.sidebar-submenu');
-    if (submenu) {
-      const btn = document.querySelector(`[data-target="${submenu.id}"]`);
-      submenu.classList.add('submenu--open');
-      submenu.style.maxHeight = submenu.scrollHeight + 'px';
-      if (btn) {
-        btn.classList.add('accordion-active');
-        const arrow = btn.querySelector('.sidebar-arrow');
-        if (arrow) arrow.style.transform = 'rotate(180deg)';
-      }
-    }
-  });
-
-  // Close sidebar on nav link click (mobile)
-  document.querySelectorAll('.sidebar-link:not(.sidebar-accordion-btn), .sidebar-sublink').forEach(link => {
-    link.addEventListener('click', () => {
-      if (window.innerWidth < 992) closeSidebar();
+    // Close sidebar on nav link click (mobile)
+    document.querySelectorAll('.sidebar-link:not(.sidebar-accordion-btn), .sidebar-sublink').forEach(link => {
+      link.addEventListener('click', () => {
+        if (window.innerWidth < 992) closeSidebar();
+      });
     });
-  });
 
-  // ── Generic Confirmation Modal ───────────────────────────────────────────
-  function showConfirmModal(message, onConfirm, options = {}) {
-    // options: { title: string, confirmText: string }
-    const overlay = document.getElementById('genericConfirmModalOverlay');
-    const messageEl = document.getElementById('genericConfirmMessage');
-    const titleEl = document.getElementById('genericConfirmTitleText');
-    const proceedBtn = document.getElementById('genericConfirmProceedBtn');
-    const cancelBtn = document.getElementById('genericConfirmCancelBtn');
+    // ── Generic Confirmation Modal ───────────────────────────────────────────
+    function showConfirmModal(message, onConfirm, options = {}) {
+      // options: { title: string, confirmText: string }
+      const overlay = document.getElementById('genericConfirmModalOverlay');
+      const messageEl = document.getElementById('genericConfirmMessage');
+      const titleEl = document.getElementById('genericConfirmTitleText');
+      const proceedBtn = document.getElementById('genericConfirmProceedBtn');
+      const cancelBtn = document.getElementById('genericConfirmCancelBtn');
 
-    messageEl.textContent = message;
-    titleEl.textContent = options.title || 'Confirm Action';
-    proceedBtn.textContent = options.confirmText || 'Confirm';
+      messageEl.textContent = message;
+      titleEl.textContent = options.title || 'Confirm Action';
+      proceedBtn.textContent = options.confirmText || 'Confirm';
 
-    overlay.classList.add('active');
+      overlay.classList.add('active');
 
-    // Clone-and-replace the proceed button to clear any previously
-    // attached listener from a prior call to this function — prevents
-    // duplicate/stacked event handlers if this modal is reused multiple
-    // times on the same page without a full reload.
-    const newProceedBtn = proceedBtn.cloneNode(true);
-    proceedBtn.parentNode.replaceChild(newProceedBtn, proceedBtn);
+      // Clone-and-replace the proceed button to clear any previously
+      // attached listener from a prior call to this function — prevents
+      // duplicate/stacked event handlers if this modal is reused multiple
+      // times on the same page without a full reload.
+      const newProceedBtn = proceedBtn.cloneNode(true);
+      proceedBtn.parentNode.replaceChild(newProceedBtn, proceedBtn);
 
-    newProceedBtn.addEventListener('click', function() {
+      newProceedBtn.addEventListener('click', function () {
         overlay.classList.remove('active');
         onConfirm();
-    });
+      });
 
-    cancelBtn.addEventListener('click', function() {
+      cancelBtn.addEventListener('click', function () {
         overlay.classList.remove('active');
-    });
+      });
 
-    overlay.addEventListener('click', function(e) {
+      overlay.addEventListener('click', function (e) {
         if (e.target === overlay) overlay.classList.remove('active');
-    });
-  }
-</script>
+      });
+    }
 
-{% block js %}{% endblock %}
+    // ── Global Loading Modal ──────────────────────────────────────────────────
+    function showLoadingModal(text = 'Loading...') {
+      const overlay = document.getElementById('loadingModalOverlay');
+      const iconWrap = overlay.querySelector('.loading-modal-icon-wrap');
+      const textEl = document.getElementById('loadingModalText');
+      iconWrap.classList.remove('success');
+      textEl.textContent = text;
+      overlay.classList.add('active');
+    }
+
+    function setLoadingModalSuccess(text = 'Done') {
+      const overlay = document.getElementById('loadingModalOverlay');
+      const iconWrap = overlay.querySelector('.loading-modal-icon-wrap');
+      const textEl = document.getElementById('loadingModalText');
+      iconWrap.classList.add('success');
+      textEl.textContent = text;
+    }
+
+    function hideLoadingModal() {
+      document.getElementById('loadingModalOverlay').classList.remove('active');
+    }
+  </script>
+
+  {% block js %}{% endblock %}
 
 </body>
+
 </html>

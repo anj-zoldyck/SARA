@@ -31,4 +31,15 @@ urlpatterns = [
     path('barangay/families/<int:family_id>/edit-name/', views.edit_family_name, name='edit_family_name'),
     path('barangay/households/<int:household_id>/delete/', views.delete_household, name='delete_household'),
     path('barangay/families/<int:family_id>/delete/', views.delete_family, name='delete_family'),
+    # Import/Export
+    path('barangay/zones/<int:zone_id>/import/upload/', views.import_members_upload, name='import_members_upload'),
+    path('barangay/import/preview/', views.import_members_preview, name='import_members_preview'),
+    path('barangay/import/commit/', views.import_members_commit, name='import_members_commit'),
+    path('barangay/import/summary/', views.import_members_summary, name='import_members_summary'),
+    path('barangay/households/<int:household_id>/export/', views.export_household_excel, name='export_household_excel'),
+    path('barangay/families/<int:family_id>/export/', views.export_family_excel, name='export_family_excel'),
+    path('mswdo/households/<int:household_id>/export/', views.export_household_excel, name='export_household_excel_mswdo'),
+    path('mswdo/families/<int:family_id>/export/', views.export_family_excel, name='export_family_excel_mswdo'),
+    path('mswdo/zones/<int:zone_id>/export/', views.export_zone_households_excel, name='export_zone_households_excel'),
+    path('barangay/zones/<int:zone_id>/export/', views.export_zone_households_excel, name='export_zone_households_excel_barangay'),
 ]

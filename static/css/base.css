@@ -1,28 +1,29 @@
-
 /* ── CSS Variables ──────────────────────────────────────────── */
 :root {
-  --primary:        #0d2d6b;
-  --secondary:      #134ed5;
-  --bg:             #f5fafe;
-  --sidebar-width:  260px;
-  --topbar-height:  68px;
-  --text-main:      #1a2340;
-  --text-muted:     #8492a6;
-  --border:         #e2eaf4;
-  --white:          #ffffff;
-  --danger:         #dc3545;
-  --hover-bg:       rgba(19, 78, 213, 0.08);
-  --active-bg:      #134ed5;
-  --shadow-sm:      0 1px 4px rgba(13, 45, 107, 0.08);
-  --shadow-md:      0 4px 16px rgba(13, 45, 107, 0.12);
-  --radius-sm:      6px;
-  --radius-md:      10px;
-  --transition:     0.22s ease;
-  --font:           'IBM Plex Sans', 'Segoe UI', Arial, sans-serif;
+  --primary: #0d2d6b;
+  --secondary: #134ed5;
+  --bg: #f5fafe;
+  --sidebar-width: 260px;
+  --topbar-height: 68px;
+  --text-main: #1a2340;
+  --text-muted: #8492a6;
+  --border: #e2eaf4;
+  --white: #ffffff;
+  --danger: #dc3545;
+  --hover-bg: rgba(19, 78, 213, 0.08);
+  --active-bg: #134ed5;
+  --shadow-sm: 0 1px 4px rgba(13, 45, 107, 0.08);
+  --shadow-md: 0 4px 16px rgba(13, 45, 107, 0.12);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --transition: 0.22s ease;
+  --font: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif;
 }
 
 /* ── Reset & Base ───────────────────────────────────────────── */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -80,8 +81,10 @@ ul {
   align-items: center;
   gap: 12px;
   min-width: 0;
-  flex: 1 1 auto;      /* NEW: allow shrinking */
-  overflow: hidden;    /* NEW: never bleed past its box */
+  flex: 1 1 auto;
+  /* NEW: allow shrinking */
+  overflow: hidden;
+  /* NEW: never bleed past its box */
 }
 
 .topbar-brand {
@@ -90,8 +93,10 @@ ul {
   gap: 10px;
   text-decoration: none;
   min-width: 0;
-  flex: 1 1 auto;      /* NEW */
-  overflow: hidden;    /* NEW */
+  flex: 1 1 auto;
+  /* NEW */
+  overflow: hidden;
+  /* NEW */
 }
 
 .topbar-logo {
@@ -111,7 +116,8 @@ ul {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  overflow: hidden;    /* NEW */
+  overflow: hidden;
+  /* NEW */
 }
 
 .topbar-title {
@@ -121,9 +127,12 @@ ul {
   white-space: nowrap;
   letter-spacing: 0.4px;
   line-height: 1.2;
-  overflow: hidden;        /* NEW */
-  text-overflow: ellipsis; /* NEW: safety net for very long titles */
-  max-width: 100%;         /* NEW */
+  overflow: hidden;
+  /* NEW */
+  text-overflow: ellipsis;
+  /* NEW: safety net for very long titles */
+  max-width: 100%;
+  /* NEW */
 }
 
 .topbar-subtitle {
@@ -132,14 +141,18 @@ ul {
   white-space: nowrap;
   font-weight: 400;
   letter-spacing: 0.2px;
-  overflow: hidden;        /* NEW */
-  text-overflow: ellipsis; /* NEW */
-  max-width: 100%;         /* NEW */
+  overflow: hidden;
+  /* NEW */
+  text-overflow: ellipsis;
+  /* NEW */
+  max-width: 100%;
+  /* NEW */
 }
 
 /* ── Sidebar Toggle (Burger) ────────────────────────────────── */
 .sidebar-toggle {
-  display: none;            /* shown only on mobile via media query */
+  display: none;
+  /* shown only on mobile via media query */
   background: none;
   border: none;
   color: var(--primary);
@@ -414,13 +427,16 @@ ul {
 .sidebar-body::-webkit-scrollbar {
   width: 4px;
 }
+
 .sidebar-body::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .sidebar-body::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 4px;
 }
+
 .sidebar-body::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
@@ -690,7 +706,7 @@ main:not(.main-content) {
     font-size: 14px;
   }
 
-    /* NEW: free up horizontal space */
+  /* NEW: free up horizontal space */
   .topbar-logo {
     height: 34px;
   }
@@ -721,6 +737,7 @@ main:not(.main-content) {
   .main-content {
     padding: 16px 12px;
   }
+
   /* NEW: reclaim space so the full title fits and is never covered */
   .topbar-logo {
     height: 28px;
@@ -745,7 +762,8 @@ main:not(.main-content) {
   }
 
   .topbar-chevron {
-    display: none; /* dropdown still opens by tapping the avatar */
+    display: none;
+    /* dropdown still opens by tapping the avatar */
   }
 }
 

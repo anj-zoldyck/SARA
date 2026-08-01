@@ -48,6 +48,9 @@
       <i class="bi bi-plus-lg"></i> Add Member
     </a>
     {% endif %}
+    <a href="{% if user.role == 'BARANGAY' %}{% url 'export_family_excel' family.id %}{% else %}{% url 'export_family_excel_mswdo' family.id %}{% endif %}" class="btn-dash-primary" style="background-color: #10b981; border-color: #10b981;">
+      <i class="bi bi-file-earmark-excel"></i> Export to Excel
+    </a>
     <a href="{% if user.role == 'BARANGAY' %}{% url 'household_detail' family.household.id %}{% else %}{% url 'household_info' family.household.id %}{% endif %}" class="btn-dash-outline">
       <i class="bi bi-arrow-left"></i> Back to Household
     </a>

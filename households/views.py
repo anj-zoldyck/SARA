@@ -12,7 +12,7 @@ from django.db.models import Count, Q
 
 from accounts.decorators import session_protected, mswdo_or_staff_required
 from accounts.models import User, Barangay
-from households.models import Household, Zone, Family, FamilyMember, FloodProneArea
+from households.models import Household, Zone, Family, FamilyMember, FloodProneArea, RELATIONSHIP_CHOICES, CIVIL_STATUS_CHOICES
 from households.vulnerability import get_vulnerable_households, get_matched_demographic_flags
 from programs.models import Program, AidCategory, Assistance
 from distribution.models import AidSchedule, AidClaim
@@ -20,6 +20,7 @@ from distribution.models import AidSchedule, AidClaim
 from django.db import transaction
 from households.forms import HouseholdForm, FamilyForm, FamilyMemberForm, SeniorCitizenProfileForm, SoloParentProfileForm, PWDProfileForm
 from households.constants import OSM_TO_DB_BARANGAY_NAME
+from households.excel_utils import RBIFormAImporter, RBIFormAExporter
 from programs.forms import ProgramForm, AidCategoryForm, AssistanceForm
 # from distribution.forms import AidScheduleForm  # if any
 
@@ -30,8 +31,15 @@ from django_otp.plugins.otp_email.models import EmailDevice
 from django.urls import reverse
 from django.core.cache import cache
 import json
+import os
+import tempfile
+import time
+import logging
+from django.http import HttpResponse
 
 User = get_user_model()
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -808,3 +816,451 @@ def delete_family_member(request, member_id):
         messages.success(request, "Family member removed successfully.")
         return redirect('family_detail', family_id=family_id)
     return redirect('family_detail', family_id=member.family.id)
+
+
+# ----------------- Import/Export Views -----------------
+
+@login_required(login_url='login')
+@session_protected
+def import_members_upload(request, zone_id):
+    """Step 1: Upload and parse Excel file for import."""
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+    
+    zone = get_object_or_404(Zone, id=zone_id, barangay=request.user.barangay)
+    
+    if request.method == 'POST':
+        uploaded_file = request.FILES.get('excel_file')
+        if not uploaded_file:
+            messages.error(request, "Please select an Excel file to upload.")
+            return render(request, 'households/import_upload.html', {'zone': zone})
+        
+        # Validate file extension
+        if not uploaded_file.name.endswith(('.xlsx', '.xls')):
+            messages.error(request, "Please upload a valid Excel file (.xlsx or .xls).")
+            return render(request, 'households/import_upload.html', {'zone': zone})
+        
+        # Save uploaded file to temporary location
+        temp_fd, temp_path = tempfile.mkstemp(suffix='.xlsx')
+        try:
+            with os.fdopen(temp_fd, 'wb') as temp_file:
+                for chunk in uploaded_file.chunks():
+                    temp_file.write(chunk)
+            
+            # Parse the Excel file
+            importer = RBIFormAImporter(temp_path)
+            success, messages_list = importer.parse()
+            
+            if not success:
+                for msg in messages_list:
+                    messages.error(request, msg)
+                return render(request, 'households/import_upload.html', {'zone': zone})
+            
+            # Store parsed data in session for preview step
+            request.session['import_data'] = {
+                'header_data': importer.get_header_data(),
+                'members_data': importer.get_members_data(),
+                'warnings': importer.get_warnings(),
+                'errors': importer.get_errors(),
+                'zone_id': zone_id,
+            }
+            
+            # Redirect to preview page
+            return redirect('import_members_preview')
+            
+        finally:
+            # Explicitly drop references to help release any lingering handles
+            importer = None
+            import gc
+            gc.collect()
+
+            # Retry deletion a few times to handle transient Windows file locks
+            # (e.g. antivirus/Defender briefly scanning newly-written .xlsx files)
+            for attempt in range(5):
+                try:
+                    if os.path.exists(temp_path):
+                        os.unlink(temp_path)
+                    break
+                except PermissionError:
+                    if attempt < 4:
+                        time.sleep(0.2 * (attempt + 1))  # brief backoff: 0.2s, 0.4s, 0.6s, 0.8s
+                    else:
+                        logger.warning(f"Could not delete temp import file {temp_path} after retries; it will be cleaned up by the OS temp directory eventually.")
+    
+    return render(request, 'households/import_upload.html', {'zone': zone})
+
+
+@login_required(login_url='login')
+@session_protected
+def import_members_preview(request):
+    """Step 2: Preview and correct imported data before committing."""
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+    
+    import_data = request.session.get('import_data')
+    if not import_data:
+        messages.error(request, "No import data found. Please uploadExcel file first.")
+        return redirect('barangay_dashboard')
+    
+    zone_id = import_data['zone_id']
+    zone = get_object_or_404(Zone, id=zone_id, barangay=request.user.barangay)
+    
+    # Get available zones in the barangay for selection
+    available_zones = Zone.objects.filter(barangay=request.user.barangay).order_by('name')
+    
+    # Get relationship choices
+    relationship_choices = RELATIONSHIP_CHOICES
+    civil_status_choices = CIVIL_STATUS_CHOICES
+    
+    # Suggest family name from first member's last name
+    members_data = import_data['members_data']
+    suggested_family_name = ""
+    if members_data:
+        head_last_name = members_data[0].get('last_name', '')
+        if head_last_name:
+            suggested_family_name = f"{head_last_name} Family"
+    
+    if request.method == 'POST':
+        # Store corrections and proceed to commit
+        corrected_data = {
+            'zone_id': request.POST.get('zone_id', zone_id),
+            'family_name': request.POST.get('family_name', suggested_family_name),
+            'members': [],
+        }
+        
+        for idx, member in enumerate(members_data):
+            member_data = {
+                'row_number': member['row_number'],
+                'last_name': request.POST.get(f'last_name_{idx}', member.get('last_name', '')),
+                'first_name': request.POST.get(f'first_name_{idx}', member.get('first_name', '')),
+                'middle_name': request.POST.get(f'middle_name_{idx}', member.get('middle_name', '')),
+                'suffix': request.POST.get(f'suffix_{idx}', member.get('suffix', '')),
+                'birthplace': request.POST.get(f'birthplace_{idx}', member.get('birthplace', '')),
+                'birthdate': member.get('birthdate'),  # Keep original date
+                'sex': request.POST.get(f'sex_{idx}', member.get('sex', '')),
+                'civil_status': request.POST.get(f'civil_status_{idx}', member.get('civil_status', '')),
+                'citizenship': request.POST.get(f'citizenship_{idx}', member.get('citizenship', 'Filipino')),
+                'occupation': request.POST.get(f'occupation_{idx}', member.get('occupation', '')),
+                'relationship': request.POST.get(f'relationship_{idx}', member.get('relationship', '')),
+                'is_pwd': request.POST.get(f'is_pwd_{idx}', 'off') == 'on',
+                'is_solo_parent': request.POST.get(f'is_solo_parent_{idx}', 'off') == 'on',
+                'is_out_of_school_youth': request.POST.get(f'is_out_of_school_youth_{idx}', 'off') == 'on',
+                'is_out_of_school_children': request.POST.get(f'is_out_of_school_children_{idx}', 'off') == 'on',
+                'is_indigenous': request.POST.get(f'is_indigenous_{idx}', 'off') == 'on',
+                'is_senior_citizen': request.POST.get(f'is_senior_citizen_{idx}', 'off') == 'on',
+                'include': request.POST.get(f'include_{idx}', 'on') == 'on',
+            }
+            corrected_data['members'].append(member_data)
+        
+        # Store corrected data in session
+        request.session['import_corrected_data'] = corrected_data
+        
+        return redirect('import_members_commit')
+    
+    return render(request, 'households/import_preview.html', {
+        'zone': zone,
+        'available_zones': available_zones,
+        'header_data': import_data['header_data'],
+        'members_data': members_data,
+        'warnings': import_data['warnings'],
+        'errors': import_data['errors'],
+        'relationship_choices': relationship_choices,
+        'civil_status_choices': civil_status_choices,
+        'suggested_family_name': suggested_family_name,
+    })
+
+
+@login_required(login_url='login')
+@session_protected
+def import_members_commit(request):
+    """Step 3: Commit the imported data to create household, family, and members."""
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+    
+    corrected_data = request.session.get('import_corrected_data')
+    if not corrected_data:
+        messages.error(request, "No corrected import data found. Please start over.")
+        return redirect('barangay_dashboard')
+    
+    zone_id = corrected_data['zone_id']
+    zone = get_object_or_404(Zone, id=zone_id, barangay=request.user.barangay)
+    
+    if request.method == 'POST':
+        # Confirm and commit
+        try:
+            with transaction.atomic():
+                # Create Household
+                household_address = corrected_data['family_name']
+                household = Household.objects.create(
+                    barangay=request.user.barangay,
+                    zone=zone,
+                    house_number=household_address,
+                    land_use='RESIDENTIAL',  # Default, needs completion
+                    hazard_exposure='NONE',  # Default, needs completion
+                )
+                
+                # Create Family
+                family = Family.objects.create(
+                    household=household,
+                    family_name=corrected_data['family_name'],
+                )
+                
+                # Create FamilyMembers
+                members_created = 0
+                members_skipped = 0
+                skipped_reasons = []
+                
+                for member_data in corrected_data['members']:
+                    if not member_data.get('include'):
+                        members_skipped += 1
+                        skipped_reasons.append(f"Row {member_data['row_number']}: Excluded by user")
+                        continue
+                    
+                    # Validate required fields
+                    if not member_data.get('last_name') or not member_data.get('first_name') or not member_data.get('sex'):
+                        members_skipped += 1
+                        skipped_reasons.append(f"Row {member_data['row_number']}: Missing required fields")
+                        continue
+                    
+                    if not member_data.get('relationship'):
+                        members_skipped += 1
+                        skipped_reasons.append(f"Row {member_data['row_number']}: Missing relationship")
+                        continue
+                    
+                    # Convert birthdate from ISO string to date object if present
+                    birthdate = None
+                    if member_data.get('birthdate'):
+                        try:
+                            birthdate = date.fromisoformat(member_data['birthdate'])
+                        except (ValueError, TypeError):
+                            # Invalid date format, skip this field
+                            pass
+                    
+                    # Create member
+                    FamilyMember.objects.create(
+                        family=family,
+                        last_name=member_data['last_name'],
+                        first_name=member_data['first_name'],
+                        middle_name=member_data.get('middle_name', ''),
+                        suffix=member_data.get('suffix', ''),
+                        birthplace=member_data.get('birthplace', ''),
+                        birthdate=birthdate,
+                        sex=member_data['sex'],
+                        civil_status=member_data.get('civil_status'),
+                        citizenship=member_data.get('citizenship', 'Filipino'),
+                        occupation=member_data.get('occupation', ''),
+                        relationship=member_data['relationship'],
+                        is_pwd=member_data.get('is_pwd', False),
+                        is_solo_parent=member_data.get('is_solo_parent', False),
+                        is_out_of_school_youth=member_data.get('is_out_of_school_youth', False),
+                        is_out_of_school_children=member_data.get('is_out_of_school_children', False),
+                        is_indigenous=member_data.get('is_indigenous', False),
+                        is_senior_citizen=member_data.get('is_senior_citizen', False),
+                    )
+                    members_created += 1
+                
+                # Clear session data
+                request.session.pop('import_data', None)
+                request.session.pop('import_corrected_data', None)
+                
+                # Store results for summary page
+                request.session['import_results'] = {
+                    'household_id': household.id,
+                    'family_id': family.id,
+                    'households_created': 1,
+                    'members_created': members_created,
+                    'members_skipped': members_skipped,
+                    'skipped_reasons': skipped_reasons,
+                    'needs_completion': True,  # Flag that household needs additional data
+                }
+                
+                return redirect('import_members_summary')
+                
+        except Exception as e:
+            messages.error(request, f"Error during import: {str(e)}")
+            return redirect('import_members_preview')
+    
+    return render(request, 'households/import_commit.html', {
+        'zone': zone,
+        'corrected_data': corrected_data,
+    })
+
+
+@login_required(login_url='login')
+@session_protected
+def import_members_summary(request):
+    """Step 4: Show import summary and results."""
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+    
+    results = request.session.get('import_results')
+    if not results:
+        messages.error(request, "No import results found.")
+        return redirect('barangay_dashboard')
+    
+    household_id = results['household_id']
+    family_id = results['family_id']
+    
+    household = get_object_or_404(Household, id=household_id, barangay=request.user.barangay)
+    family = get_object_or_404(Family, id=family_id, household__barangay=request.user.barangay)
+    
+    # Clear session results after displaying
+    request.session.pop('import_results', None)
+    
+    return render(request, 'households/import_summary.html', {
+        'household': household,
+        'family': family,
+        'results': results,
+    })
+
+
+@login_required
+@session_protected
+def export_household_excel(request, household_id):
+    """Export a single household to Excel in RBI Form A format."""
+    # Check permissions
+    if request.user.role == 'BARANGAY':
+        household = get_object_or_404(
+            Household.objects.select_related('barangay', 'zone'),
+            id=household_id,
+            barangay=request.user.barangay
+        )
+    elif request.user.role in ('MSWDO', 'MSWDO_STAFF'):
+        household = get_object_or_404(
+            Household.objects.select_related('barangay', 'zone'),
+            id=household_id
+        )
+    else:
+        return HttpResponseForbidden("Access Denied")
+    
+    # Get the first/only family
+    family = household.families.filter(is_active=True).first()
+    if not family:
+        messages.error(request, "No active family found for this household.")
+        return redirect('household_detail' if request.user.role == 'BARANGAY' else 'household_info', household_id=household_id)
+    
+    # Generate Excel file
+    exporter = RBIFormAExporter()
+    workbook = exporter.generate_single_household(household, family)
+    
+    # Save to temporary file
+    temp_fd, temp_path = tempfile.mkstemp(suffix='.xlsx')
+    try:
+        with os.fdopen(temp_fd, 'wb') as temp_file:
+            workbook.save(temp_file)
+        
+        # Close workbook to release file handle
+        workbook.close()
+        
+        # Read file and send as response
+        with open(temp_path, 'rb') as f:
+            file_content = f.read()
+        
+        response = HttpResponse(
+            file_content,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="RBI_Form_A_{household.house_number.replace(" ", "_")}.xlsx"'
+        return response
+        
+    finally:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+
+
+@login_required
+@session_protected
+def export_family_excel(request, family_id):
+    """Export a single family to Excel in RBI Form A format."""
+    # Check permissions
+    if request.user.role == 'BARANGAY':
+        family = get_object_or_404(
+            Family.objects.select_related('household', 'household__barangay', 'household__zone'),
+            id=family_id,
+            household__barangay=request.user.barangay
+        )
+    elif request.user.role in ('MSWDO', 'MSWDO_STAFF'):
+        family = get_object_or_404(
+            Family.objects.select_related('household', 'household__barangay', 'household__zone'),
+            id=family_id
+        )
+    else:
+        return HttpResponseForbidden("Access Denied")
+    
+    # Generate Excel file
+    exporter = RBIFormAExporter()
+    workbook = exporter.generate_single_household(family.household, family)
+    
+    # Save to temporary file
+    temp_fd, temp_path = tempfile.mkstemp(suffix='.xlsx')
+    try:
+        with os.fdopen(temp_fd, 'wb') as temp_file:
+            workbook.save(temp_file)
+        
+        # Close workbook to release file handle
+        workbook.close()
+        
+        # Read file and send as response
+        with open(temp_path, 'rb') as f:
+            file_content = f.read()
+        
+        response = HttpResponse(
+            file_content,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="RBI_Form_A_{family.family_name.replace(" ", "_")}.xlsx"'
+        return response
+        
+    finally:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+
+
+@login_required
+@session_protected
+def export_zone_households_excel(request, zone_id):
+    """Export all households in a zone to Excel in RBI Form A format."""
+    # Check permissions
+    if request.user.role == 'BARANGAY':
+        zone = get_object_or_404(
+            Zone.objects.select_related('barangay'),
+            id=zone_id,
+            barangay=request.user.barangay
+        )
+        households = Household.objects.filter(zone=zone)
+    elif request.user.role in ('MSWDO', 'MSWDO_STAFF'):
+        zone = get_object_or_404(
+            Zone.objects.select_related('barangay'),
+            id=zone_id
+        )
+        households = Household.objects.filter(zone=zone)
+    else:
+        return HttpResponseForbidden("Access Denied")
+    
+    # Generate Excel file with multiple sheets
+    exporter = RBIFormAExporter()
+    workbook = exporter.generate_multiple_households(households)
+    
+    # Save to temporary file
+    temp_fd, temp_path = tempfile.mkstemp(suffix='.xlsx')
+    try:
+        with os.fdopen(temp_fd, 'wb') as temp_file:
+            workbook.save(temp_file)
+        
+        # Close workbook to release file handle
+        workbook.close()
+        
+        # Read file and send as response
+        with open(temp_path, 'rb') as f:
+            file_content = f.read()
+        
+        response = HttpResponse(
+            file_content,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="RBI_Form_A_{zone.name.replace(" ", "_")}_All_Households.xlsx"'
+        return response
+        
+    finally:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)

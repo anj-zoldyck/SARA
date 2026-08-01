@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Import Members — {{ zone.name }} — SARA{% endblock %}
+{% block navbar_title %}Import Members{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'barangay_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'zone_detail' zone.id %}" class="breadcrumb-link">{{ zone.name }}</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Import Members</span>
+    </div>
+    <h1 class="dash-page-title">Import Members from Excel</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-file-earmark-excel me-1"></i> Upload RBI Form A spreadsheet
+    </p>
+  </div>
+</div>
+
+<div class="form-page-layout">
+  <div class="dash-panel form-panel">
+    <div class="dash-panel__header">
+      <div class="dash-panel__header-left">
+        <i class="bi bi-file-earmark-excel dash-panel__icon"></i>
+        <div>
+          <h2 class="dash-panel__title">Upload Excel File</h2>
+          <p class="dash-panel__sub">Select a .xlsx file in RBI Form A format</p>
+        </div>
+      </div>
+    </div>
+    <div class="dash-panel__body">
+      <form method="post" enctype="multipart/form-data" class="acct-form">
+        {% csrf_token %}
+
+        <div class="acct-form__group">
+          <label class="acct-form__label">
+            <i class="bi bi-file-earmark-excel"></i> Excel File
+            <span class="acct-form__required">*</span>
+          </label>
+          <div class="acct-form__control-wrap">
+            <input type="file" name="excel_file" accept=".xlsx,.xls" class="form-control" required>
+          </div>
+          <small class="text-muted">Supported formats: .xlsx, .xls</small>
+        </div>
+
+        <div class="dash-notice" style="margin-top: 1.5rem;">
+          <i class="bi bi-info-circle dash-notice__icon"></i>
+          <div>
+            <p class="dash-notice__title">RBI Form A Format</p>
+            <p class="dash-notice__text">The Excel file should contain a header block with Region, Province, City/Municipality, Barangay, Household Address, and No. of Household Members, followed by a table with member details including LAST NAME, FIRST NAME, MIDDLE NAME, EXT, PLACE OF BIRTH, DATE OF BIRTH, AGE, SEX, CIVIL STATUS, CITIZENSHIP, OCCUPATION, and the "Indicate if" column.</p>
+          </div>
+        </div>
+
+        <div class="acct-form__actions">
+          <a href="{% url 'zone_detail' zone.id %}" class="btn-dash-outline">
+            <i class="bi bi-x-lg"></i> Cancel
+          </a>
+          <button type="submit" class="btn-dash-primary">
+            <i class="bi bi-upload"></i> Upload & Parse
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="form-side">
+    <div class="dash-notice">
+      <i class="bi bi-lightbulb dash-notice__icon"></i>
+      <div>
+        <p class="dash-notice__title">Import Process</p>
+        <p class="dash-notice__text">After uploading, you will be able to preview the parsed data, correct any errors, assign relationships to each member, and confirm before creating the household and family records.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

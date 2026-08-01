@@ -31,6 +31,9 @@
     </p>
   </div>
   <div class="dash-header-actions">
+    <a href="{% url 'export_zone_households_excel' zone.id %}" class="btn-dash-primary" style="background-color: #10b981; border-color: #10b981;">
+      <i class="bi bi-file-earmark-excel"></i> Export All
+    </a>
     <a href="{% url 'barangay_zones' barangay.id %}" class="btn-dash-outline">
       <i class="bi bi-arrow-left"></i> Back to Zones
     </a>

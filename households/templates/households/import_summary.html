@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Import Complete — SARA{% endblock %}
+{% block navbar_title %}Import Complete{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'barangay_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Import Complete</span>
+    </div>
+    <h1 class="dash-page-title">Import Complete</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-check-circle me-1"></i> Household and family members imported successfully
+    </p>
+  </div>
+</div>
+
+<div class="dash-panel form-panel" style="margin-bottom: 1.5rem; border-left: 4px solid #22c55e;">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-check-circle dash-panel__icon" style="color: #22c55e;"></i>
+      <div>
+        <h2 class="dash-panel__title">Import Summary</h2>
+        <p class="dash-panel__sub">Results of the import operation</p>
+      </div>
+    </div>
+  </div>
+  <div class="dash-panel__body">
+    <div class="row">
+      <div class="col-md-4">
+        <div class="dash-notice" style="background-color: #f0fdf4; border: 1px solid #22c55e;">
+          <i class="bi bi-house-door dash-notice__icon" style="color: #22c55e;"></i>
+          <div>
+            <p class="dash-notice__title">Households Created</p>
+            <p class="dash-notice__text" style="font-size: 2rem; font-weight: bold;">{{ results.households_created }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="dash-notice" style="background-color: #f0fdf4; border: 1px solid #22c55e;">
+          <i class="bi bi-people dash-notice__icon" style="color: #22c55e;"></i>
+          <div>
+            <p class="dash-notice__title">Members Created</p>
+            <p class="dash-notice__text" style="font-size: 2rem; font-weight: bold;">{{ results.members_created }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="dash-notice" style="background-color: #fef3c7; border: 1px solid #f59e0b;">
+          <i class="bi bi-exclamation-circle dash-notice__icon" style="color: #f59e0b;"></i>
+          <div>
+            <p class="dash-notice__title">Members Skipped</p>
+            <p class="dash-notice__text" style="font-size: 2rem; font-weight: bold;">{{ results.members_skipped }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if results.skipped_reasons %}
+    <div style="margin-top: 1.5rem;">
+      <h5 style="margin-bottom: 0.5rem;">Skipped Rows:</h5>
+      <ul style="margin: 0; padding-left: 1.5rem;">
+        {% for reason in results.skipped_reasons %}
+          <li>{{ reason }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if results.needs_completion %}
+<div class="dash-notice" style="margin-bottom: 1.5rem; border-left: 4px solid #f59e0b;">
+  <i class="bi bi-exclamation-triangle dash-notice__icon"></i>
+  <div>
+    <p class="dash-notice__title">Action Required</p>
+    <p class="dash-notice__text">The household was created with default values. Please edit the household to complete the following fields: Land Use, Hazard Exposure, GPS coordinates, and other location details.</p>
+  </div>
+</div>
+{% endif %}
+
+<div class="dash-panel form-panel" style="margin-bottom: 1.5rem;">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-house-door dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Created Household</h2>
+        <p class="dash-panel__sub">{{ household.house_number }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="dash-panel__body">
+    <div class="row">
+      <div class="col-md-6">
+        <h5 style="margin-bottom: 0.5rem;">Zone</h5>
+        <p style="font-size: 1.1rem; margin-bottom: 1rem;">{{ household.zone.name }}</p>
+      </div>
+      <div class="col-md-6">
+        <h5 style="margin-bottom: 0.5rem;">Barangay</h5>
+        <p style="font-size: 1.1rem; margin-bottom: 1rem;">{{ household.barangay.name }}</p>
+      </div>
+    </div>
+    <div class="acct-form__actions">
+      <a href="{% url 'household_detail' household.id %}" class="btn-dash-primary">
+        <i class="bi bi-pencil"></i> Edit Household Details
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="dash-panel form-panel" style="margin-bottom: 1.5rem;">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-people dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Created Family</h2>
+        <p class="dash-panel__sub">{{ family.family_name }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="dash-panel__body">
+    <p style="margin-bottom: 1rem;">{{ family.members.count }} family members imported</p>
+    <div class="acct-form__actions">
+      <a href="{% url 'family_detail' family.id %}" class="btn-dash-primary">
+        <i class="bi bi-eye"></i> View Family Details
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="acct-form__actions">
+  <a href="{% url 'zone_detail' household.zone.id %}" class="btn-dash-outline">
+    <i class="bi bi-arrow-left"></i> Back to Zone
+  </a>
+  <a href="{% url 'barangay_dashboard' %}" class="btn-dash-outline">
+    <i class="bi bi-speedometer2"></i> Dashboard
+  </a>
+</div>
+
+{% endblock %}

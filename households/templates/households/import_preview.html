@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Preview Import — SARA{% endblock %}
+{% block navbar_title %}Preview Import{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'barangay_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Preview Import</span>
+    </div>
+    <h1 class="dash-page-title">Preview & Correct Import Data</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-eye me-1"></i> Review parsed data before committing
+    </p>
+  </div>
+</div>
+
+{% if errors %}
+<div class="dash-panel" style="margin-bottom: 1.5rem; border-left: 4px solid #dc2626;">
+  <div class="dash-panel__body">
+    <h4 style="color: #dc2626; margin-bottom: 0.5rem;"><i class="bi bi-exclamation-triangle"></i> Errors Found</h4>
+    <ul style="margin: 0; padding-left: 1.5rem;">
+      {% for error in errors %}
+        <li>{{ error.message }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+{% if warnings %}
+<div class="dash-panel" style="margin-bottom: 1.5rem; border-left: 4px solid #f59e0b;">
+  <div class="dash-panel__body">
+    <h4 style="color: #f59e0b; margin-bottom: 0.5rem;"><i class="bi bi-exclamation-circle"></i> Warnings</h4>
+    <ul style="margin: 0; padding-left: 1.5rem;">
+      {% for warning in warnings %}
+        <li>Row {{ warning.row }}: {{ warning.message }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+<form method="post" class="acct-form">
+  {% csrf_token %}
+
+  <div class="dash-panel form-panel" style="margin-bottom: 1.5rem;">
+    <div class="dash-panel__header">
+      <div class="dash-panel__header-left">
+        <i class="bi bi-house-door dash-panel__icon"></i>
+        <div>
+          <h2 class="dash-panel__title">Household & Family Settings</h2>
+          <p class="dash-panel__sub">Configure target zone and family name</p>
+        </div>
+      </div>
+    </div>
+    <div class="dash-panel__body">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-geo-alt"></i> Target Zone
+              <span class="acct-form__required">*</span>
+            </label>
+            <div class="acct-form__control-wrap">
+              <select name="zone_id" class="form-select" required>
+                {% for z in available_zones %}
+                  <option value="{{ z.id }}" {% if z.id == zone.id %}selected{% endif %}>{{ z.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-people"></i> Family Name
+              <span class="acct-form__required">*</span>
+            </label>
+            <div class="acct-form__control-wrap">
+              <input type="text" name="family_name" value="{{ suggested_family_name }}" class="form-control" required>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-panel form-panel" style="margin-bottom: 1.5rem;">
+    <div class="dash-panel__header">
+      <div class="dash-panel__header-left">
+        <i class="bi bi-table dash-panel__icon"></i>
+        <div>
+          <h2 class="dash-panel__title">Member Data</h2>
+          <p class="dash-panel__sub">Review and correct member information</p>
+        </div>
+      </div>
+    </div>
+    <div class="dash-panel__body">
+      {% for member in members_data %}
+      <div class="dash-panel" style="margin-bottom: 1rem; {% if member.has_errors %}border-left: 4px solid #dc2626;{% endif %}">
+        <div class="dash-panel__header d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center gap-2">
+            <input type="checkbox" name="include_{{ forloop.counter0 }}" checked>
+            <strong>Row {{ member.row_number }}</strong>
+            <span class="text-muted">— {{ member.first_name }} {{ member.last_name }}</span>
+          </div>
+        </div>
+        <div class="dash-panel__body">
+          <div class="row g-3">
+            <div class="col-md-3">
+              <label class="acct-form__label">Last Name *</label>
+              <input type="text" name="last_name_{{ forloop.counter0 }}" value="{{ member.last_name }}" class="form-control" required>
+            </div>
+            <div class="col-md-3">
+              <label class="acct-form__label">First Name *</label>
+              <input type="text" name="first_name_{{ forloop.counter0 }}" value="{{ member.first_name }}" class="form-control" required>
+            </div>
+            <div class="col-md-3">
+              <label class="acct-form__label">Middle Name</label>
+              <input type="text" name="middle_name_{{ forloop.counter0 }}" value="{{ member.middle_name }}" class="form-control">
+            </div>
+            <div class="col-md-1">
+              <label class="acct-form__label">Ext.</label>
+              <input type="text" name="suffix_{{ forloop.counter0 }}" value="{{ member.suffix }}" class="form-control">
+            </div>
+            <div class="col-md-2">
+              <label class="acct-form__label">Birthdate</label>
+              <input type="date" name="birthdate_{{ forloop.counter0 }}" value="{{ member.birthdate }}" class="form-control">
+            </div>
+
+            <div class="col-md-3">
+              <label class="acct-form__label">Birthplace</label>
+              <input type="text" name="birthplace_{{ forloop.counter0 }}" value="{{ member.birthplace }}" class="form-control">
+            </div>
+            <div class="col-md-2">
+              <label class="acct-form__label">Sex *</label>
+              <select name="sex_{{ forloop.counter0 }}" class="form-select" required>
+                <option value="">Select...</option>
+                <option value="M" {% if member.sex == 'M' %}selected{% endif %}>Male</option>
+                <option value="F" {% if member.sex == 'F' %}selected{% endif %}>Female</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="acct-form__label">Civil Status</label>
+              <select name="civil_status_{{ forloop.counter0 }}" class="form-select">
+                <option value="">Select...</option>
+                {% for value, label in civil_status_choices %}
+                  <option value="{{ value }}" {% if member.civil_status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="acct-form__label">Citizenship</label>
+              <input type="text" name="citizenship_{{ forloop.counter0 }}" value="{{ member.citizenship }}" class="form-control">
+            </div>
+            <div class="col-md-2">
+              <label class="acct-form__label">Relationship *</label>
+              <select name="relationship_{{ forloop.counter0 }}" class="form-select" required>
+                <option value="">Select...</option>
+                {% for value, label in relationship_choices %}
+                  <option value="{{ value }}" {% if member.relationship == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="acct-form__label">Occupation</label>
+              <input type="text" name="occupation_{{ forloop.counter0 }}" value="{{ member.occupation }}" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="acct-form__label">Special Categories</label>
+              <div class="d-flex flex-wrap gap-3 mt-2">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="is_senior_citizen_{{ forloop.counter0 }}" id="senior_{{ forloop.counter0 }}" {% if member.is_senior_citizen %}checked{% endif %}>
+                  <label class="form-check-label" for="senior_{{ forloop.counter0 }}">Senior</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="is_pwd_{{ forloop.counter0 }}" id="pwd_{{ forloop.counter0 }}" {% if member.is_pwd %}checked{% endif %}>
+                  <label class="form-check-label" for="pwd_{{ forloop.counter0 }}">PWD</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="is_solo_parent_{{ forloop.counter0 }}" id="solo_{{ forloop.counter0 }}" {% if member.is_solo_parent %}checked{% endif %}>
+                  <label class="form-check-label" for="solo_{{ forloop.counter0 }}">Solo Parent</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="is_out_of_school_youth_{{ forloop.counter0 }}" id="osy_{{ forloop.counter0 }}" {% if member.is_out_of_school_youth %}checked{% endif %}>
+                  <label class="form-check-label" for="osy_{{ forloop.counter0 }}">OSY</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="is_out_of_school_children_{{ forloop.counter0 }}" id="osc_{{ forloop.counter0 }}" {% if member.is_out_of_school_children %}checked{% endif %}>
+                  <label class="form-check-label" for="osc_{{ forloop.counter0 }}">OSC</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="is_indigenous_{{ forloop.counter0 }}" id="ip_{{ forloop.counter0 }}" {% if member.is_indigenous %}checked{% endif %}>
+                  <label class="form-check-label" for="ip_{{ forloop.counter0 }}">IP</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="acct-form__actions">
+    <a href="{% url 'zone_detail' zone.id %}" class="btn-dash-outline">
+      <i class="bi bi-x-lg"></i> Cancel
+    </a>
+    <button type="submit" class="btn-dash-primary">
+      <i class="bi bi-check-lg"></i> Review & Confirm
+    </button>
+  </div>
+</form>
+
+{% endblock %}

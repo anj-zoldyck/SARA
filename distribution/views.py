@@ -93,7 +93,6 @@ def schedule_distribution(request):
         )
 
         if enable_selection and schedule.budget > Decimal('0') and schedule.per_beneficiary_amount > Decimal('0'):
-            messages.success(request, f"Schedule created — generating your beneficiary list now...")
             return redirect('generate_beneficiaries', schedule_id=schedule.id)
         else:
             messages.success(request, f"Distribution scheduled successfully: {assistance}")
@@ -638,7 +637,7 @@ def generate_beneficiaries(request, schedule_id):
             
     GeneratedBeneficiary.objects.bulk_create(entries)
     
-    messages.success(request, f"Generated {len(selected_beneficiaries)} beneficiaries for this schedule.")
+    request.session['just_generated_count'] = len(selected_beneficiaries)
     return redirect('review_beneficiaries', schedule_id=schedule.id)
 
 @login_required
@@ -674,6 +673,8 @@ def review_beneficiaries(request, schedule_id):
         existing_ids = entries.values_list('household_id', flat=True)
         available_candidates = [ben for ben in pool if ben.id not in existing_ids]
 
+    just_generated_count = request.session.pop('just_generated_count', None)
+
     return render(request, 'distribution/review_beneficiaries.html', {
         'schedule': schedule,
         'ben_list': ben_list,
@@ -684,6 +685,7 @@ def review_beneficiaries(request, schedule_id):
         'per_amount': schedule.per_beneficiary_amount,
         'available_candidates': available_candidates,
         'is_family': is_family,
+        'just_generated_count': just_generated_count,
     })
 
 @login_required

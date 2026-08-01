@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Confirm Import — SARA{% endblock %}
+{% block navbar_title %}Confirm Import{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'barangay_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Confirm Import</span>
+    </div>
+    <h1 class="dash-page-title">Confirm Import</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-check-circle me-1"></i> Review before committing to database
+    </p>
+  </div>
+</div>
+
+<div class="dash-panel form-panel" style="margin-bottom: 1.5rem;">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-house-door dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Household & Family Summary</h2>
+        <p class="dash-panel__sub">Review the household and family that will be created</p>
+      </div>
+    </div>
+  </div>
+  <div class="dash-panel__body">
+    <div class="row">
+      <div class="col-md-6">
+        <h5 style="margin-bottom: 0.5rem;">Zone</h5>
+        <p style="font-size: 1.1rem; margin-bottom: 1rem;">{{ zone.name }}</p>
+      </div>
+      <div class="col-md-6">
+        <h5 style="margin-bottom: 0.5rem;">Family Name</h5>
+        <p style="font-size: 1.1rem; margin-bottom: 1rem;">{{ corrected_data.family_name }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="dash-panel form-panel" style="margin-bottom: 1.5rem;">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-people dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Members to Import</h2>
+        <p class="dash-panel__sub">{{ corrected_data.members|length }} members will be processed</p>
+      </div>
+    </div>
+  </div>
+  <div class="dash-panel__body" style="overflow-x: auto;">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th>Last Name</th>
+          <th>First Name</th>
+          <th>Middle Name</th>
+          <th>Relationship</th>
+          <th>Sex</th>
+          <th>Birthdate</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for member in corrected_data.members %}
+        <tr>
+          <td>
+            {% if member.include %}
+              <span class="badge bg-success">Include</span>
+            {% else %}
+              <span class="badge bg-secondary">Skip</span>
+            {% endif %}
+          </td>
+          <td>{{ member.last_name }}</td>
+          <td>{{ member.first_name }}</td>
+          <td>{{ member.middle_name }}</td>
+          <td>{{ member.relationship }}</td>
+          <td>{{ member.sex }}</td>
+          <td>{{ member.birthdate }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="dash-notice" style="margin-bottom: 1.5rem; border-left: 4px solid #f59e0b;">
+  <i class="bi bi-exclamation-triangle dash-notice__icon"></i>
+  <div>
+    <p class="dash-notice__title">Important Notes</p>
+    <p class="dash-notice__text">The household will be created with default values for land use (RESIDENTIAL) and hazard exposure (NONE). You will need to edit the household after import to complete these fields. GPS coordinates and other detailed location information will also need to be added later.</p>
+  </div>
+</div>
+
+<form method="post" class="acct-form">
+  {% csrf_token %}
+  
+  <div class="acct-form__actions">
+    <a href="{% url 'import_members_preview' %}" class="btn-dash-outline">
+      <i class="bi bi-arrow-left"></i> Back to Edit
+    </a>
+    <button type="submit" class="btn-dash-primary">
+      <i class="bi bi-check-lg"></i> Confirm & Import
+    </button>
+  </div>
+</form>
+
+{% endblock %}
