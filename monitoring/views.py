@@ -323,6 +323,7 @@ def schedule_status(request):
         return timezone.localtime(dt).strftime('%B %d, %Y, %I:%M %p') if dt else None
 
     def serialize(qs):
+        from distribution.services import is_staff_assigned_to_scan
         return [{
             'id': s.id,
             # NEW: use assistance label instead of aid_type string
@@ -331,6 +332,7 @@ def schedule_status(request):
             'iso_datetime': s.schedule_datetime.isoformat() if s.schedule_datetime else None,
             'location': s.location,
             'barangay': str(s.barangay) if s.barangay else 'All Barangays',
+            'is_assigned_or_open': is_staff_assigned_to_scan(request.user, s) if request.user.role == 'MSWDO_STAFF' else True,
         } for s in qs]
 
     return JsonResponse({

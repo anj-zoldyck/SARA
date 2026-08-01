@@ -7,7 +7,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden, JsonResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.utils import timezone
-from datetime import date
+from datetime import date, timedelta
 from django.db.models import Count, Q
 
 from accounts.decorators import session_protected, mswdo_or_staff_required
@@ -55,6 +55,11 @@ def schedule_distribution(request):
 
         if timezone.is_naive(start):
             start = timezone.make_aware(start)
+
+        grace_buffer = timedelta(minutes=5)
+        if start < (timezone.now() - grace_buffer):
+            messages.error(request, "Schedule date/time cannot be in the past. Please choose the current time or a future date/time.")
+            return redirect('schedule_distribution')
 
         location = request.POST.get('location')
         barangay_id = request.POST.get('barangay')
@@ -650,6 +655,11 @@ def review_beneficiaries(request, schedule_id):
         return HttpResponseForbidden("Access Denied")
         
     schedule = get_object_or_404(AidSchedule, id=schedule_id)
+    
+    if request.user.role == 'MSWDO_STAFF':
+        from distribution.services import is_staff_assigned_to_scan
+        if not is_staff_assigned_to_scan(request.user, schedule):
+            return HttpResponseForbidden("Access Denied — You are not assigned to this distribution.")
     
     if not hasattr(schedule, 'beneficiary_list'):
         messages.error(request, "No beneficiary list generated for this schedule yet.")
