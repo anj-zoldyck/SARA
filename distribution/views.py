@@ -707,6 +707,9 @@ def manual_override_beneficiary(request, schedule_id):
     if request.user.role not in ('MSWDO', 'MSWDO_STAFF'):
         return HttpResponseForbidden("Access Denied")
         
+    if request.user.role == 'MSWDO_STAFF':
+        return HttpResponseForbidden("Access Denied — Staff have read-only access to beneficiary lists.")
+        
     schedule = get_object_or_404(AidSchedule, id=schedule_id)
     if not hasattr(schedule, 'beneficiary_list'):
         messages.error(request, "No beneficiary list exists for this schedule.")

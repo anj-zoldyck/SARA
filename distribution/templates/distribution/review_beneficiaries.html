@@ -92,13 +92,21 @@
 <div class="dash-page-header">
     <div>
         <div class="page-breadcrumb">
-            <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
-                <i class="bi bi-speedometer2"></i> Dashboard
-            </a>
-            <i class="bi bi-chevron-right breadcrumb-sep"></i>
-            <a href="{% url 'beneficiary_selection_landing' %}" class="breadcrumb-link">Manage Schedules</a>
-            <i class="bi bi-chevron-right breadcrumb-sep"></i>
-            <span class="breadcrumb-current">Review List</span>
+            {% if request.user.role == 'MSWDO_STAFF' %}
+              <a href="{% url 'staff_dashboard' %}" class="breadcrumb-link">
+                  <i class="bi bi-speedometer2"></i> Dashboard
+              </a>
+              <i class="bi bi-chevron-right breadcrumb-sep"></i>
+              <span class="breadcrumb-current">Review List</span>
+            {% else %}
+              <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
+                  <i class="bi bi-speedometer2"></i> Dashboard
+              </a>
+              <i class="bi bi-chevron-right breadcrumb-sep"></i>
+              <a href="{% url 'beneficiary_selection_landing' %}" class="breadcrumb-link">Manage Schedules</a>
+              <i class="bi bi-chevron-right breadcrumb-sep"></i>
+              <span class="breadcrumb-current">Review List</span>
+            {% endif %}
         </div>
         <h1 class="dash-page-title">Beneficiary List</h1>
         <p class="dash-page-sub">
@@ -178,9 +186,11 @@
             </div>
         </div>
         <div>
+            {% if request.user.role == 'MSWDO' %}
             <button type="button" class="btn-dash-primary" data-bs-toggle="modal" data-bs-target="#manualAddModal">
                 <i class="bi bi-plus-circle me-1"></i> Manual Override (Add)
             </button>
+            {% endif %}
         </div>
     </div>
 
@@ -196,7 +206,9 @@
                         <th class="acct-th">Zone</th>
                         <th class="acct-th">House No.</th>
                         <th class="acct-th">Status</th>
+                        {% if request.user.role == 'MSWDO' %}
                         <th class="acct-th text-end pe-4">Action</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -244,6 +256,7 @@
                                 style="font-weight:600;">Auto-generated</span>
                             {% endif %}
                         </td>
+                        {% if request.user.role == 'MSWDO' %}
                         <td class="acct-td text-end pe-4">
                             <button type="button" class="acct-btn acct-btn--delete" title="Remove" onclick="showConfirmModal('Are you sure you want to remove this beneficiary from the list?', function() {
                                         const form = document.createElement('form');
@@ -270,6 +283,7 @@
                                 <i class="bi bi-trash"></i> Remove
                             </button>
                         </td>
+                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -284,6 +298,7 @@
     </div>
 </div>
 
+{% if request.user.role == 'MSWDO' %}
 <!-- Manual Add Modal with Live Search -->
 <div class="modal fade sara-modal" id="manualAddModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" style="max-width: 600px;">
@@ -337,6 +352,8 @@
         </div>
     </div>
 </div>
+{% endif %}
+
 
 <!-- Beneficiary Detail Modal -->
 <div class="modal-overlay" id="benDetailModalOverlay">
@@ -360,27 +377,28 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const searchInput = document.getElementById('liveSearchInput');
-        const resultsContainer = document.getElementById('searchResults');
-        const chipsContainer = document.getElementById('selectedChips');
-        const form = document.getElementById('manualAddForm');
-        const submitBtn = document.getElementById('addSelectedBtn');
-        const selectedLabel = document.getElementById('selectedLabel');
+        if (searchInput) {
+            const resultsContainer = document.getElementById('searchResults');
+            const chipsContainer = document.getElementById('selectedChips');
+            const form = document.getElementById('manualAddForm');
+            const submitBtn = document.getElementById('addSelectedBtn');
+            const selectedLabel = document.getElementById('selectedLabel');
 
-        let debounceTimer;
-        let selectedCandidates = new Map(); // id -> {name, is_family}
+            let debounceTimer;
+            let selectedCandidates = new Map(); // id -> {name, is_family}
 
-        // Handle Input
-        searchInput.addEventListener('input', function () {
-            clearTimeout(debounceTimer);
-            const query = this.value.trim();
+            // Handle Input
+            searchInput.addEventListener('input', function () {
+                clearTimeout(debounceTimer);
+                const query = this.value.trim();
 
-            if (query.length === 0) {
-                resultsContainer.style.display = 'none';
-                return;
-            }
+                if (query.length === 0) {
+                    resultsContainer.style.display = 'none';
+                    return;
+                }
 
-            debounceTimer = setTimeout(() => fetchResults(query), 300);
-        });
+                debounceTimer = setTimeout(() => fetchResults(query), 300);
+            });
 
         // Hide results if clicked outside
         document.addEventListener('click', function (e) {
@@ -476,30 +494,31 @@
             }
         }
 
-        // Update form hidden inputs and button state
-        function updateSubmitButton() {
-            // Remove existing hidden inputs for candidates
-            form.querySelectorAll('.candidate-input').forEach(el => el.remove());
+            // Update form hidden inputs and button state
+            function updateSubmitButton() {
+                // Remove existing hidden inputs for candidates
+                form.querySelectorAll('.candidate-input').forEach(el => el.remove());
 
-            if (selectedCandidates.size > 0) {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = `<i class="bi bi-check2-circle me-1"></i> Add Selected (${selectedCandidates.size})`;
+                if (selectedCandidates.size > 0) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = `<i class="bi bi-check2-circle me-1"></i> Add Selected (${selectedCandidates.size})`;
 
-                // Append hidden inputs
-                selectedCandidates.forEach((data, id) => {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.className = 'candidate-input';
-                    // Use bracket notation to send an array of IDs in POST
-                    input.name = data.isFamily ? 'family_ids[]' : 'household_ids[]';
-                    input.value = id;
-                    form.appendChild(input);
-                });
-            } else {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = `<i class="bi bi-check2-circle me-1"></i> Add Selected (0)`;
+                    // Append hidden inputs
+                    selectedCandidates.forEach((data, id) => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.className = 'candidate-input';
+                        // Use bracket notation to send an array of IDs in POST
+                        input.name = data.isFamily ? 'family_ids[]' : 'household_ids[]';
+                        input.value = id;
+                        form.appendChild(input);
+                    });
+                } else {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = `<i class="bi bi-check2-circle me-1"></i> Add Selected (0)`;
+                }
             }
-        }
+        } // End if (searchInput)
 
         // Beneficiary Detail Modal Logic
         const benModalOverlay = document.getElementById('benDetailModalOverlay');
