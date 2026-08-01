@@ -46,9 +46,10 @@
   stroke-linejoin: round;
   stroke-dasharray: 60;
   stroke-dashoffset: 60;
-  transition: stroke-dashoffset 0.4s ease 0.3s;
+  opacity: 0;
   transform: rotate(90deg);
   transform-origin: 50px 50px;
+  transition: stroke-dashoffset 0.4s ease 0.3s, opacity 0.05s ease 0.3s;
 }
 
 /* Success state */
@@ -70,6 +71,7 @@
 }
 
 .loading-modal-icon-wrap.success .loading-checkmark {
+  opacity: 1;
   stroke-dashoffset: 0;
 }
 
