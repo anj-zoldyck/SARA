@@ -217,5 +217,17 @@
       }
     });
   });
+
+  {% if schedule_just_created %}
+  document.addEventListener('DOMContentLoaded', function() {
+    showLoadingModal('Creating Schedule…');
+    setTimeout(() => {
+      setLoadingModalSuccess('Schedule Created');
+      setTimeout(() => {
+        hideLoadingModal();
+      }, 1800);
+    }, 400);
+  });
+  {% endif %}
 </script>
 {% endblock %}

@@ -1,0 +1,297 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Add Assistance — SARA{% endblock %}
+{% block navbar_title %}AID PROGRAMS{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<style>
+  .form-section {
+    padding: 24px;
+  }
+  .sara-form__group {
+    margin-bottom: 20px;
+  }
+  .sara-form__label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #334155;
+  }
+  .sara-form__control, .sara-form__select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+  .sara-form__control:focus, .sara-form__select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    outline: none;
+  }
+  .sara-form__hint {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 6px;
+    margin-bottom: 0;
+  }
+  .sara-form__check-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-top: 10px;
+  }
+  .sara-form__check-input {
+    margin-top: 4px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+      <i class="bi bi-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'program_list' %}" class="breadcrumb-link">Aid Programs</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Add Assistance</span>
+    </div>
+    <h1 class="dash-page-title">Add Assistance</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-plus-circle me-1"></i>
+      Create a new assistance entry under an existing program
+    </p>
+  </div>
+</div>
+
+<div class="dash-panel">
+  <div class="dash-panel__header">
+    <h2 class="dash-panel__title">Assistance Details</h2>
+  </div>
+  
+  <form method="post" action="{% url 'add_assistance' %}" id="addAssistanceForm">
+    {% csrf_token %}
+    <div class="form-section">
+      
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+          {% for error in form.non_field_errors %}
+            {{ error }}
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="sara-form__group">
+            <label class="sara-form__label" for="{{ form.program.id_for_label }}">
+              <i class="bi bi-gift"></i> Program <span class="text-danger">*</span>
+            </label>
+            {{ form.program }}
+            {% if form.program.errors %}
+              <div class="text-danger mt-1 small">{{ form.program.errors.0 }}</div>
+            {% endif %}
+            <p class="sara-form__hint">Select the general aid initiative this falls under (e.g., AICS).</p>
+          </div>
+        </div>
+        
+        <div class="col-md-6">
+          <div class="sara-form__group">
+            <label class="sara-form__label" for="{{ form.aid_category.id_for_label }}">
+              <i class="bi bi-tag"></i> Aid Category <span class="text-danger">*</span>
+            </label>
+            {{ form.aid_category }}
+            {% if form.aid_category.errors %}
+              <div class="text-danger mt-1 small">{{ form.aid_category.errors.0 }}</div>
+            {% endif %}
+            <p class="sara-form__hint" id="asst_category_hint">Select a program first to load its specific categories.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="row mt-3">
+        <div class="col-md-6">
+          <div class="sara-form__group">
+            <label class="sara-form__label" for="{{ form.beneficiary_type.id_for_label }}">
+              <i class="bi bi-people"></i> Beneficiary Type <span class="text-danger">*</span>
+            </label>
+            {{ form.beneficiary_type }}
+            {% if form.beneficiary_type.errors %}
+              <div class="text-danger mt-1 small">{{ form.beneficiary_type.errors.0 }}</div>
+            {% endif %}
+            <p class="sara-form__hint">Choose 'Family' if one claim covers the whole household. Choose 'Individual' if each qualifying person claims separately.</p>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="sara-form__group">
+            <label class="sara-form__label" for="{{ form.aid_type.id_for_label }}">
+              <i class="bi bi-cash-coin"></i> Aid Type <span class="text-danger">*</span>
+            </label>
+            {{ form.aid_type }}
+            {% if form.aid_type.errors %}
+              <div class="text-danger mt-1 small">{{ form.aid_type.errors.0 }}</div>
+            {% endif %}
+            <p class="sara-form__hint">Cash Assistance is money given directly. Goods-in-Kind means physical items like rice or canned goods.</p>
+          </div>
+        </div>
+      </div>
+
+      <hr class="my-4">
+
+      <div id="asst_eligibility_group" style="display:none;">
+        <h5 class="mb-3">Eligibility Requirements</h5>
+        
+        <div class="row">
+          <div class="col-md-6">
+            <div class="sara-form__group">
+              <label class="sara-form__label" for="{{ form.minimum_age.id_for_label }}">
+                <i class="bi bi-person-check"></i> Minimum Age
+              </label>
+              {{ form.minimum_age }}
+              {% if form.minimum_age.errors %}
+                <div class="text-danger mt-1 small">{{ form.minimum_age.errors.0 }}</div>
+              {% endif %}
+              <p class="sara-form__hint">Only used for Individual-type assistance. Leave blank if there's no age requirement.</p>
+            </div>
+          </div>
+          
+          <div class="col-md-6">
+            <div class="sara-form__group">
+              <label class="sara-form__label">
+                <i class="bi bi-ui-checks"></i> Specific Requirements
+              </label>
+              <div class="sara-form__check-row">
+                {{ form.requires_pwd }}
+                <div>
+                  <label class="fw-bold" for="{{ form.requires_pwd.id_for_label }}">PWD Only</label>
+                </div>
+              </div>
+              <div class="sara-form__check-row">
+                {{ form.requires_solo_parent }}
+                <div>
+                  <label class="fw-bold" for="{{ form.requires_solo_parent.id_for_label }}">Solo Parent Only</label>
+                </div>
+              </div>
+              <div class="sara-form__check-row">
+                {{ form.requires_senior_citizen }}
+                <div>
+                  <label class="fw-bold" for="{{ form.requires_senior_citizen.id_for_label }}">Senior Citizen Only</label>
+                </div>
+              </div>
+              <p class="sara-form__hint mt-2">Check only the categories required to qualify for this aid. Leave all unchecked if anyone can qualify regardless of these categories.</p>
+            </div>
+          </div>
+        </div>
+        <hr class="my-4">
+      </div>
+
+      <div class="sara-form__group">
+        <div class="sara-form__check-row">
+          {{ form.is_active }}
+          <div>
+            <label class="fw-bold" for="{{ form.is_active.id_for_label }}">Active</label>
+            <p class="sara-form__hint text-muted">When unchecked, this aid entry will be hidden from staff when scheduling a new distribution. Existing schedules that already use it are not affected.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        <a href="{% url 'program_list' %}" class="btn-dash-outline">Cancel</a>
+        <button type="submit" class="btn-dash-primary">
+          <i class="bi bi-plus-lg"></i> Add Assistance
+        </button>
+      </div>
+
+    </div>
+  </form>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+  const programSelect = document.getElementById('{{ form.program.id_for_label }}');
+  const categorySelect = document.getElementById('{{ form.aid_category.id_for_label }}');
+  const beneficiarySelect = document.getElementById('{{ form.beneficiary_type.id_for_label }}');
+  const eligibilityGroup = document.getElementById('asst_eligibility_group');
+  const minAgeInput = document.getElementById('{{ form.minimum_age.id_for_label }}');
+  
+  // Set IDs for checkboxes to clear them easily
+  const pwdCheck = document.getElementById('{{ form.requires_pwd.id_for_label }}');
+  const soloParentCheck = document.getElementById('{{ form.requires_solo_parent.id_for_label }}');
+  const seniorCheck = document.getElementById('{{ form.requires_senior_citizen.id_for_label }}');
+  
+  const categoryHint = document.getElementById('asst_category_hint');
+  
+  // Initial setup on page load
+  if (beneficiarySelect.value === 'individual') {
+    eligibilityGroup.style.display = 'block';
+  }
+  
+  // Handle Program change
+  programSelect.addEventListener('change', function() {
+    const programId = this.value;
+    
+    categorySelect.innerHTML = '<option value="">-- Loading... --</option>';
+    categorySelect.disabled = true;
+    
+    if (!programId) {
+      categorySelect.innerHTML = '<option value="">---------</option>';
+      categoryHint.textContent = 'Select a program first to load its specific categories.';
+      return;
+    }
+    
+    fetch(`/ajax/get-aid-categories/?program_id=${programId}`)
+      .then(res => res.json())
+      .then(data => {
+        categorySelect.innerHTML = '<option value="">---------</option>';
+        if (data.categories.length === 0) {
+          categorySelect.innerHTML = '<option value="">No categories found</option>';
+          categoryHint.innerHTML = 'No categories found for this program.';
+        } else {
+          categoryHint.textContent = 'Select a specific category.';
+          data.categories.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.id;
+            opt.textContent = cat.name;
+            categorySelect.appendChild(opt);
+          });
+          categorySelect.disabled = false;
+        }
+      })
+      .catch(() => {
+        categorySelect.innerHTML = '<option value="">Error loading categories</option>';
+      });
+  });
+  
+  // Handle Beneficiary Type change
+  beneficiarySelect.addEventListener('change', function() {
+    if (this.value === 'individual') {
+      eligibilityGroup.style.display = 'block';
+    } else {
+      eligibilityGroup.style.display = 'none';
+      minAgeInput.value = '';
+      if(pwdCheck) pwdCheck.checked = false;
+      if(soloParentCheck) soloParentCheck.checked = false;
+      if(seniorCheck) seniorCheck.checked = false;
+    }
+  });
+</script>
+{% endblock %}

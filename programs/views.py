@@ -142,7 +142,7 @@ def add_assistance(request):
     else:
         form = AssistanceForm()
 
-    return render(request, 'accounts/add_assistance.html', {'form': form})
+    return render(request, 'programs/add_assistance.html', {'form': form})
 
 
 @login_required
@@ -172,34 +172,16 @@ def edit_assistance(request, assistance_id):
     )
 
     if request.method == 'POST':
-        program_id     = request.POST.get('program')
-        aid_category_id = request.POST.get('aid_category')
-        beneficiary_type = request.POST.get('beneficiary_type')
-        minimum_age    = request.POST.get('minimum_age') or None
-        is_active      = request.POST.get('is_active') == 'on'
-
-        # Validate
-        if not all([program_id, aid_category_id, beneficiary_type]):
-            messages.error(request, "Please fill in all required fields.")
+        form = AssistanceForm(request.POST, instance=assistance)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Assistance '{assistance}' updated successfully.")
             return redirect('program_list')
+    else:
+        form = AssistanceForm(instance=assistance)
 
-        try:
-            aid_category = AidCategory.objects.get(
-                id=aid_category_id,
-                program_id=program_id
-            )
-        except AidCategory.DoesNotExist:
-            messages.error(request, "Invalid category for the selected program.")
-            return redirect('program_list')
-
-        assistance.aid_category      = aid_category
-        assistance.program_id        = program_id
-        assistance.beneficiary_type  = beneficiary_type
-        assistance.minimum_age       = minimum_age
-        assistance.is_active         = is_active
-        assistance.save()
-
-        messages.success(request, f"Assistance '{assistance}' updated successfully.")
-
-    return redirect('program_list')
+    return render(request, 'programs/edit_assistance.html', {
+        'form': form,
+        'assistance': assistance,
+    })
 

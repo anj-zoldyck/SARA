@@ -100,7 +100,7 @@ def schedule_distribution(request):
         if enable_selection and schedule.budget > Decimal('0') and schedule.per_beneficiary_amount > Decimal('0'):
             return redirect('generate_beneficiaries', schedule_id=schedule.id)
         else:
-            messages.success(request, f"Distribution scheduled successfully: {assistance}")
+            request.session['schedule_just_created'] = True
             return redirect('schedule_distribution')
 
     # GET
@@ -109,9 +109,12 @@ def schedule_distribution(request):
     ).filter(is_active=True).order_by('program__name', 'aid_category__name')
     barangays = Barangay.objects.all()
 
+    schedule_just_created = request.session.pop('schedule_just_created', False)
+
     return render(request, 'distribution/schedule_distribution.html', {
         'assistances': assistances,
-        'barangays': barangays
+        'barangays': barangays,
+        'schedule_just_created': schedule_just_created,
     })
 
 
