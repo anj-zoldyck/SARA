@@ -28,6 +28,7 @@ from django_otp.plugins.otp_email.models import EmailDevice
 from django.urls import reverse
 from django.core.cache import cache
 import json
+from reports.analytics_utils import get_category_claims_data
 
 User = get_user_model()
 
@@ -377,22 +378,7 @@ def barangay_analytics(request):
 
     barangay = request.user.barangay
 
-    aid_data = (
-        AidClaim.objects
-        .filter(
-            family__household__barangay=barangay,
-            assistance__isnull=False
-        )
-        .values('assistance__aid_category__name', 'assistance__program__name')
-        .annotate(count=Count('id'))
-        .order_by('-count')
-    )
-
-    labels = [
-        f"{item['assistance__program__name']} › {item['assistance__aid_category__name']}"
-        for item in aid_data
-    ]
-    data = [item['count'] for item in aid_data]
+    labels, data, total_count = get_category_claims_data(barangay=barangay)
 
     total_families = Family.objects.filter(
         household__barangay=barangay,
@@ -406,6 +392,7 @@ def barangay_analytics(request):
     return render(request, 'monitoring/barangay_analytics.html', {
         'labels': labels,
         'data': data,
+        'total_count': total_count,
         'barangay': barangay,
         'total_families': total_families,
         'claimed_families': claimed_families,

@@ -40,70 +40,31 @@
 
 {% if labels %}
 
-<!-- ── Row 1: Pie + Bar ────────────────────────────────────── -->
+<!-- ── Single Row: Bar Chart & Summary ────────────────────────────────────────── -->
 <div class="analytics-grid">
-
-  <!-- Pie Chart -->
-  <div class="chart-panel">
-    <p class="chart-panel__title">Distribution</p>
-    <p class="chart-panel__sub">Claims by Aid Type — {{ barangay }}</p>
-    <div class="chart-wrap chart-wrap--pie">
-      <canvas id="aidPieChart"></canvas>
-    </div>
-    <div class="stat-row">
-      <div class="stat-pill stat-pill--blue">
-        <span class="stat-pill__dot stat-pill__dot--blue"></span>
-        <div>
-          <span class="stat-pill__label">Relief</span>
-          <span class="stat-pill__value" id="relief-count">—</span>
-        </div>
-      </div>
-      <div class="stat-pill stat-pill--amber">
-        <span class="stat-pill__dot stat-pill__dot--amber"></span>
-        <div>
-          <span class="stat-pill__label">Senior</span>
-          <span class="stat-pill__value" id="senior-count">—</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Bar Chart -->
   <div class="chart-panel">
     <p class="chart-panel__title">Comparison</p>
-    <p class="chart-panel__sub">Claims Count per Aid Type</p>
+    <p class="chart-panel__sub">Claims Count per Aid Category</p>
     <div class="chart-wrap">
       <canvas id="aidBarChart"></canvas>
     </div>
   </div>
 
-</div>
-
-<!-- ── Row 2: Summary ──────────────────────────────────────── -->
-<div class="analytics-grid analytics-grid--full">
+  <!-- Summary Pills -->
   <div class="chart-panel">
     <p class="chart-panel__title">Overview</p>
     <p class="chart-panel__sub">{{ barangay }} Summary</p>
-    <div class="stat-row">
-      <div class="stat-pill stat-pill--blue">
-        <span class="stat-pill__dot stat-pill__dot--blue"></span>
-        <div>
-          <span class="stat-pill__label">Relief Claims</span>
-          <span class="stat-pill__value" id="relief-count-2">—</span>
-        </div>
-      </div>
-      <div class="stat-pill stat-pill--amber">
-        <span class="stat-pill__dot stat-pill__dot--amber"></span>
-        <div>
-          <span class="stat-pill__label">Senior Claims</span>
-          <span class="stat-pill__value" id="senior-count-2">—</span>
-        </div>
-      </div>
+    <div class="stat-row" id="dynamic-stat-pills">
+      <!-- Injected by JS -->
+    </div>
+    
+    <div class="stat-row mt-3">
       <div class="stat-pill stat-pill--teal">
         <span class="stat-pill__dot stat-pill__dot--teal"></span>
         <div>
           <span class="stat-pill__label">Total Claims</span>
-          <span class="stat-pill__value" id="total-count">—</span>
+          <span class="stat-pill__value" id="total-count">{{ total_count }}</span>
         </div>
       </div>
       <div class="stat-pill stat-pill--purple">
@@ -148,40 +109,12 @@
   const labels = JSON.parse(document.getElementById('chart-labels').textContent);
   const data   = JSON.parse(document.getElementById('chart-data').textContent);
 
-  const COLORS = {
-    RELIEF: '#0d2d6b',
-    SENIOR: '#fd7e14',
-  };
+  const PALETTE = [
+    '#0d2d6b', '#fd7e14', '#10b981', '#8b5cf6', 
+    '#ec4899', '#f59e0b', '#06b6d4', '#6366f1'
+  ];
 
-  const bgColors = labels.map(l => COLORS[l] || '#6c757d');
-
-  // ── Pie Chart ──────────────────────────────────────────
-  const pieCtx = document.getElementById('aidPieChart');
-  if (pieCtx) {
-    new Chart(pieCtx, {
-      type: 'pie',
-      data: {
-        labels: labels,
-        datasets: [{
-          data: data,
-          backgroundColor: bgColors,
-          borderWidth: 2,
-          borderColor: '#fff',
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { position: 'bottom' },
-          tooltip: {
-            callbacks: {
-              label: ctx => ` ${ctx.label}: ${ctx.parsed} claims`
-            }
-          }
-        }
-      }
-    });
-  }
+  const bgColors = labels.map((l, i) => PALETTE[i % PALETTE.length]);
 
   // ── Bar Chart ──────────────────────────────────────────
   const barCtx = document.getElementById('aidBarChart');
@@ -221,25 +154,22 @@
   }
 
   // ── Stat Pills ─────────────────────────────────────────
-  let reliefCount = 0;
-  let seniorCount = 0;
-
-  labels.forEach((label, i) => {
-    if (label === 'RELIEF') reliefCount = data[i];
-    if (label === 'SENIOR') seniorCount = data[i];
-  });
-
-  const total = data.reduce((a, b) => a + b, 0);
-
-  ['relief-count', 'relief-count-2'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = reliefCount;
-  });
-  ['senior-count', 'senior-count-2'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = seniorCount;
-  });
-  const totalEl = document.getElementById('total-count');
-  if (totalEl) totalEl.textContent = total;
+  const pillsContainer = document.getElementById('dynamic-stat-pills');
+  if (pillsContainer && labels.length > 0) {
+    let html = '';
+    labels.forEach((label, i) => {
+      const color = PALETTE[i % PALETTE.length];
+      html += `
+        <div class="stat-pill" style="border-left-color: ${color}; background: rgba(0,0,0,0.02);">
+          <span class="stat-pill__dot" style="background: ${color};"></span>
+          <div>
+            <span class="stat-pill__label">${label} Claims</span>
+            <span class="stat-pill__value">${data[i]}</span>
+          </div>
+        </div>
+      `;
+    });
+    pillsContainer.innerHTML = html;
+  }
 </script>
 {% endblock %}

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Statistical Summary Report</title>
+    <style>
+        @page {
+            size: letter portrait;
+            margin: 2cm;
+            @frame footer {
+                -pdf-frame-content: footerContent;
+                bottom: 1cm;
+                margin-left: 2cm;
+                margin-right: 2cm;
+                height: 1cm;
+            }
+        }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 11pt;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 14pt;
+            margin: 0;
+            padding: 0;
+        }
+        .header h2 {
+            font-size: 12pt;
+            margin: 5px 0 0 0;
+            font-weight: normal;
+        }
+        .header p {
+            margin: 5px 0 0 0;
+            color: #666;
+            font-size: 10pt;
+        }
+        .month-section {
+            margin-bottom: 20px;
+        }
+        .month-title {
+            font-weight: bold;
+            font-size: 12pt;
+            margin-bottom: 5px;
+        }
+        .month-details {
+            margin-bottom: 10px;
+            font-style: italic;
+        }
+        .chart-container {
+            text-align: center;
+            margin-top: 30px;
+            margin-bottom: 30px;
+        }
+        .totals-section {
+            margin-top: 30px;
+            border-top: 1px solid #ccc;
+            padding-top: 10px;
+        }
+        .totals-title {
+            font-weight: bold;
+            font-size: 12pt;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 6px;
+            text-align: left;
+        }
+        th {
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <div id="footerContent" style="text-align: right; font-size: 9pt; color: #666;">
+        Page <pdf:pagenumber> of <pdf:pagecount>
+    </div>
+
+    <div class="header">
+        <h1>Municipality of Santa Rita</h1>
+        <h2>Municipal Social Welfare and Development Office</h2>
+        <p>{{ data.period_label }}</p>
+        <p>Generated on: {{ generated_at|date:"F j, Y, g:i a" }}</p>
+    </div>
+
+    {% for month in data.months %}
+    <div class="month-section">
+        <div class="month-title">{{ month.total_beneficiaries }} Total Ritenian Beneficiaries for the Month of {{ month.month_label }}</div>
+        <div class="month-details">
+            {% for cat in month.categories %}
+                {{ cat.count }} {{ cat.name }}{% if not forloop.last %}, {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if chart_image %}
+    <div class="chart-container">
+        <img src="{{ chart_image }}" width="500" />
+    </div>
+    {% endif %}
+
+    <div class="totals-section">
+        <div class="totals-title">Period Totals</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Total Claims</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cat in data.totals.categories %}
+                <tr>
+                    <td>{{ cat.name }}</td>
+                    <td>{{ cat.count }}</td>
+                </tr>
+                {% endfor %}
+                <tr>
+                    <td style="font-weight: bold; text-align: right;">Total Unique Beneficiaries</td>
+                    <td style="font-weight: bold;">{{ data.totals.total_beneficiaries }}</td>
+                </tr>
+                <tr>
+                    <td style="font-weight: bold; text-align: right;">Total Claims</td>
+                    <td style="font-weight: bold;">{{ data.totals.total_claims }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

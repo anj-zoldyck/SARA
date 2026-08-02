@@ -28,6 +28,8 @@ from django_otp.plugins.otp_email.models import EmailDevice
 from django.urls import reverse
 from django.core.cache import cache
 import json
+import calendar
+from reports.analytics_utils import get_category_claims_data, get_unique_beneficiaries_count
 
 User = get_user_model()
 
@@ -77,6 +79,17 @@ def mswdo_dashboard(request):
     ).filter(is_active=True).order_by('program__name', 'aid_category__name')
 
     now = timezone.localtime(timezone.now())
+    
+    start_date = now.replace(day=1).date()
+    last_day = calendar.monthrange(start_date.year, start_date.month)[1]
+    end_date = now.replace(day=last_day).date()
+    
+    analytics_labels, analytics_data, _ = get_category_claims_data(
+        start_date=start_date, end_date=end_date
+    )
+    this_month_beneficiaries = get_unique_beneficiaries_count(
+        start_date=start_date, end_date=end_date
+    )
 
     # ACTIVE (ongoing)
     active_schedules = AidSchedule.objects.filter(
@@ -96,7 +109,6 @@ def mswdo_dashboard(request):
     finished_schedules = AidSchedule.objects.filter(
         is_finished=True
     )
-
 
     context = {
         'barangays': barangays,
@@ -121,6 +133,10 @@ def mswdo_dashboard(request):
         'upcoming_schedules': upcoming_schedules,
         'finished_schedules': finished_schedules,
         'assigned_schedule_ids': [], # MSWDO is not assigned to specific locations
+        
+        'analytics_labels': analytics_labels,
+        'analytics_data': analytics_data,
+        'this_month_beneficiaries': this_month_beneficiaries,
     }
 
     return render(request, 'core/mswdo_dashboard.html', context)
@@ -164,6 +180,12 @@ def barangay_dashboard(request):
     total_families_rfid = Family.objects.filter(household__barangay=barangay_obj, rfid_uid__isnull=False).exclude(rfid_uid="").count()
     rfid_completion_percent = round((total_families_rfid / total_families) * 100) if total_families > 0 else 0
 
+    analytics_labels, analytics_data, total_claims = get_category_claims_data(barangay=barangay_obj)
+
+    claimed_families = AidClaim.objects.filter(
+        family__household__barangay=barangay_obj
+    ).values('family').distinct().count()
+
     return render(request, 'core/barangay_dashboard.html', {
         'barangay': barangay_obj,
         'zones': zones,
@@ -175,6 +197,10 @@ def barangay_dashboard(request):
         'total_families': total_families,
         'total_families_rfid': total_families_rfid,
         'rfid_completion_percent': rfid_completion_percent,
+        'analytics_labels': analytics_labels,
+        'analytics_data': analytics_data,
+        'total_claims': total_claims,
+        'claimed_families': claimed_families,
     })
 
 @login_required(login_url='login')

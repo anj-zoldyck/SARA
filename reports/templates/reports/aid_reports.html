@@ -35,6 +35,47 @@
   </div>
 </div>
 
+<!-- ── Report Generation Panel ───────────────────────────── -->
+{% if request.user.role == 'MSWDO' %}
+<div class="dash-panel rpt-gen-panel" style="margin-bottom: 20px;">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-file-earmark-pdf dash-panel__icon" style="background-color: var(--sara-blue-light); color: var(--sara-blue); padding: 8px; border-radius: 6px;"></i>
+      <div>
+        <h2 class="dash-panel__title">Generate Reports</h2>
+        <p class="dash-panel__sub">Export statistical summaries and beneficiary lists</p>
+      </div>
+    </div>
+  </div>
+  <div class="dash-panel__body">
+    <form id="report-generation-form" method="get" class="rpt-filter-form">
+      <div class="rpt-filter-form__fields">
+        <div class="rpt-filter-form__group">
+          <label class="rpt-filter-form__label">
+            <i class="bi bi-calendar-event"></i> Period Start
+          </label>
+          <input type="date" name="start_date" id="start_date" class="form-control form-control-sm" required>
+        </div>
+        <div class="rpt-filter-form__group">
+          <label class="rpt-filter-form__label">
+            <i class="bi bi-calendar-event"></i> Period End
+          </label>
+          <input type="date" name="end_date" id="end_date" class="form-control form-control-sm" required>
+        </div>
+      </div>
+      <div style="margin-top: 15px; display: flex; gap: 10px;">
+        <button type="submit" class="btn-dash-primary" onclick="document.getElementById('report-generation-form').action='{% url 'generate_summary_report' %}';">
+          <i class="bi bi-file-pdf"></i> Generate Summary Report (PDF)
+        </button>
+        <button type="submit" class="btn-dash-primary" onclick="document.getElementById('report-generation-form').action='{% url 'generate_beneficiary_list_report' %}';">
+          <i class="bi bi-file-earmark-excel"></i> Generate Beneficiary List (Excel)
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
 <!-- ── Filter Panel ───────────────────────────────────────── -->
 <div class="dash-panel rpt-filter-panel">
   <div class="dash-panel__header">
