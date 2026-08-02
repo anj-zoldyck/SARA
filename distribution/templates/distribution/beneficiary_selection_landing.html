@@ -99,6 +99,20 @@
                 <a href="{% url 'assign_staff' sched.id %}" class="acct-btn acct-btn--activate">
                   <i class="bi bi-person-badge"></i><span>Assign Staff</span>
                 </a>
+                {% if request.user.role == 'MSWDO' %}
+                  <a href="{% url 'edit_schedule' sched.id %}" class="acct-btn acct-btn--edit" title="Edit Schedule">
+                    <i class="bi bi-pencil"></i><span>Edit</span>
+                  </a>
+                  {% if sched.has_claims %}
+                  <button class="acct-btn acct-btn--delete" disabled title="Cannot cancel a schedule with processed claims. Use Finish Distribution instead." style="opacity: 0.5; cursor: not-allowed;">
+                    <i class="bi bi-x-circle"></i><span>Cancel</span>
+                  </button>
+                  {% else %}
+                  <button type="button" class="acct-btn acct-btn--delete" onclick="showCancelModal({{ sched.id }}, {% if sched.beneficiary_list %}true{% else %}false{% endif %})" title="Cancel Schedule">
+                    <i class="bi bi-x-circle"></i><span>Cancel</span>
+                  </button>
+                  {% endif %}
+                {% endif %}
               </div>
             </td>
           </tr>
@@ -118,4 +132,51 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block js %}
+<!-- Cancel Schedule Modal -->
+<div class="modal fade" id="cancelScheduleModal" tabindex="-1" aria-labelledby="cancelScheduleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title" id="cancelScheduleModalLabel"><i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>Cancel Schedule</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p id="cancelWarningText">Are you sure you want to cancel this distribution schedule?</p>
+        <p class="text-danger fw-semibold d-none" id="cancelBenWarningText">
+          This schedule has a generated beneficiary list. Canceling it will release these beneficiaries back into the eligible pool for other distributions.
+        </p>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Close</button>
+        <form id="cancelScheduleForm" method="post" action="">
+          {% csrf_token %}
+          <button type="submit" class="btn-dash-primary" style="background-color: #dc3545; border-color: #dc3545;">
+            Confirm Cancel
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showCancelModal(scheduleId, hasBeneficiaryList) {
+    const modal = new bootstrap.Modal(document.getElementById('cancelScheduleModal'));
+    const form = document.getElementById('cancelScheduleForm');
+    
+    // The URLs expect integer IDs, but we construct dynamically
+    form.action = `/mswdo/schedule/${scheduleId}/cancel/`;
+    
+    if (hasBeneficiaryList) {
+      document.getElementById('cancelBenWarningText').classList.remove('d-none');
+    } else {
+      document.getElementById('cancelBenWarningText').classList.add('d-none');
+    }
+    
+    modal.show();
+  }
+</script>
 {% endblock %}

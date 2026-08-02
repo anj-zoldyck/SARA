@@ -101,9 +101,15 @@
             </h3>
             <!-- Status badge -->
             {% if sched.is_finished %}
+              {% if sched.finish_reason == 'CANCELLED' %}
+              <span class="rpt-status rpt-status--expired" style="background-color: #fef2f2; color: #dc2626; border-color: #fecaca;">
+                <i class="bi bi-x-circle-fill"></i> Cancelled
+              </span>
+              {% else %}
               <span class="rpt-status rpt-status--expired">
                 <i class="bi bi-circle-fill"></i> Finished
               </span>
+              {% endif %}
             {% else %}
               <span class="rpt-status rpt-status--active">
                 <i class="bi bi-circle-fill"></i> Active

@@ -6,6 +6,8 @@ urlpatterns = [
     path('mswdo/schedule/<int:schedule_id>/generate/', views.generate_beneficiaries, name='generate_beneficiaries'),
     path('mswdo/schedule/<int:schedule_id>/beneficiaries/', views.review_beneficiaries, name='review_beneficiaries'),
     path('mswdo/schedule/<int:schedule_id>/beneficiaries/manual-add/', views.manual_override_beneficiary, name='manual_override_beneficiary'),
+    path('mswdo/schedule/<int:schedule_id>/edit/', views.edit_schedule, name='edit_schedule'),
+    path('mswdo/schedule/<int:schedule_id>/cancel/', views.cancel_schedule, name='cancel_schedule'),
     path('mswdo/beneficiary/<int:entry_id>/details/', views.beneficiary_detail_modal, name='beneficiary_detail_modal'),
     
     # Beneficiary Selection Landing & AJAX

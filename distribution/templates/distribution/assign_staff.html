@@ -27,6 +27,11 @@
       Schedule: {{ schedule.assistance.program.name }} › {{ schedule.assistance.aid_category.name }}
     </p>
   </div>
+  <div class="dash-header-actions">
+    <a href="{% url 'beneficiary_selection_landing' %}" class="btn-dash-outline">
+      <i class="bi bi-arrow-left"></i> Back to Manage Schedules
+    </a>
+  </div>
 </div>
 
 {% if messages %}

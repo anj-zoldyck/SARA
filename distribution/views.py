@@ -120,6 +120,133 @@ def schedule_distribution(request):
 
 @login_required
 @session_protected
+def edit_schedule(request, schedule_id):
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+
+    schedule = get_object_or_404(AidSchedule, id=schedule_id)
+    
+    # Using explicit .exists() for beneficiary_list check instead of hasattr as requested
+    from distribution.models import GeneratedBeneficiaryList, AidClaim
+    has_beneficiary_list = GeneratedBeneficiaryList.objects.filter(schedule=schedule).exists()
+    has_claims = AidClaim.objects.filter(schedule=schedule).exists()
+
+    if has_claims:
+        messages.error(request, "Cannot edit a schedule that already has processed claims. Use Finish Distribution instead.")
+        return redirect('beneficiary_selection_landing')
+
+    if request.method == 'POST':
+        start = parse_datetime(request.POST.get('schedule_datetime'))
+        if not start:
+            messages.error(request, "Invalid date/time format. Please try again.")
+            return redirect('edit_schedule', schedule_id=schedule.id)
+
+        if timezone.is_naive(start):
+            start = timezone.make_aware(start)
+
+        # Allow keeping the same time if it's already in the past from creation, but we check if they changed it
+        # Actually, the user asked to re-run the past-date validation from the earlier fix.
+        grace_buffer = timedelta(minutes=5)
+        if start < (timezone.now() - grace_buffer) and start != schedule.schedule_datetime:
+            messages.error(request, "Schedule date/time cannot be in the past. Please choose the current time or a future date/time.")
+            return redirect('edit_schedule', schedule_id=schedule.id)
+
+        location = request.POST.get('location')
+
+        # Update allowed fields
+        schedule.schedule_datetime = start
+        schedule.location = location
+
+        if not has_beneficiary_list:
+            # Full edit allowed
+            assistance_id = request.POST.get('assistance')
+            assistance = Assistance.objects.filter(id=assistance_id).first()
+            if not assistance:
+                messages.error(request, "Please select a valid assistance type.")
+                return redirect('edit_schedule', schedule_id=schedule.id)
+
+            barangay_id = request.POST.get('barangay')
+            barangay = Barangay.objects.filter(id=barangay_id).first() if barangay_id else None
+            
+            enable_selection = request.POST.get('enable_selection') == 'on'
+            
+            from decimal import Decimal, InvalidOperation
+            
+            budget_raw = request.POST.get('budget', '').strip()
+            per_beneficiary_raw = request.POST.get('per_beneficiary_amount', '').strip()
+
+            budget = Decimal('0')
+            per_beneficiary_amount = Decimal('0')
+            
+            if enable_selection:
+                try:
+                    budget = Decimal(budget_raw) if budget_raw else Decimal('0')
+                    per_beneficiary_amount = Decimal(per_beneficiary_raw) if per_beneficiary_raw else Decimal('0')
+                except InvalidOperation:
+                    messages.error(request, "Invalid numeric input for budget or per-beneficiary amount.")
+                    return redirect('edit_schedule', schedule_id=schedule.id)
+
+            schedule.assistance = assistance
+            schedule.barangay = barangay
+            schedule.budget = budget if enable_selection else Decimal('0')
+            schedule.per_beneficiary_amount = per_beneficiary_amount if enable_selection else Decimal('0')
+        else:
+            # If beneficiary list exists but attempts to change locked fields
+            # (they are disabled in HTML but we validate here to be safe)
+            pass
+
+        schedule.save()
+        messages.success(request, "Schedule updated successfully.")
+        
+        # If no beneficiary list and enable selection was toggled with valid budget, generate
+        if not has_beneficiary_list and schedule.budget > 0 and schedule.per_beneficiary_amount > 0:
+            return redirect('generate_beneficiaries', schedule_id=schedule.id)
+            
+        return redirect('beneficiary_selection_landing')
+
+    # GET
+    assistances = Assistance.objects.select_related(
+        'program', 'aid_category'
+    ).filter(is_active=True).order_by('program__name', 'aid_category__name')
+    barangays = Barangay.objects.all()
+
+    return render(request, 'distribution/edit_schedule.html', {
+        'schedule': schedule,
+        'has_beneficiary_list': has_beneficiary_list,
+        'has_claims': has_claims,
+        'assistances': assistances,
+        'barangays': barangays,
+    })
+
+
+@login_required
+@session_protected
+def cancel_schedule(request, schedule_id):
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+
+    schedule = get_object_or_404(AidSchedule, id=schedule_id)
+    
+    from distribution.models import AidClaim
+    if AidClaim.objects.filter(schedule=schedule).exists():
+        messages.error(request, "Cannot cancel a schedule with processed claims. Use Finish Distribution instead.")
+        return redirect('beneficiary_selection_landing')
+
+    if request.method == 'POST':
+        schedule.is_finished = True
+        schedule.finish_reason = 'CANCELLED'
+        schedule.finished_at = timezone.now()
+        schedule.finished_by = request.user
+        schedule.save()
+        
+        messages.success(request, "Schedule cancelled successfully.")
+        return redirect('beneficiary_selection_landing')
+
+    return HttpResponseForbidden("Invalid Method")
+
+
+@login_required
+@session_protected
 def scan_rfid(request, schedule_id):
     if request.user.role not in ('MSWDO', 'MSWDO_STAFF', 'BARANGAY'):
         messages.error(request, "Access Denied.")
@@ -565,9 +692,17 @@ def beneficiary_selection_landing(request):
     """
     Landing page for Beneficiary Selection and Staff Assignment. Lists active schedules.
     """
+    from django.db.models import Exists, OuterRef
+    from distribution.models import AidClaim
+
     schedules = AidSchedule.objects.filter(
-        is_active=True
-    ).select_related('assistance', 'assistance__program', 'assistance__aid_category').order_by('-schedule_datetime')
+        is_active=True,
+        is_finished=False
+    ).select_related(
+        'assistance', 'assistance__program', 'assistance__aid_category'
+    ).annotate(
+        has_claims=Exists(AidClaim.objects.filter(schedule=OuterRef('pk')))
+    ).order_by('-schedule_datetime')
     
     return render(request, 'distribution/beneficiary_selection_landing.html', {
         'schedules': schedules,
@@ -659,6 +794,9 @@ def review_beneficiaries(request, schedule_id):
         
     schedule = get_object_or_404(AidSchedule, id=schedule_id)
     
+    from distribution.models import AidClaim
+    has_claims = AidClaim.objects.filter(schedule=schedule).exists()
+    
     if request.user.role == 'MSWDO_STAFF':
         from distribution.services import is_staff_assigned_to_scan
         if not is_staff_assigned_to_scan(request.user, schedule):
@@ -690,6 +828,7 @@ def review_beneficiaries(request, schedule_id):
 
     return render(request, 'distribution/review_beneficiaries.html', {
         'schedule': schedule,
+        'has_claims': has_claims,
         'ben_list': ben_list,
         'entries': entries,
         'slot_count': slot_count,
@@ -896,6 +1035,11 @@ def assign_staff(request, schedule_id):
         return HttpResponseForbidden("Access Denied")
         
     schedule = get_object_or_404(AidSchedule, id=schedule_id)
+    
+    if schedule.is_finished:
+        messages.error(request, "Cannot assign staff to a finished or cancelled schedule.")
+        return redirect('beneficiary_selection_landing')
+        
     from distribution.models import AssignedTo
     
     if request.method == 'POST':

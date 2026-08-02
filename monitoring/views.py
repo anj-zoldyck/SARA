@@ -332,6 +332,7 @@ def schedule_status(request):
             'iso_datetime': s.schedule_datetime.isoformat() if s.schedule_datetime else None,
             'location': s.location,
             'barangay': str(s.barangay) if s.barangay else 'All Barangays',
+            'finish_reason': s.finish_reason,
             'is_assigned_or_open': is_staff_assigned_to_scan(request.user, s) if request.user.role == 'MSWDO_STAFF' else True,
         } for s in qs]
 
