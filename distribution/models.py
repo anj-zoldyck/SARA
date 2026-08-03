@@ -111,6 +111,10 @@ class GeneratedBeneficiary(models.Model):
     beneficiary_list = models.ForeignKey(GeneratedBeneficiaryList, on_delete=models.CASCADE, related_name='entries')
     household = models.ForeignKey('households.Household', on_delete=models.CASCADE, null=True, blank=True)
     family = models.ForeignKey('households.Family', on_delete=models.CASCADE, null=True, blank=True)
+    # For individual-based assistance, family_member specifies which individual within the household/family
+    # was selected for the beneficiary list. This enables precise member-level targeting in the kiosk.
+    family_member = models.ForeignKey('households.FamilyMember', on_delete=models.SET_NULL, null=True, blank=True,
+                                       help_text="Required for individual-based assistance to specify which member was selected")
     # Exactly one of household/family should be set, depending on assistance.beneficiary_type —
     # This mirrors the existing Household vs Family beneficiary_type distinction already used elsewhere
     # in this system (e.g. AidClaim.family_member being optional).
@@ -119,7 +123,10 @@ class GeneratedBeneficiary(models.Model):
 
     @property
     def display_name(self):
-        if self.family:
+        if self.family_member:
+            # For individual-based assistance, show the specific member
+            return f"{self.family_member.first_name} {self.family_member.last_name}"
+        elif self.family:
             return f"{self.family.family_name} Family"
         elif self.household:
             first_family = self.household.families.first()

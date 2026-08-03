@@ -5,8 +5,9 @@ from households.models import Zone, Household, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
 from distribution.models import AidSchedule, AssignedTo, AidClaim, GeneratedBeneficiaryList, GeneratedBeneficiary
 from distribution.services import is_staff_assigned_to_scan
-from distribution.views import scan_rfid, staff_walkin, search_eligible_candidates
+from distribution.views import scan_rfid, staff_walkin, search_eligible_candidates, finish_distribution
 from django.contrib.messages.storage.fallback import FallbackStorage
+from decimal import Decimal
 import json
 
 def add_messages(request):
@@ -513,16 +514,474 @@ class RFIDSearchExclusionTests(TestCase):
             middle_name='NoRFID',
             relationship='HEAD'
         )
-        
+
         # Update schedule to use individual assistance
         self.schedule.assistance = self.individual_assistance
         self.schedule.save()
-        
+
         request = self.factory.get(f'/search/{self.schedule.id}/', {'q': 'Senior NoRFID'})
         request.user = self.mswdo
         response = search_eligible_candidates(request, self.schedule.id)
-        
+
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)
         self.assertEqual(data['status'], 'success')
         self.assertEqual(len(data['results']), 0)
+
+
+class IndividualBeneficiaryListTargetingTestCase(TestCase):
+    """
+    Test Bug 1 fix: Individual-based assistance beneficiary lists should target specific members,
+    not all members in a household. The kiosk modal should only show members explicitly listed.
+    """
+
+    def setUp(self):
+        self.barangay = Barangay.objects.create(name='Test Barangay')
+        self.zone = Zone.objects.create(name='Zone 1', barangay=self.barangay)
+
+        self.household = Household.objects.create(
+            barangay=self.barangay,
+            zone=self.zone,
+            house_number='123',
+            land_use='RESIDENTIAL',
+            hazard_exposure='NONE'
+        )
+        self.family = Family.objects.create(
+            household=self.household,
+            family_name='Test Family',
+            rfid_uid='TEST_RFID',
+            is_active=True
+        )
+
+        # Create multiple family members
+        from datetime import date
+        self.member_senior = FamilyMember.objects.create(
+            family=self.family,
+            first_name='Senior',
+            last_name='Member',
+            birthdate=date(1950, 1, 1),
+            is_senior_citizen=True
+        )
+        self.member_adult = FamilyMember.objects.create(
+            family=self.family,
+            first_name='Adult',
+            last_name='Member',
+            birthdate=date(1980, 1, 1),
+            is_senior_citizen=False
+        )
+        self.member_child = FamilyMember.objects.create(
+            family=self.family,
+            first_name='Child',
+            last_name='Member',
+            birthdate=date(2010, 1, 1),
+            is_senior_citizen=False
+        )
+
+        self.mswdo = User.objects.create_user(
+            username='mswdo',
+            email='mswdo@test.com',
+            role='MSWDO',
+            password='pwd'
+        )
+
+        self.program = Program.objects.create(name='Test Program')
+        self.category = AidCategory.objects.create(program=self.program, name='Medical')
+
+        # Individual-based assistance with no demographic criteria
+        self.individual_assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='individual',
+            aid_type='CASH'
+        )
+
+        self.schedule = AidSchedule.objects.create(
+            assistance=self.individual_assistance,
+            schedule_datetime=timezone.now(),
+            location='Plaza',
+            is_active=True,
+            is_finished=False,
+            budget=Decimal('10000'),
+            per_beneficiary_amount=Decimal('1000')
+        )
+
+        self.factory = RequestFactory()
+
+    def test_beneficiary_list_targets_specific_member(self):
+        """
+        When a beneficiary list is generated for individual-based assistance,
+        only the specific member(s) selected should be eligible in the kiosk modal.
+        """
+        # Generate beneficiary list - should only select senior member due to age
+        ben_list = GeneratedBeneficiaryList.objects.create(
+            schedule=self.schedule,
+            generated_by=self.mswdo,
+            prioritization_strategy_used='LOWEST_INCOME_FIRST'
+        )
+
+        # Manually add only the senior member to the list (simulating generation)
+        GeneratedBeneficiary.objects.create(
+            beneficiary_list=ben_list,
+            household=self.household,
+            family_member=self.member_senior
+        )
+
+        # Simulate RFID scan
+        request = self.factory.post(f'/scan/{self.schedule.id}/', {'rfid_uid': 'TEST_RFID'})
+        add_messages(request)
+        request.user = self.mswdo
+        request.META['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest'
+
+        response = scan_rfid(request, self.schedule.id)
+        data = json.loads(response.content)
+
+        # Should return needs_selection with member data
+        self.assertEqual(data['status'], 'needs_selection')
+        self.assertEqual(len(data['members']), 3)
+
+        # Check member statuses
+        member_statuses = {m['id']: m['status'] for m in data['members']}
+
+        # Senior member should be eligible_unclaimed
+        self.assertEqual(member_statuses[self.member_senior.id], 'eligible_unclaimed')
+
+        # Other members should be not_listed
+        self.assertEqual(member_statuses[self.member_adult.id], 'not_listed')
+        self.assertEqual(member_statuses[self.member_child.id], 'not_listed')
+
+    def test_no_beneficiary_list_allows_generic_eligibility(self):
+        """
+        When no beneficiary list exists (open/ad-hoc distribution),
+        all eligible members should be selectable based on generic eligibility.
+        """
+        # No beneficiary list created
+
+        # Simulate RFID scan
+        request = self.factory.post(f'/scan/{self.schedule.id}/', {'rfid_uid': 'TEST_RFID'})
+        add_messages(request)
+        request.user = self.mswdo
+        request.META['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest'
+
+        response = scan_rfid(request, self.schedule.id)
+        data = json.loads(response.content)
+
+        # Should return needs_selection with member data
+        self.assertEqual(data['status'], 'needs_selection')
+        self.assertEqual(len(data['members']), 3)
+
+        # All members should be eligible_unclaimed (no demographic criteria)
+        member_statuses = {m['id']: m['status'] for m in data['members']}
+        for member_id in member_statuses:
+            self.assertEqual(member_statuses[member_id], 'eligible_unclaimed')
+
+
+class CategoryRestrictedAssistanceTestCase(TestCase):
+    """
+    Test Bug 2 fix: Category-restricted assistance (senior citizen / solo parent / PWD)
+    must only generate a beneficiary pool of that category.
+    """
+
+    def setUp(self):
+        self.barangay = Barangay.objects.create(name='Test Barangay')
+        self.zone = Zone.objects.create(name='Zone 1', barangay=self.barangay)
+
+        self.mswdo = User.objects.create_user(
+            username='mswdo',
+            email='mswdo@test.com',
+            role='MSWDO',
+            password='pwd'
+        )
+
+        self.program = Program.objects.create(name='Test Program')
+        self.category = AidCategory.objects.create(program=self.program, name='Senior Assistance')
+
+        # Senior-only assistance
+        self.senior_assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='individual',
+            aid_type='CASH',
+            requires_senior_citizen=True
+        )
+
+        # PWD-only assistance
+        self.pwd_assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='individual',
+            aid_type='CASH',
+            requires_pwd=True
+        )
+
+        self.factory = RequestFactory()
+
+    def test_senior_only_assistance_filters_non_seniors(self):
+        """
+        When assistance requires senior citizen, only senior members should be in the eligible pool.
+        """
+        from datetime import date
+        from programs.beneficiary_engine import get_eligible_pool
+
+        # Create household with mixed members
+        household = Household.objects.create(
+            barangay=self.barangay,
+            zone=self.zone,
+            house_number='123',
+            land_use='RESIDENTIAL',
+            hazard_exposure='NONE'
+        )
+        family = Family.objects.create(
+            household=household,
+            family_name='Mixed Family',
+            rfid_uid='MIXED_RFID',
+            is_active=True
+        )
+
+        senior = FamilyMember.objects.create(
+            family=family,
+            first_name='Senior',
+            last_name='Person',
+            birthdate=date(1950, 1, 1),
+            is_senior_citizen=True
+        )
+        adult = FamilyMember.objects.create(
+            family=family,
+            first_name='Adult',
+            last_name='Person',
+            birthdate=date(1980, 1, 1),
+            is_senior_citizen=False
+        )
+
+        # Get eligible pool for senior-only assistance
+        pool = get_eligible_pool(self.senior_assistance, self.barangay)
+
+        # Pool should contain FamilyMember objects
+        pool_ids = [m.id for m in pool]
+
+        # Senior should be in pool
+        self.assertIn(senior.id, pool_ids)
+
+        # Adult should NOT be in pool
+        self.assertNotIn(adult.id, pool_ids)
+
+    def test_pwd_only_assistance_filters_non_pwd(self):
+        """
+        When assistance requires PWD, only PWD members should be in the eligible pool.
+        """
+        from programs.beneficiary_engine import get_eligible_pool
+
+        # Create household with mixed members
+        household = Household.objects.create(
+            barangay=self.barangay,
+            zone=self.zone,
+            house_number='456',
+            land_use='RESIDENTIAL',
+            hazard_exposure='NONE'
+        )
+        family = Family.objects.create(
+            household=household,
+            family_name='PWD Family',
+            rfid_uid='PWD_RFID',
+            is_active=True
+        )
+
+        pwd_member = FamilyMember.objects.create(
+            family=family,
+            first_name='PWD',
+            last_name='Person',
+            is_pwd=True
+        )
+        non_pwd_member = FamilyMember.objects.create(
+            family=family,
+            first_name='NonPWD',
+            last_name='Person',
+            is_pwd=False
+        )
+
+        # Get eligible pool for PWD-only assistance
+        pool = get_eligible_pool(self.pwd_assistance, self.barangay)
+
+        # Pool should contain FamilyMember objects
+        pool_ids = [m.id for m in pool]
+
+        # PWD member should be in pool
+        self.assertIn(pwd_member.id, pool_ids)
+
+        # Non-PWD member should NOT be in pool
+        self.assertNotIn(non_pwd_member.id, pool_ids)
+
+
+class StaffAssignmentAccessControlTestCase(TestCase):
+    """
+    Test Bug 3 fix: MSWDO Staff should be consistently blocked from schedules
+    not assigned to them across all relevant views.
+    """
+
+    def setUp(self):
+        self.staff = User.objects.create_user(
+            username='staff',
+            email='staff@test.com',
+            role='MSWDO_STAFF',
+            password='pwd'
+        )
+        self.mswdo = User.objects.create_user(
+            username='mswdo',
+            email='mswdo@test.com',
+            role='MSWDO',
+            password='pwd'
+        )
+
+        self.barangay = Barangay.objects.create(name='Test Barangay')
+        self.zone = Zone.objects.create(name='Zone 1', barangay=self.barangay)
+
+        self.program = Program.objects.create(name='Test Program')
+        self.category = AidCategory.objects.create(program=self.program, name='Test Category')
+        self.assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='family',
+            aid_type='CASH'
+        )
+
+        # Schedule with NO assignments (open access)
+        self.open_schedule = AidSchedule.objects.create(
+            assistance=self.assistance,
+            schedule_datetime=timezone.now(),
+            location='Plaza',
+            is_active=True,
+            is_finished=False
+        )
+
+        # Schedule with assignments (restricted)
+        self.restricted_schedule = AidSchedule.objects.create(
+            assistance=self.assistance,
+            schedule_datetime=timezone.now(),
+            location='Plaza',
+            is_active=True,
+            is_finished=False
+        )
+        # Assign staff to a different barangay (not the one they'll try to access)
+        other_barangay = Barangay.objects.create(name='Other Barangay')
+        other_zone = Zone.objects.create(name='Other Zone', barangay=other_barangay)
+        AssignedTo.objects.create(
+            schedule=self.restricted_schedule,
+            staff=self.staff,
+            barangay=other_barangay,
+            zone=other_zone
+        )
+
+        self.factory = RequestFactory()
+
+    def test_finish_distribution_blocks_unassigned_staff(self):
+        """
+        MSWDO_STAFF without assignment should be blocked from finish_distribution.
+        """
+        # Staff tries to finish restricted schedule
+        request = self.factory.post(f'/finish/{self.restricted_schedule.id}/')
+        add_messages(request)
+        request.user = self.staff
+
+        response = finish_distribution(request, self.restricted_schedule.id)
+
+        # Should redirect to staff dashboard
+        self.assertEqual(response.status_code, 302)
+
+        # Should NOT finish the schedule
+        self.restricted_schedule.refresh_from_db()
+        self.assertFalse(self.restricted_schedule.is_finished)
+
+    def test_finish_distribution_allows_assigned_staff(self):
+        """
+        MSWDO_STAFF with assignment should be allowed to finish_distribution.
+        """
+        # Assign staff to the restricted schedule's barangay
+        AssignedTo.objects.create(
+            schedule=self.restricted_schedule,
+            staff=self.staff,
+            barangay=self.barangay,
+            zone=None
+        )
+
+        # Staff tries to finish restricted schedule
+        request = self.factory.post(f'/finish/{self.restricted_schedule.id}/')
+        add_messages(request)
+        request.user = self.staff
+
+        response = finish_distribution(request, self.restricted_schedule.id)
+
+        # Should redirect to staff dashboard
+        self.assertEqual(response.status_code, 302)
+
+        # Should finish the schedule
+        self.restricted_schedule.refresh_from_db()
+        self.assertTrue(self.restricted_schedule.is_finished)
+        self.assertEqual(self.restricted_schedule.finish_reason, 'FORCED')
+
+    def test_search_eligible_candidates_blocks_unassigned_staff(self):
+        """
+        MSWDO_STAFF without assignment should be blocked from search_eligible_candidates.
+        """
+        # Create beneficiary list for restricted schedule
+        ben_list = GeneratedBeneficiaryList.objects.create(
+            schedule=self.restricted_schedule,
+            generated_by=self.mswdo,
+            prioritization_strategy_used='RANDOM'
+        )
+
+        # Staff tries to search candidates for restricted schedule
+        request = self.factory.get(f'/search/{self.restricted_schedule.id}/', {'q': 'test'})
+        request.user = self.staff
+
+        response = search_eligible_candidates(request, self.restricted_schedule.id)
+
+        # Should return 403 error
+        self.assertEqual(response.status_code, 403)
+        data = json.loads(response.content)
+        self.assertEqual(data['status'], 'error')
+        self.assertIn('Access Denied', data['message'])
+
+    def test_search_eligible_candidates_allows_assigned_staff(self):
+        """
+        MSWDO_STAFF with assignment should be allowed to search_eligible_candidates.
+        """
+        # Create beneficiary list for restricted schedule
+        ben_list = GeneratedBeneficiaryList.objects.create(
+            schedule=self.restricted_schedule,
+            generated_by=self.mswdo,
+            prioritization_strategy_used='RANDOM'
+        )
+
+        # Assign staff to the restricted schedule's barangay
+        AssignedTo.objects.create(
+            schedule=self.restricted_schedule,
+            staff=self.staff,
+            barangay=self.barangay,
+            zone=None
+        )
+
+        # Staff tries to search candidates for restricted schedule
+        request = self.factory.get(f'/search/{self.restricted_schedule.id}/', {'q': 'test'})
+        request.user = self.staff
+
+        response = search_eligible_candidates(request, self.restricted_schedule.id)
+
+        # Should return success (even if no results)
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(data['status'], 'success')
+
+    def test_open_schedule_allows_any_staff(self):
+        """
+        Schedules with no assignments should be open to all MSWDO_STAFF.
+        """
+        # Staff tries to finish open schedule (no assignments)
+        request = self.factory.post(f'/finish/{self.open_schedule.id}/')
+        add_messages(request)
+        request.user = self.staff
+
+        response = finish_distribution(request, self.open_schedule.id)
+
+        # Should succeed
+        self.assertEqual(response.status_code, 302)
+        self.open_schedule.refresh_from_db()
+        self.assertTrue(self.open_schedule.is_finished)

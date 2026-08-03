@@ -170,27 +170,31 @@ def evaluate_family_against_rules(family, rules):
 
 def get_eligible_pool(assistance, barangay=None, current_schedule=None):
     """
-    Returns the full set of Households or Families (depending on
+    Returns the full set of Households, Families, or FamilyMembers (depending on
     assistance.beneficiary_type) that pass ALL active EligibilityRules
     for the given Assistance. This is the pool BEFORE prioritization/slot
     limiting is applied — Phase B will take this pool and narrow it down
     to the actual slot count using the prioritization strategy.
-    
-    Excludes any household/family already committed to another schedule's
+
+    For individual-based assistance, returns FamilyMember objects to enable
+    precise member-level targeting in beneficiary lists.
+
+    Excludes any household/family/member already committed to another schedule's
     ACTIVE (unfinished) GeneratedBeneficiaryList to prevent double-allocating
     limited budget slots to the same highest-ranked beneficiaries across
     concurrent distributions.
     """
     from distribution.models import GeneratedBeneficiary
+    from programs.eligibility import check_eligibility
     rules = assistance.eligibility_rules.filter(is_active=True)
     eligible_pool = []
-    
+
     if assistance.beneficiary_type == 'family':
         # Retrieve all families, then evaluate each using the family rules logic
         qs = Family.objects.all()
         if barangay:
             qs = qs.filter(household__barangay=barangay)
-            
+
         # Exclude families on any active schedule's beneficiary list (other than the current one)
         active_entries = GeneratedBeneficiary.objects.filter(
             beneficiary_list__schedule__is_finished=False,
@@ -200,89 +204,100 @@ def get_eligible_pool(assistance, barangay=None, current_schedule=None):
             active_entries = active_entries.exclude(beneficiary_list__schedule=current_schedule)
         excluded_ids = active_entries.values_list('family_id', flat=True)
         qs = qs.exclude(id__in=excluded_ids)
-        
+
         # RFID-registration check: exclude families without a registered RFID card.
         # A family without RFID cannot physically claim aid during distribution (claiming requires an RFID scan),
         # so including them in a generated list would waste a funded slot on someone who can't actually receive it.
         qs = qs.exclude(rfid_uid__isnull=True).exclude(rfid_uid='')
-        
+
         for family in qs:
             if evaluate_family_against_rules(family, rules):
                 eligible_pool.append(family)
     else:
-        # If assistance is individual-based, we return the eligible Households that match the rules.
-        # This groups the eligible individuals by their Household.
-        qs = Household.objects.all()
+        # For individual-based assistance, return eligible FamilyMember objects
+        # This enables precise member-level targeting in the kiosk
+        qs = FamilyMember.objects.select_related('family', 'family__household').filter(family__is_active=True)
         if barangay:
-            qs = qs.filter(barangay=barangay)
-            
-        # Exclude households on any active schedule's beneficiary list (other than the current one)
+            qs = qs.filter(family__household__barangay=barangay)
+
+        # Exclude members whose households are on any active schedule's beneficiary list (other than the current one)
         active_entries = GeneratedBeneficiary.objects.filter(
             beneficiary_list__schedule__is_finished=False,
             household__isnull=False
         )
         if current_schedule:
             active_entries = active_entries.exclude(beneficiary_list__schedule=current_schedule)
-        excluded_ids = active_entries.values_list('household_id', flat=True)
-        qs = qs.exclude(id__in=excluded_ids)
-        
-        # RFID-registration check: exclude households where NONE of their families have a registered RFID card.
-        # For individual-based assistance, beneficiaries claim via their family's shared RFID card.
-        # A household is eligible if at least one family has an RFID card (providing a path to claiming).
-        # Multiple eligible individual beneficiaries within the same family correctly share one RFID card
-        # — this is existing, working behavior in scan_rfid's member-selection flow and is NOT being changed here.
-        # We use Exists for efficient filtering without N+1 queries.
-        has_rfid_family = Family.objects.filter(
-            household=OuterRef('pk'),
-            rfid_uid__isnull=False
-        ).exclude(rfid_uid='')
-        qs = qs.annotate(has_rfid=Exists(has_rfid_family)).filter(has_rfid=True)
-        
-        for household in qs:
+        excluded_household_ids = active_entries.values_list('household_id', flat=True)
+        qs = qs.exclude(family__household_id__in=excluded_household_ids)
+
+        # RFID-registration check: exclude members from families without a registered RFID card
+        qs = qs.exclude(family__rfid_uid__isnull=True).exclude(family__rfid_uid='')
+
+        # For individual-based assistance, we need to check both:
+        # 1. Household-level rules (via evaluate_household_against_rules)
+        # 2. Individual member eligibility (via check_eligibility for age/PWD/solo parent/senior requirements)
+        for member in qs:
+            household = member.family.household
+            # First check household-level rules
             if evaluate_household_against_rules(household, rules):
-                eligible_pool.append(household)
-                
+                # Then check individual-level eligibility criteria
+                is_eligible, _ = check_eligibility(member, assistance)
+                if is_eligible:
+                    eligible_pool.append(member)
+
     return eligible_pool
 
 def rank_eligible_pool(pool, strategy):
     """
     Sorts/ranks the eligible pool according to the Assistance's
     prioritization_strategy.
-    
+
     - LOWEST_INCOME_FIRST: sort ascending by household/family income
       (Family income is computed dynamically as the aggregate sum of the monthly_income of all members in the family/household).
-    
+      For FamilyMember objects, uses the household's total income.
+
     - TYPHOON_PRIORITY: rank by vulnerability score (highest first).
-      Formula: 
+      Formula:
       +1 point if directly flood-exposed or in a flood-prone zone.
       +1 point for each special category condition met by any member (e.g. is_pwd, is_senior_citizen).
       This ensures the most vulnerable and marginalized populations are served first in disaster scenarios.
-      
-    - RANDOM: shuffle the pool randomly. 
-      We use Python's random.shuffle because the pool is already evaluated and loaded into memory as a Python list by get_eligible_pool(). 
+      For FamilyMember objects, includes the member's own category flags plus household-level exposure.
+
+    - RANDOM: shuffle the pool randomly.
+      We use Python's random.shuffle because the pool is already evaluated and loaded into memory as a Python list by get_eligible_pool().
       Using Django's .order_by('?') would require sending IDs back to the database and re-evaluating the QuerySet, which is inefficient and slow on large datasets.
     """
     if strategy == 'LOWEST_INCOME_FIRST':
         def get_income(item):
             if isinstance(item, Family):
                 return item.members.aggregate(total=Sum('monthly_income'))['total'] or 0
-            else:
+            elif isinstance(item, FamilyMember):
+                # For individual members, use their household's total income
+                return FamilyMember.objects.filter(family__household=item.family.household).aggregate(total=Sum('monthly_income'))['total'] or 0
+            else:  # Household
                 return FamilyMember.objects.filter(family__household=item).aggregate(total=Sum('monthly_income'))['total'] or 0
         return sorted(pool, key=get_income)
 
     elif strategy == 'TYPHOON_PRIORITY':
         def get_vulnerability_score(item):
             score = 0
-            household = item.household if isinstance(item, Family) else item
-            
+            if isinstance(item, Family):
+                household = item.household
+                members = item.members.all()
+            elif isinstance(item, FamilyMember):
+                household = item.family.household
+                members = [item]  # Just this member for individual-based
+            else:  # Household
+                household = item
+                members = FamilyMember.objects.filter(family__household=household)
+
             # +1 if directly flood exposed or in a flood-prone zone
             has_flood_exposure = household.hazard_exposure == 'FLOOD'
             in_flood_prone_zone = FloodProneArea.objects.filter(zone=household.zone).exists() if household.zone else False
             if has_flood_exposure or in_flood_prone_zone:
                 score += 1
-                
+
             # +1 for each special category flag across all members
-            members = item.members.all() if isinstance(item, Family) else FamilyMember.objects.filter(family__household=household)
             for member in members:
                 if member.is_pwd: score += 1
                 if member.is_senior_citizen: score += 1
@@ -290,9 +305,9 @@ def rank_eligible_pool(pool, strategy):
                 if member.is_indigenous: score += 1
                 if getattr(member, 'is_out_of_school_youth', False): score += 1
                 if getattr(member, 'is_out_of_school_children', False): score += 1
-                
+
             return score
-            
+
         return sorted(pool, key=get_vulnerability_score, reverse=True)
 
     elif strategy == 'RANDOM':

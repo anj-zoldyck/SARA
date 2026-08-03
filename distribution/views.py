@@ -420,17 +420,11 @@ def scan_rfid(request, schedule_id):
                         ben_list = aid_schedule.beneficiary_list
                         is_finished = True
                         claimed_member_ids = set(AidClaim.objects.filter(schedule=aid_schedule, family_member__isnull=False).values_list('family_member_id', flat=True))
-                        for entry in ben_list.entries.select_related('household').all():
-                            if not is_finished: break
-                            if entry.household:
-                                for fam in entry.household.families.all():
-                                    for m in fam.members.all():
-                                        is_el, _ = check_eligibility(m, assistance)
-                                        if is_el and m.id not in claimed_member_ids:
-                                            is_finished = False
-                                            break
-                                    if not is_finished: break
-                        if is_finished and ben_list.entries.exists():
+                        for entry in ben_list.entries.filter(family_member__isnull=False):
+                            if entry.family_member_id not in claimed_member_ids:
+                                is_finished = False
+                                break
+                        if is_finished and ben_list.entries.filter(family_member__isnull=False).exists():
                             aid_schedule.is_finished = True
                             aid_schedule.finished_at = timezone.now()
                             aid_schedule.finish_reason = 'COMPLETED'
@@ -458,19 +452,35 @@ def scan_rfid(request, schedule_id):
                     family_member__isnull=False
                 ).values_list('family_member_id', flat=True)
 
+                # If a beneficiary list exists, get the specific family_member(s) targeted for this household
+                listed_member_ids = []
+                if hasattr(aid_schedule, 'beneficiary_list'):
+                    ben_list = aid_schedule.beneficiary_list
+                    listed_member_ids = list(ben_list.entries.filter(
+                        household=family.household,
+                        family_member__isnull=False
+                    ).values_list('family_member_id', flat=True))
+
                 member_data = []
                 for m in all_members:
-                    is_eligible, reasons = check_eligibility(m, assistance)
-
-                    if not is_eligible:
-                        status = 'ineligible'
-                        reason_str = ", ".join(reasons)
-                    elif m.id in claimed_member_ids:
-                        status = 'eligible_claimed'
-                        reason_str = "Already Claimed"
+                    # Check if this member is on the beneficiary list (if one exists)
+                    if listed_member_ids and m.id not in listed_member_ids:
+                        # Member not on the beneficiary list
+                        status = 'not_listed'
+                        reason_str = 'Not selected on beneficiary list'
                     else:
-                        status = 'eligible_unclaimed'
-                        reason_str = "Eligible"
+                        # Member is on the list (or no list exists), check eligibility
+                        is_eligible, reasons = check_eligibility(m, assistance)
+
+                        if not is_eligible:
+                            status = 'ineligible'
+                            reason_str = ", ".join(reasons)
+                        elif m.id in claimed_member_ids:
+                            status = 'eligible_claimed'
+                            reason_str = "Already Claimed"
+                        else:
+                            status = 'eligible_unclaimed'
+                            reason_str = "Eligible"
 
                     member_data.append({
                         'id': m.id,
@@ -776,8 +786,14 @@ def generate_beneficiaries(request, schedule_id):
         if is_family:
             entries.append(GeneratedBeneficiary(beneficiary_list=ben_list, family=ben))
         else:
-            entries.append(GeneratedBeneficiary(beneficiary_list=ben_list, household=ben))
-            
+            # For individual-based assistance, ben is now a FamilyMember object
+            # Store both the household (for household-level checks) and the specific family_member
+            entries.append(GeneratedBeneficiary(
+                beneficiary_list=ben_list,
+                household=ben.family.household,
+                family_member=ben
+            ))
+
     GeneratedBeneficiary.objects.bulk_create(entries)
     
     request.session['just_generated_count'] = len(selected_beneficiaries)
@@ -807,7 +823,7 @@ def review_beneficiaries(request, schedule_id):
         return redirect('mswdo_dashboard')
         
     ben_list = schedule.beneficiary_list
-    entries = ben_list.entries.select_related('family', 'household', 'family__household__barangay', 'household__barangay')
+    entries = ben_list.entries.select_related('family', 'household', 'family_member', 'family__household__barangay', 'household__barangay')
     
     from programs.beneficiary_engine import calculate_slot_count, get_eligible_pool
     slot_count = calculate_slot_count(schedule.budget, schedule.per_beneficiary_amount)
@@ -815,13 +831,14 @@ def review_beneficiaries(request, schedule_id):
     # Get available candidates for manual override
     pool = get_eligible_pool(schedule.assistance, schedule.barangay, current_schedule=schedule)
     available_candidates = []
-    
+
     is_family = schedule.assistance.beneficiary_type == 'family'
     if is_family:
         existing_ids = entries.values_list('family_id', flat=True)
         available_candidates = [ben for ben in pool if ben.id not in existing_ids]
     else:
-        existing_ids = entries.values_list('household_id', flat=True)
+        # For individual-based assistance, pool contains FamilyMember objects
+        existing_ids = entries.values_list('family_member_id', flat=True)
         available_candidates = [ben for ben in pool if ben.id not in existing_ids]
 
     just_generated_count = request.session.pop('just_generated_count', None)
@@ -865,17 +882,17 @@ def manual_override_beneficiary(request, schedule_id):
         
         if action == 'add':
             is_family = schedule.assistance.beneficiary_type == 'family'
-            
+
             # Read an array of IDs from the POST request (can handle one or many)
             added_count = 0
-            
+
             if is_family:
                 family_ids = request.POST.getlist('family_ids[]')
                 if not family_ids:
                     # fallback to singular for robustness
                     single_id = request.POST.get('family_id')
                     if single_id: family_ids = [single_id]
-                
+
                 if family_ids:
                     entries_to_create = []
                     for fid in family_ids:
@@ -887,29 +904,34 @@ def manual_override_beneficiary(request, schedule_id):
                                 added_by=request.user
                             ))
                             added_count += 1
-                    
+
                     if entries_to_create:
                         GeneratedBeneficiary.objects.bulk_create(entries_to_create)
-                        
+
             else:
-                household_ids = request.POST.getlist('household_ids[]')
-                if not household_ids:
+                # For individual-based assistance, add specific family members
+                member_ids = request.POST.getlist('member_ids[]')
+                if not member_ids:
                     # fallback to singular for robustness
-                    single_id = request.POST.get('household_id')
-                    if single_id: household_ids = [single_id]
-                    
-                if household_ids:
+                    single_id = request.POST.get('member_id')
+                    if single_id: member_ids = [single_id]
+
+                if member_ids:
                     entries_to_create = []
-                    for hid in household_ids:
-                        if not ben_list.entries.filter(household_id=hid).exists():
-                            entries_to_create.append(GeneratedBeneficiary(
-                                beneficiary_list=ben_list,
-                                household_id=hid,
-                                added_manually=True,
-                                added_by=request.user
-                            ))
-                            added_count += 1
-                    
+                    from households.models import FamilyMember
+                    for mid in member_ids:
+                        if not ben_list.entries.filter(family_member_id=mid).exists():
+                            member = FamilyMember.objects.select_related('family', 'family__household').filter(id=mid).first()
+                            if member:
+                                entries_to_create.append(GeneratedBeneficiary(
+                                    beneficiary_list=ben_list,
+                                    household=member.family.household,
+                                    family_member=member,
+                                    added_manually=True,
+                                    added_by=request.user
+                                ))
+                                added_count += 1
+
                     if entries_to_create:
                         GeneratedBeneficiary.objects.bulk_create(entries_to_create)
             
@@ -937,10 +959,16 @@ def search_eligible_candidates(request, schedule_id):
     """
     if request.user.role not in ('MSWDO', 'MSWDO_STAFF'):
         return JsonResponse({'status': 'error', 'message': 'Access Denied'}, status=403)
-        
+
     schedule = get_object_or_404(AidSchedule, id=schedule_id)
+
+    # Staff assignment check for MSWDO_STAFF
+    if request.user.role == 'MSWDO_STAFF':
+        if not is_staff_assigned_to_scan(request.user, schedule):
+            return JsonResponse({'status': 'error', 'message': 'Access Denied — You are not assigned to this distribution.'}, status=403)
+
     q = request.GET.get('q', '').strip().lower()
-    
+
     if not hasattr(schedule, 'beneficiary_list'):
         return JsonResponse({'status': 'error', 'message': 'No list generated yet.'}, status=400)
         
@@ -952,11 +980,11 @@ def search_eligible_candidates(request, schedule_id):
     
     is_family = schedule.assistance.beneficiary_type == 'family'
     results = []
-    
+
     if is_family:
         existing_ids = entries.values_list('family_id', flat=True)
         available = [ben for ben in pool if ben.id not in existing_ids]
-        
+
         for cand in available:
             # Split query into words and require ALL words to match
             words = q.split() if q else []
@@ -984,40 +1012,38 @@ def search_eligible_candidates(request, schedule_id):
                         'is_family': True
                     })
     else:
-        existing_ids = entries.values_list('household_id', flat=True)
+        # For individual-based assistance, pool contains FamilyMember objects
+        existing_ids = entries.values_list('family_member_id', flat=True)
         available = [ben for ben in pool if ben.id not in existing_ids]
-        
+
         for cand in available:
-            first_family = cand.families.first()
-            head_member = first_family.head_member if first_family else None
-            if not head_member and first_family:
-                head_member = first_family.members.first()
-                
-            head = f"{head_member.first_name} {head_member.last_name}" if head_member else "No Head"
-            
+            # cand is now a FamilyMember object
+            name = f"{cand.first_name} {cand.last_name}"
+            barangay_name = cand.family.household.barangay.name if cand.family.household.barangay else "No Barangay"
+
             # Split query into words and require ALL words to match
             words = q.split() if q else []
             if not words:
                 # No query - include all available candidates
                 results.append({
                     'id': cand.id,
-                    'name': head,
-                    'subtitle': cand.barangay.name if cand.barangay else "No Barangay",
+                    'name': name,
+                    'subtitle': barangay_name,
                     'is_family': False
                 })
             else:
-                # Check if all words match in head name or barangay
-                head_lower = head.lower()
-                barangay_name = cand.barangay.name.lower() if cand.barangay else ""
+                # Check if all words match in member name or barangay
+                name_lower = name.lower()
+                barangay_lower = barangay_name.lower()
                 all_words_match = all(
-                    word in head_lower or word in barangay_name
+                    word in name_lower or word in barangay_lower
                     for word in words
                 )
                 if all_words_match:
                     results.append({
                         'id': cand.id,
-                        'name': head,
-                        'subtitle': cand.barangay.name if cand.barangay else "No Barangay",
+                        'name': name,
+                        'subtitle': barangay_name,
                         'is_family': False
                     })
                 
@@ -1117,9 +1143,15 @@ def assign_staff(request, schedule_id):
 def finish_distribution(request, schedule_id):
     if request.user.role not in ('MSWDO', 'MSWDO_STAFF'):
         return HttpResponseForbidden("Access Denied")
-        
+
     schedule = get_object_or_404(AidSchedule, id=schedule_id)
-    
+
+    # Staff assignment check for MSWDO_STAFF
+    if request.user.role == 'MSWDO_STAFF':
+        if not is_staff_assigned_to_scan(request.user, schedule):
+            messages.error(request, "Access Denied — You are not assigned to process claims for this distribution.")
+            return redirect('staff_dashboard')
+
     if request.method == 'POST':
         schedule.is_finished = True
         schedule.finished_at = timezone.now()
@@ -1130,7 +1162,7 @@ def finish_distribution(request, schedule_id):
         if request.user.role == 'MSWDO':
             return redirect('mswdo_dashboard')
         return redirect('staff_dashboard')
-        
+
     return HttpResponseForbidden("Invalid Method")
 
 @login_required
