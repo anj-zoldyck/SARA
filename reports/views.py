@@ -1,4 +1,3 @@
-
 from urllib import request
 from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.contrib.auth.decorators import login_required
@@ -31,6 +30,8 @@ from django_otp.plugins.otp_email.models import EmailDevice
 from django.urls import reverse
 from django.core.cache import cache
 import json
+
+from core.audit_utils import log_action
 
 User = get_user_model()
 
@@ -142,11 +143,12 @@ def generate_summary_report(request):
     pisa_status = pisa.CreatePDF(html, dest=response)
     
     if not pisa_status.err:
-        ReportGenerationLog.objects.create(
+        report_log = ReportGenerationLog.objects.create(
             report_type='SUMMARY',
             period_label=data['period_label'],
             generated_by=request.user
         )
+        log_action(request.user, 'REPORT_GENERATED', target=report_log, description=f"Generated SUMMARY report for {data['period_label']}")
         return response
     return HttpResponse("Error generating PDF", status=500)
 
@@ -204,10 +206,11 @@ def generate_beneficiary_list_report(request):
     
     from django.utils.dateformat import DateFormat
     period_label = f"{DateFormat(start_date).format('F Y')} to {DateFormat(end_date).format('F Y')}"
-    ReportGenerationLog.objects.create(
+    report_log = ReportGenerationLog.objects.create(
         report_type='BENEFICIARY_LIST',
         period_label=period_label,
         generated_by=request.user
     )
+    log_action(request.user, 'REPORT_GENERATED', target=report_log, description=f"Generated BENEFICIARY_LIST report for {period_label}")
     
     return response

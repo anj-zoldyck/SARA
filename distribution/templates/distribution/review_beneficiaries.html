@@ -103,16 +103,28 @@
                   <i class="bi bi-speedometer2"></i> Dashboard
               </a>
               <i class="bi bi-chevron-right breadcrumb-sep"></i>
-              <a href="{% url 'beneficiary_selection_landing' %}" class="breadcrumb-link">Manage Schedules</a>
-              <i class="bi bi-chevron-right breadcrumb-sep"></i>
               <span class="breadcrumb-current">Review List</span>
             {% endif %}
         </div>
-        <h1 class="dash-page-title">Beneficiary List</h1>
+        <h1 class="dash-page-title">{{ schedule.assistance.program.name }} › {{ schedule.assistance.aid_category.name }}</h1>
         <p class="dash-page-sub">
-            <i class="bi bi-calendar-event me-1"></i>
-            {{ schedule.assistance.program.name }} › {{ schedule.assistance.aid_category.name }}
+            Beneficiary List Review
         </p>
+        {% if schedule %}
+        <p class="text-muted small mb-0">
+            {% if schedule.created_by %}
+            Created by {{ schedule.created_by.get_full_name|default:schedule.created_by.username }} on {{ schedule.created_at|date:"M d, Y H:i" }}
+            {% if schedule.last_edited_by and schedule.last_edited_by != schedule.created_by %}
+            · Last edited by {{ schedule.last_edited_by.get_full_name|default:schedule.last_edited_by.username }} on {{ schedule.updated_at|date:"M d, Y H:i" }}
+            {% elif schedule.updated_at != schedule.created_at %}
+            · Last edited on {{ schedule.updated_at|date:"M d, Y H:i" }}
+            {% endif %}
+            {% else %}
+            Created on {{ schedule.created_at|date:"M d, Y H:i" }}
+            {% endif %}
+        </p>
+        {% endif %}
+    </div>
     </div>
     <div class="dash-header-actions">
       {% if request.user.role == 'MSWDO_STAFF' %}

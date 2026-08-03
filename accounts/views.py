@@ -32,6 +32,8 @@ from django.urls import reverse
 from django.core.cache import cache
 import json
 
+from core.audit_utils import log_action
+
 User = get_user_model()
 
 
@@ -65,9 +67,11 @@ def login_view(request):
                 # Use generic message to prevent account enumeration - attackers cannot distinguish
                 # "this email exists but is deactivated" from "this email doesn't exist" or "wrong password"
                 messages.error(request, "Invalid username or password.")
+                log_action(None, 'LOGIN_FAILURE', description=f"Failed login attempt for username: {username} (account deactivated)", ip_address=ip)
             else:
                 cache.delete(cache_key)  # Reset attempts on successful login
                 login(request, user)
+                log_action(user, 'LOGIN_SUCCESS', description=f"User {username} logged in successfully", ip_address=ip)
                 if user.must_change_password:
                     response = redirect('force_password_change')
                 else:
@@ -83,6 +87,7 @@ def login_view(request):
             # Increment failed attempts, expire after 60 seconds
             cache.set(cache_key, attempts + 1, timeout=60)
             messages.error(request, "Invalid username or password.")
+            log_action(None, 'LOGIN_FAILURE', description=f"Failed login attempt for username: {username} (invalid credentials)", ip_address=ip)
 
     response = render(request, 'accounts/login.html')
     response['Cache-Control'] = 'no-store'
@@ -90,8 +95,12 @@ def login_view(request):
 
 
 def logout_view(request):
+    user = request.user if request.user.is_authenticated else None
     logout(request)
     request.session.flush()
+
+    if user:
+        log_action(user, 'LOGOUT', description=f"User {user.username} logged out")
 
     response = HttpResponseRedirect(reverse('landing'))
     #Aggressively kill the cache on the redirect itself
@@ -147,6 +156,7 @@ def create_user(request):
             user.is_active = True
             user.must_change_password = True
             user.save()
+            log_action(request.user, 'USER_CREATED', target=user, description=f"Created user {user.username} with role {user.role}")
             return render(request, 'accounts/create_user_success.html', {
                 'created_user': user,
                 'temp_password': temp_password,
@@ -198,6 +208,7 @@ def deactivate_user(request, user_id):
     user_obj = get_object_or_404(User, id=user_id, role__in=['BARANGAY', 'MSWDO_STAFF'])
     user_obj.is_active = False
     user_obj.save()
+    log_action(request.user, 'USER_DEACTIVATED', target=user_obj, description=f"Deactivated user {user_obj.username}")
     
     return redirect('user_accounts')
 
@@ -211,6 +222,7 @@ def activate_user_account(request, user_id):
     user_obj = get_object_or_404(User, id=user_id, role__in=['BARANGAY', 'MSWDO_STAFF'])
     user_obj.is_active = True
     user_obj.save()
+    log_action(request.user, 'USER_ACTIVATED', target=user_obj, description=f"Activated user {user_obj.username}")
 
     return redirect('user_accounts')
 
@@ -251,14 +263,18 @@ def user_accounts(request):
 def verify_otp(request):
     if request.method == 'POST':
         otp_token = request.POST.get('otp_token')
-        user = request.session.get('pre_2fa_user_id')
+        user_id = request.session.get('pre_2fa_user_id')
+        ip = request.META.get('REMOTE_ADDR')
 
-        device = EmailDevice.objects.filter(user_id=user, confirmed=True).first()
+        device = EmailDevice.objects.filter(user_id=user_id, confirmed=True).first()
         if device and device.verify_token(otp_token):
-            login(request, get_user_model().objects.get(pk=user),
-                  backend='accounts.backends.EmailBackend')
+            user = get_user_model().objects.get(pk=user_id)
+            login(request, user, backend='accounts.backends.EmailBackend')
+            log_action(user, 'OTP_SUCCESS', description=f"User {user.username} verified OTP successfully", ip_address=ip)
             return redirect('dashboard')
         else:
+            user = get_user_model().objects.filter(pk=user_id).first()
+            log_action(user, 'OTP_FAILURE', description=f"Failed OTP verification for user_id: {user_id}", ip_address=ip)
             return render(request, 'accounts/verify_otp.html', {'error': 'Invalid OTP'})
 
     return render(request, 'accounts/verify_otp.html')

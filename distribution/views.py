@@ -30,6 +30,8 @@ from django.urls import reverse
 from django.core.cache import cache
 import json
 
+from core.audit_utils import log_action
+
 User = get_user_model()
 
 
@@ -94,8 +96,10 @@ def schedule_distribution(request):
             location=location,
             barangay=barangay,
             budget=budget if enable_selection else Decimal('0'),
-            per_beneficiary_amount=per_beneficiary_amount if enable_selection else Decimal('0')
+            per_beneficiary_amount=per_beneficiary_amount if enable_selection else Decimal('0'),
+            created_by=request.user
         )
+        log_action(request.user, 'SCHEDULE_CREATED', target=schedule, description=f"Created schedule for {assistance} at {location}")
 
         if enable_selection and schedule.budget > Decimal('0') and schedule.per_beneficiary_amount > Decimal('0'):
             return redirect('generate_beneficiaries', schedule_id=schedule.id)
@@ -195,7 +199,9 @@ def edit_schedule(request, schedule_id):
             # (they are disabled in HTML but we validate here to be safe)
             pass
 
+        schedule.last_edited_by = request.user
         schedule.save()
+        log_action(request.user, 'SCHEDULE_EDITED', target=schedule, description=f"Edited schedule {schedule.id}")
         messages.success(request, "Schedule updated successfully.")
         
         # If no beneficiary list and enable selection was toggled with valid budget, generate
@@ -238,6 +244,7 @@ def cancel_schedule(request, schedule_id):
         schedule.finished_at = timezone.now()
         schedule.finished_by = request.user
         schedule.save()
+        log_action(request.user, 'SCHEDULE_CANCELLED', target=schedule, description=f"Cancelled schedule {schedule.id}")
         
         messages.success(request, "Schedule cancelled successfully.")
         return redirect('beneficiary_selection_landing')
@@ -272,6 +279,7 @@ def scan_rfid(request, schedule_id):
     # This acts as a hard block against direct URL access.
     # If the user is unassigned to this schedule, they cannot access the kiosk view at all.
     if not is_staff_assigned_to_scan(request.user, aid_schedule):
+        log_action(request.user, 'ACCESS_DENIED_SCAN', target=aid_schedule, description=f"Access denied to scan_rfid for schedule {aid_schedule.id} - user not assigned")
         messages.error(request, "Access Denied — You are not assigned to process claims for this distribution.")
         if request.user.role == 'MSWDO':
             return redirect('mswdo_dashboard')
@@ -337,6 +345,7 @@ def scan_rfid(request, schedule_id):
         # Check if the staff member is assigned to process claims for this schedule/location.
         # This is independent of the beneficiary list check. Both can coexist.
         if not is_staff_assigned_to_scan(request.user, aid_schedule, family.household):
+            log_action(request.user, 'ACCESS_DENIED_SCAN', target=aid_schedule, description=f"Access denied to process claim for {family.family_name} - user not assigned to location")
             error = "You are not assigned to process claims for this location."
             if is_ajax:
                 return JsonResponse({'status': 'error', 'message': error})
@@ -355,13 +364,14 @@ def scan_rfid(request, schedule_id):
                 if is_ajax:
                     return JsonResponse({'status': 'error', 'message': error})
             else:
-                AidClaim.objects.create(
+                claim = AidClaim.objects.create(
                     family=family,
                     assistance=assistance,
                     schedule=aid_schedule,
                     created_by=request.user,
                     claim_type='DISTRIBUTION',
                 )
+                log_action(request.user, 'CLAIM_RFID', target=claim, description=f"RFID claim processed for {family.family_name} via schedule {aid_schedule.id}")
                 success = f"{family.family_name} successfully claimed {assistance.aid_category.name}."
                 
                 # Completion Check
@@ -375,6 +385,7 @@ def scan_rfid(request, schedule_id):
                         aid_schedule.finished_at = timezone.now()
                         aid_schedule.finish_reason = 'COMPLETED'
                         aid_schedule.save()
+                        log_action(request.user, 'SCHEDULE_AUTO_FINISHED', target=aid_schedule, description=f"Auto finished schedule {aid_schedule.id} (all beneficiaries claimed)")
                         distribution_just_finished = True
                         
                 if is_ajax:
@@ -404,7 +415,7 @@ def scan_rfid(request, schedule_id):
                     if is_ajax:
                         return JsonResponse({'status': 'error', 'message': error})
                 else:
-                    AidClaim.objects.create(
+                    claim = AidClaim.objects.create(
                         family=family,
                         family_member=member,
                         assistance=assistance,
@@ -412,6 +423,7 @@ def scan_rfid(request, schedule_id):
                         created_by=request.user,
                         claim_type='DISTRIBUTION',
                     )
+                    log_action(request.user, 'CLAIM_RFID', target=claim, description=f"RFID claim processed for {member.first_name} {member.last_name} via schedule {aid_schedule.id}")
                     success = f"{member.first_name} {member.last_name} successfully claimed {assistance.aid_category.name}."
                     
                     # Completion Check
@@ -429,6 +441,7 @@ def scan_rfid(request, schedule_id):
                             aid_schedule.finished_at = timezone.now()
                             aid_schedule.finish_reason = 'COMPLETED'
                             aid_schedule.save()
+                            log_action(request.user, 'SCHEDULE_AUTO_FINISHED', target=aid_schedule, description=f"Auto finished schedule {aid_schedule.id} (all beneficiaries claimed)")
                             distribution_just_finished = True
 
                     if is_ajax:
@@ -682,7 +695,7 @@ def staff_walkin_claim(request):
                 'message': 'This resident has already received this assistance today.'
             }, status=400)
             
-        AidClaim.objects.create(
+        claim = AidClaim.objects.create(
             family=member.family,
             family_member=member,
             assistance=assistance,
@@ -690,6 +703,7 @@ def staff_walkin_claim(request):
             claim_type='WALK_IN',
             created_by=request.user,
         )
+        log_action(request.user, 'CLAIM_WALKIN', target=claim, description=f"Walk-in claim processed for {member.first_name} {member.last_name}")
         return JsonResponse({'status': 'success', 'message': f'Walk-in claim recorded for {member.first_name} {member.last_name}.'})
         
     return JsonResponse({'status': 'error', 'message': 'Invalid request.'}, status=400)
@@ -778,6 +792,7 @@ def generate_beneficiaries(request, schedule_id):
         generated_by=request.user,
         prioritization_strategy_used=schedule.assistance.prioritization_strategy
     )
+    log_action(request.user, 'BENEFICIARY_LIST_GENERATED', target=ben_list, description=f"Generated beneficiary list for schedule {schedule.id} using {schedule.assistance.prioritization_strategy} strategy")
     
     # Create individual entries
     entries = []
@@ -816,6 +831,7 @@ def review_beneficiaries(request, schedule_id):
     if request.user.role == 'MSWDO_STAFF':
         from distribution.services import is_staff_assigned_to_scan
         if not is_staff_assigned_to_scan(request.user, schedule):
+            log_action(request.user, 'ACCESS_DENIED_BENEFICIARY', target=schedule, description=f"Access denied to review_beneficiaries for schedule {schedule.id} - user not assigned")
             return HttpResponseForbidden("Access Denied — You are not assigned to this distribution.")
     
     if not hasattr(schedule, 'beneficiary_list'):
@@ -907,6 +923,7 @@ def manual_override_beneficiary(request, schedule_id):
 
                     if entries_to_create:
                         GeneratedBeneficiary.objects.bulk_create(entries_to_create)
+                        log_action(request.user, 'BENEFICIARY_MANUAL_ADD', target=ben_list, description=f"Manually added {added_count} beneficiaries to schedule {schedule.id}")
 
             else:
                 # For individual-based assistance, add specific family members
@@ -934,6 +951,7 @@ def manual_override_beneficiary(request, schedule_id):
 
                     if entries_to_create:
                         GeneratedBeneficiary.objects.bulk_create(entries_to_create)
+                        log_action(request.user, 'BENEFICIARY_MANUAL_ADD', target=ben_list, description=f"Manually added {added_count} beneficiaries to schedule {schedule.id}")
             
             if added_count > 0:
                 messages.success(request, f"Successfully added {added_count} manual overrides.")
@@ -944,6 +962,7 @@ def manual_override_beneficiary(request, schedule_id):
             entry_id = request.POST.get('entry_id')
             entry = get_object_or_404(GeneratedBeneficiary, id=entry_id, beneficiary_list=ben_list)
             entry.delete()
+            log_action(request.user, 'BENEFICIARY_MANUAL_REMOVE', target=ben_list, description=f"Removed beneficiary {entry.display_name} from schedule {schedule.id}")
             messages.success(request, "Beneficiary removed from the list.")
             
         return redirect('review_beneficiaries', schedule_id=schedule.id)
@@ -965,6 +984,7 @@ def search_eligible_candidates(request, schedule_id):
     # Staff assignment check for MSWDO_STAFF
     if request.user.role == 'MSWDO_STAFF':
         if not is_staff_assigned_to_scan(request.user, schedule):
+            log_action(request.user, 'ACCESS_DENIED_SEARCH', target=schedule, description=f"Access denied to search_eligible_candidates for schedule {schedule.id} - user not assigned")
             return JsonResponse({'status': 'error', 'message': 'Access Denied — You are not assigned to this distribution.'}, status=403)
 
     q = request.GET.get('q', '').strip().lower()
@@ -1149,6 +1169,7 @@ def finish_distribution(request, schedule_id):
     # Staff assignment check for MSWDO_STAFF
     if request.user.role == 'MSWDO_STAFF':
         if not is_staff_assigned_to_scan(request.user, schedule):
+            log_action(request.user, 'ACCESS_DENIED_FINISH', target=schedule, description=f"Access denied to finish_distribution for schedule {schedule.id} - user not assigned")
             messages.error(request, "Access Denied — You are not assigned to process claims for this distribution.")
             return redirect('staff_dashboard')
 
@@ -1158,6 +1179,7 @@ def finish_distribution(request, schedule_id):
         schedule.finished_by = request.user
         schedule.finish_reason = 'FORCED'
         schedule.save()
+        log_action(request.user, 'SCHEDULE_FORCE_FINISHED', target=schedule, description=f"Force finished schedule {schedule.id}")
         messages.success(request, "Distribution has been manually finished.")
         if request.user.role == 'MSWDO':
             return redirect('mswdo_dashboard')

@@ -28,6 +28,20 @@
       <p class="dash-page-sub">
         Active Distribution
       </p>
+      {% if aid_schedule %}
+      <p class="text-muted small mb-0">
+        {% if aid_schedule.created_by %}
+        Created by {{ aid_schedule.created_by.get_full_name|default:aid_schedule.created_by.username }} on {{ aid_schedule.created_at|date:"M d, Y H:i" }}
+        {% if aid_schedule.last_edited_by and aid_schedule.last_edited_by != aid_schedule.created_by %}
+        · Last edited by {{ aid_schedule.last_edited_by.get_full_name|default:aid_schedule.last_edited_by.username }} on {{ aid_schedule.updated_at|date:"M d, Y H:i" }}
+        {% elif aid_schedule.updated_at != aid_schedule.created_at %}
+        · Last edited on {{ aid_schedule.updated_at|date:"M d, Y H:i" }}
+        {% endif %}
+        {% else %}
+        Created on {{ aid_schedule.created_at|date:"M d, Y H:i" }}
+        {% endif %}
+      </p>
+      {% endif %}
     </div>
 
     <div class="d-flex align-items-center gap-3">

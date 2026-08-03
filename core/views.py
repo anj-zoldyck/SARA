@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.utils import timezone
 from datetime import date
 from django.db.models import Count, Q
+from django.core.paginator import Paginator
 
 from accounts.decorators import session_protected
 from accounts.models import User, Barangay
@@ -30,6 +31,7 @@ from django.core.cache import cache
 import json
 import calendar
 from reports.analytics_utils import get_category_claims_data, get_unique_beneficiaries_count
+from core.models import AuditLog
 
 User = get_user_model()
 
@@ -240,5 +242,84 @@ def staff_dashboard(request):
     }
 
     return render(request, 'core/staff_dashboard.html', context)
+
+
+@login_required(login_url='login')
+@session_protected
+def audit_log_view(request):
+    """
+    MSWDO Admin-only view for reviewing system audit logs.
+    Shows chronological list with filters for actor, action type, date range, and barangay.
+    """
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+
+    logs = AuditLog.objects.select_related('actor').all()
+
+    # Filters
+    actor_filter = request.GET.get('actor')
+    action_type_filter = request.GET.get('action_type')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    barangay_filter = request.GET.get('barangay')
+
+    if actor_filter:
+        logs = logs.filter(actor_id=actor_filter)
+
+    if action_type_filter:
+        logs = logs.filter(action_type=action_type_filter)
+
+    if date_from:
+        try:
+            from django.utils.dateparse import parse_datetime
+            dt = parse_datetime(date_from)
+            if dt:
+                logs = logs.filter(created_at__gte=dt)
+        except:
+            pass
+
+    if date_to:
+        try:
+            from django.utils.dateparse import parse_datetime
+            dt = parse_datetime(date_to)
+            if dt:
+                logs = logs.filter(created_at__lte=dt)
+        except:
+            pass
+
+    # Filter by barangay (via target model if applicable)
+    if barangay_filter:
+        # Filter logs where target is a schedule with that barangay
+        from distribution.models import AidSchedule
+        from django.contrib.contenttypes.models import ContentType
+        schedule_ct = ContentType.objects.get_for_model(AidSchedule)
+        logs = logs.filter(
+            content_type=schedule_ct,
+            object_id__in=AidSchedule.objects.filter(barangay_id=barangay_filter).values_list('id', flat=True)
+        )
+
+    logs = logs.order_by('-created_at')
+
+    # Pagination
+    paginator = Paginator(logs, 50)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    # Filter options
+    users = User.objects.filter(role__in=['MSWDO', 'MSWDO_STAFF', 'BARANGAY']).order_by('username')
+    action_types = AuditLog.ACTION_TYPE_CHOICES
+    barangays = Barangay.objects.all().order_by('name')
+
+    return render(request, 'core/audit_log.html', {
+        'page_obj': page_obj,
+        'users': users,
+        'action_types': action_types,
+        'barangays': barangays,
+        'selected_actor': actor_filter,
+        'selected_action_type': action_type_filter,
+        'selected_date_from': date_from,
+        'selected_date_to': date_to,
+        'selected_barangay': barangay_filter,
+    })
 
 
