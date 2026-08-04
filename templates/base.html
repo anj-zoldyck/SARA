@@ -392,20 +392,6 @@
           <li class="sidebar-section-label">Management</li>
 
           <li class="sidebar-item">
-            <a href="#" class="sidebar-link">
-              <i class="bi bi-map"></i>
-              <span>Zones</span>
-            </a>
-          </li>
-
-          <li class="sidebar-item">
-            <a href="#" class="sidebar-link">
-              <i class="bi bi-house-door"></i>
-              <span>Households</span>
-            </a>
-          </li>
-
-          <li class="sidebar-item">
             <a href="{% url 'household_map' %}"
               class="sidebar-link {% if request.resolver_match.url_name == 'household_map' %}active{% endif %}">
               <i class="bi bi-map"></i>
@@ -418,13 +404,6 @@
               class="sidebar-link {% if request.resolver_match.url_name == 'household_vulnerability_map' %}active{% endif %}">
               <i class="bi bi-shield-exclamation"></i>
               <span>Vulnerability Map</span>
-            </a>
-          </li>
-
-          <li class="sidebar-item">
-            <a href="#" class="sidebar-link">
-              <i class="bi bi-people"></i>
-              <span>Families</span>
             </a>
           </li>
 

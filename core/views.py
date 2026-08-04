@@ -7,7 +7,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden, JsonResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.utils import timezone
-from datetime import date
+from datetime import date, timedelta
 from django.db.models import Count, Q
 from django.core.paginator import Paginator
 
@@ -81,17 +81,32 @@ def mswdo_dashboard(request):
     ).filter(is_active=True).order_by('program__name', 'aid_category__name')
 
     now = timezone.localtime(timezone.now())
-    
+
     start_date = now.replace(day=1).date()
     last_day = calendar.monthrange(start_date.year, start_date.month)[1]
     end_date = now.replace(day=last_day).date()
-    
+
     analytics_labels, analytics_data, _ = get_category_claims_data(
         start_date=start_date, end_date=end_date
     )
     this_month_beneficiaries = get_unique_beneficiaries_count(
         start_date=start_date, end_date=end_date
     )
+
+    # Monthly trend data (last 6 months)
+    monthly_trend_labels = []
+    monthly_trend_data = []
+    for i in range(5, -1, -1):
+        month_date = now.replace(day=1) - timedelta(days=32 * i)
+        month_date = month_date.replace(day=1)
+        month_end = month_date.replace(day=calendar.monthrange(month_date.year, month_date.month)[1])
+        month_name = month_date.strftime('%b %Y')
+        monthly_trend_labels.append(month_name)
+        month_claims = AidClaim.objects.filter(
+            claimed_at__date__gte=month_date.date(),
+            claimed_at__date__lte=month_end.date()
+        ).count()
+        monthly_trend_data.append(month_claims)
 
     # ACTIVE (ongoing)
     active_schedules = AidSchedule.objects.filter(
@@ -111,6 +126,9 @@ def mswdo_dashboard(request):
     finished_schedules = AidSchedule.objects.filter(
         is_finished=True
     )
+
+    # Active Aid Schedules count (active + upcoming)
+    active_aid_schedules_count = (active_schedules.count() + upcoming_schedules.count())
 
     context = {
         'barangays': barangays,
@@ -139,6 +157,11 @@ def mswdo_dashboard(request):
         'analytics_labels': analytics_labels,
         'analytics_data': analytics_data,
         'this_month_beneficiaries': this_month_beneficiaries,
+        'active_aid_schedules_count': active_aid_schedules_count,
+        'demo_chart_labels': ['PWDs', 'Solo Parents', 'Senior Citizens'],
+        'demo_chart_data': [pwd_count, solo_parent_count, senior_count],
+        'monthly_trend_labels': monthly_trend_labels,
+        'monthly_trend_data': monthly_trend_data,
     }
 
     return render(request, 'core/mswdo_dashboard.html', context)

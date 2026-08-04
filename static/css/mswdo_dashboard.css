@@ -19,6 +19,9 @@
   --green-light:    #dcfce7;
   --indigo:         #3730a3;
   --indigo-light:   #ede9fe;
+  --success:        #22A06B;
+  --success-hover:  #1C8A5C;
+  --success-bg:     rgba(34, 160, 107, 0.08);
 }
 
 /* =============================================================
@@ -105,6 +108,29 @@
   box-shadow: var(--shadow-card);
 }
 
+.btn-dash-excel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--success);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  padding: 9px 18px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition), box-shadow var(--transition);
+  font-family: var(--font);
+  text-decoration: none;
+}
+
+.btn-dash-excel:hover {
+  background-color: #1C8A5C;
+  box-shadow: 0 3px 10px rgba(19, 78, 213, 0.28);
+  color: #fff;
+}
+
 /* =============================================================
    GRID LAYOUTS
 ============================================================= */
@@ -117,12 +143,59 @@
   margin-bottom: 24px;
 }
 
+/* Demographics grid: 2-column compact layout */
+.dash-grid--demographics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+  align-items: start;
+}
+
+.dash-grid--demographics__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 /* 2-column main layout: schedule panel + side column */
 .dash-grid--main {
   display: grid;
   grid-template-columns: 1fr 360px;
   gap: 20px;
   align-items: start;
+}
+
+/* 2-column compact panel layout */
+.dash-grid--panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* Scrollable table container */
+.dash-panel__scrollable {
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.dash-panel__scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dash-panel__scrollable::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.dash-panel__scrollable::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.dash-panel__scrollable::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .dash-side {
@@ -164,6 +237,7 @@
 .stat-card--navy::before  { background: var(--primary); }
 .stat-card--teal::before  { background: var(--teal); }
 .stat-card--amber::before { background: #d97706; }
+.stat-card--indigo::before { background: var(--indigo); }
 
 .stat-card:hover {
   transform: translateY(-2px);
@@ -187,6 +261,7 @@
 .stat-card--navy  .stat-card__icon { background: rgba(13, 45, 107, 0.1);  color: var(--primary); }
 .stat-card--teal  .stat-card__icon { background: var(--teal-light);        color: var(--teal); }
 .stat-card--amber .stat-card__icon { background: var(--amber-light);       color: #d97706; }
+.stat-card--indigo .stat-card__icon { background: var(--indigo-light);    color: var(--indigo); }
 
 .stat-card__body {
   flex: 1;
@@ -228,6 +303,21 @@
 .stat-card:hover .stat-card__arrow {
   color: var(--text-muted);
   transform: translateX(3px);
+}
+
+/* RFID Progress Bar */
+.rfid-progress {
+  height: 6px;
+  background: #e2eaf4;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.rfid-progress__bar {
+  height: 100%;
+  background: #22A06B;
+  border-radius: 3px;
+  transition: width 0.3s ease;
 }
 
 /* =============================================================
@@ -626,6 +716,10 @@
 ============================================================= */
 @media (max-width: 1199.98px) {
   .dash-grid--cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dash-grid--demographics {
     grid-template-columns: repeat(2, 1fr);
   }
 

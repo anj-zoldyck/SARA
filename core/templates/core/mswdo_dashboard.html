@@ -87,17 +87,16 @@
     <i class="bi bi-arrow-right-short stat-card__arrow"></i>
   </a>
 
-  <!-- Aid Monitoring shortcut -->
-  <a href="{% url 'aid_type_list' %}" class="stat-card stat-card--teal">
+  <!-- Active Aid Schedules -->
+  <div class="stat-card stat-card--indigo">
     <div class="stat-card__icon">
-      <i class="bi bi-box-seam"></i>
+      <i class="bi bi-calendar2-week"></i>
     </div>
     <div class="stat-card__body">
-      <span class="stat-card__label">Aid Monitoring</span>
-      <span class="stat-card__value stat-card__value--sm">Manage</span>
+      <span class="stat-card__label">Active Aid Schedules</span>
+      <span class="stat-card__value">{{ active_aid_schedules_count }}</span>
     </div>
-    <i class="bi bi-arrow-right-short stat-card__arrow"></i>
-  </a>
+  </div>
 
   <!-- Program Management shortcut -->
   <a href="{% url 'program_list' %}" class="stat-card stat-card--amber">
@@ -118,50 +117,74 @@
 ====================================================== -->
 <h3 class="dash-section-title mt-4 mb-3" style="font-size: 1.1rem; color: var(--clr-gray-700); font-weight: 600;">
   Resident Demographics & Stats</h3>
-<div class="dash-grid dash-grid--cards">
-  <!-- PWDs -->
-  <div class="stat-card stat-card--purple" style="--card-color: #8b5cf6;">
-    <div class="stat-card__icon">
-      <i class="bi bi-person-wheelchair"></i>
+<div class="dash-grid dash-grid--demographics">
+  <!-- Left: Demographic Cards -->
+  <div class="dash-grid--demographics__cards">
+    <!-- PWDs -->
+    <div class="stat-card stat-card--purple" style="--card-color: #8b5cf6;">
+      <div class="stat-card__icon">
+        <i class="bi bi-person-wheelchair"></i>
+      </div>
+      <div class="stat-card__body">
+        <span class="stat-card__label">Total PWDs</span>
+        <span class="stat-card__value">{{ pwd_count }}</span>
+      </div>
     </div>
-    <div class="stat-card__body">
-      <span class="stat-card__label">Total PWDs</span>
-      <span class="stat-card__value">{{ pwd_count }}</span>
+
+    <!-- Solo Parents -->
+    <div class="stat-card stat-card--pink" style="--card-color: #ec4899;">
+      <div class="stat-card__icon">
+        <i class="bi bi-person-heart"></i>
+      </div>
+      <div class="stat-card__body">
+        <span class="stat-card__label">Solo Parents</span>
+        <span class="stat-card__value">{{ solo_parent_count }}</span>
+      </div>
+    </div>
+
+    <!-- Senior Citizens -->
+    <div class="stat-card stat-card--orange" style="--card-color: #f97316;">
+      <div class="stat-card__icon">
+        <i class="bi bi-person-walking"></i>
+      </div>
+      <div class="stat-card__body">
+        <span class="stat-card__label">Senior Citizens</span>
+        <span class="stat-card__value">{{ senior_count }}</span>
+      </div>
+    </div>
+
+    <!-- RFID Rate -->
+    <div class="stat-card stat-card--green" style="--card-color: #10b981;">
+      <div class="stat-card__icon">
+        <i class="bi bi-upc-scan"></i>
+      </div>
+      <div class="stat-card__body">
+        <span class="stat-card__label">RFID Registration</span>
+        <div class="d-flex align-items-baseline gap-2">
+          <span class="stat-card__value">{{ rfid_completion_percent }}%</span>
+          <span style="font-size: 0.8rem; opacity: 0.8;">({{ total_families_rfid }}/{{ family_count }})</span>
+        </div>
+        <div class="rfid-progress" style="margin-top: 8px;">
+          <div class="rfid-progress__bar" style="width: {{ rfid_completion_percent }}%;"></div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Solo Parents -->
-  <div class="stat-card stat-card--pink" style="--card-color: #ec4899;">
-    <div class="stat-card__icon">
-      <i class="bi bi-person-heart"></i>
+  <!-- Right: Demographics Comparison Chart -->
+  <div class="dash-panel">
+    <div class="dash-panel__header">
+      <div class="dash-panel__header-left">
+        <i class="bi bi-bar-chart dash-panel__icon"></i>
+        <div>
+          <h2 class="dash-panel__title">Demographics</h2>
+          <p class="dash-panel__sub">Comparison by category</p>
+        </div>
+      </div>
     </div>
-    <div class="stat-card__body">
-      <span class="stat-card__label">Solo Parents</span>
-      <span class="stat-card__value">{{ solo_parent_count }}</span>
-    </div>
-  </div>
-
-  <!-- Senior Citizens -->
-  <div class="stat-card stat-card--orange" style="--card-color: #f97316;">
-    <div class="stat-card__icon">
-      <i class="bi bi-person-walking"></i>
-    </div>
-    <div class="stat-card__body">
-      <span class="stat-card__label">Senior Citizens</span>
-      <span class="stat-card__value">{{ senior_count }}</span>
-    </div>
-  </div>
-
-  <!-- RFID Rate -->
-  <div class="stat-card stat-card--green" style="--card-color: #10b981;">
-    <div class="stat-card__icon">
-      <i class="bi bi-upc-scan"></i>
-    </div>
-    <div class="stat-card__body">
-      <span class="stat-card__label">RFID Registration</span>
-      <div class="d-flex align-items-baseline gap-2">
-        <span class="stat-card__value">{{ rfid_completion_percent }}%</span>
-        <span style="font-size: 0.8rem; opacity: 0.8;">({{ total_families_rfid }}/{{ family_count }})</span>
+    <div class="dash-panel__body">
+      <div class="chart-wrap" style="height: 200px; position: relative;">
+        <canvas id="demographicsChart"></canvas>
       </div>
     </div>
   </div>
@@ -172,88 +195,117 @@
 ====================================================== -->
 <div class="dash-grid dash-grid--main">
 
-  <!-- ── LEFT: Scheduled Distribution ───────────────────── -->
-  <div class="dash-panel">
-    <div class="dash-panel__header">
-      <div class="dash-panel__header-left">
-        <i class="bi bi-calendar-check dash-panel__icon"></i>
-        <div>
-          <h2 class="dash-panel__title">Scheduled Distribution</h2>
-          <p class="dash-panel__sub">Active and upcoming aid schedules</p>
+  <!-- ── LEFT COLUMN ─────────────────────────────────────── -->
+  <div class="dash-main-left">
+
+    <!-- Scheduled Distribution & Monthly Trend -->
+    <div class="dash-grid dash-grid--panels">
+      <!-- Scheduled Distribution -->
+      <div class="dash-panel">
+        <div class="dash-panel__header">
+          <div class="dash-panel__header-left">
+            <i class="bi bi-calendar-check dash-panel__icon"></i>
+            <div>
+              <h2 class="dash-panel__title">Scheduled Distribution</h2>
+              <p class="dash-panel__sub">Active and upcoming aid schedules</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Schedule Lists (populated by fetch) -->
+        <div class="dash-panel__body">
+
+          {% include "core/_dashboard_schedule_panel.html" %}
+
+
+        </div>
+      </div>
+
+      <!-- Monthly Aid Distribution Trend -->
+      <div class="dash-panel">
+        <div class="dash-panel__header">
+          <div class="dash-panel__header-left">
+            <i class="bi bi-graph-up dash-panel__icon"></i>
+            <div>
+              <h2 class="dash-panel__title">Monthly Trend</h2>
+              <p class="dash-panel__sub">Claims over the last 6 months</p>
+            </div>
+          </div>
+        </div>
+        <div class="dash-panel__body">
+          <div class="chart-wrap" style="height: 200px; position: relative;">
+            <canvas id="monthlyTrendChart"></canvas>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Schedule Lists (populated by fetch) -->
-    <div class="dash-panel__body">
+    <!-- This Month's Distribution & Barangay Profiling Progress -->
+    <div class="dash-grid dash-grid--panels">
+      <!-- This Month's Distribution -->
+      <div class="dash-panel">
+        <div class="dash-panel__header">
+          <div class="dash-panel__header-left">
+            <i class="bi bi-bar-chart-line dash-panel__icon"></i>
+            <div>
+              <h2 class="dash-panel__title">This Month's Distribution</h2>
+              <p class="dash-panel__sub">Claims summary across all barangays</p>
+            </div>
+          </div>
+          <a href="{% url 'analytics' %}" class="btn-dash-outline btn-sm">
+            <i class="bi bi-arrow-right"></i> View Full Analytics
+          </a>
+        </div>
+        <div class="dash-panel__body">
+          <div class="chart-wrap" style="height: 250px; position: relative;">
+            <canvas id="mswdoDashAnalyticsChart"></canvas>
+          </div>
+        </div>
+      </div>
 
-      {% include "core/_dashboard_schedule_panel.html" %}
-
-
-    </div>
-  </div>
-
-  <!-- ── LEFT: Barangay Profiling Leaderboard ───────────── -->
-  <div class="dash-panel mt-4">
-    <div class="dash-panel__header">
-      <div class="dash-panel__header-left">
-        <i class="bi bi-bar-chart-steps dash-panel__icon"></i>
-        <div>
-          <h2 class="dash-panel__title">Barangay Profiling Progress</h2>
-          <p class="dash-panel__sub">Households, Families, and RFID coverage per barangay</p>
+      <!-- Barangay Profiling Progress -->
+      <div class="dash-panel">
+        <div class="dash-panel__header">
+          <div class="dash-panel__header-left">
+            <i class="bi bi-bar-chart-steps dash-panel__icon"></i>
+            <div>
+              <h2 class="dash-panel__title">Barangay Profiling Progress</h2>
+              <p class="dash-panel__sub">Households, Families, and RFID coverage</p>
+            </div>
+          </div>
+        </div>
+        <div class="dash-panel__body p-0 dash-panel__scrollable">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th class="ps-4">Barangay</th>
+                  <th class="text-center">Households</th>
+                  <th class="text-center">Families</th>
+                  <th class="text-center">RFID</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for b in barangays %}
+                <tr>
+                  <td class="ps-4 fw-medium">{{ b.name }}</td>
+                  <td class="text-center">{{ b.household_count }}</td>
+                  <td class="text-center">{{ b.family_count }}</td>
+                  <td class="text-center">
+                    {{ b.rfid_count }}
+                    <span class="text-muted" style="font-size: 0.8em;">
+                      ({% if b.family_count > 0 %}{% widthratio b.rfid_count b.family_count 100 %}{% else %}0{% endif %}%)
+                    </span>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
-    <div class="dash-panel__body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
-          <thead class="table-light">
-            <tr>
-              <th class="ps-4">Barangay</th>
-              <th class="text-center">Households</th>
-              <th class="text-center">Families</th>
-              <th class="text-center">RFID Registrations</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for b in barangays %}
-            <tr>
-              <td class="ps-4 fw-medium">{{ b.name }}</td>
-              <td class="text-center">{{ b.household_count }}</td>
-              <td class="text-center">{{ b.family_count }}</td>
-              <td class="text-center">
-                {{ b.rfid_count }}
-                <span class="text-muted" style="font-size: 0.8em;">
-                  ({% if b.family_count > 0 %}{% widthratio b.rfid_count b.family_count 100 %}{% else %}0{% endif %}%)
-                </span>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
 
-  <!-- ── LEFT: Aid Distribution Overview ───────────── -->
-  <div class="dash-panel mt-4">
-    <div class="dash-panel__header">
-      <div class="dash-panel__header-left">
-        <i class="bi bi-bar-chart-line dash-panel__icon"></i>
-        <div>
-          <h2 class="dash-panel__title">This Month's Distribution</h2>
-          <p class="dash-panel__sub">Claims summary across all barangays</p>
-        </div>
-      </div>
-      <a href="{% url 'analytics' %}" class="btn-dash-outline btn-sm">
-        <i class="bi bi-arrow-right"></i> View Full Analytics
-      </a>
-    </div>
-    <div class="dash-panel__body">
-      <div class="chart-wrap" style="height: 250px; position: relative;">
-        <canvas id="mswdoDashAnalyticsChart"></canvas>
-      </div>
-    </div>
   </div>
 
   <!-- ── RIGHT: Quick Actions + Aid Shortcuts ────────────── -->
@@ -271,15 +323,6 @@
             <span class="fw-medium text-primary-emphasis" style="font-size: 0.9rem;">Today's Claims</span>
           </div>
           <span class="badge bg-primary rounded-pill">{{ today_claims }}</span>
-        </div>
-
-        <div class="d-flex align-items-center justify-content-between p-2 rounded"
-          style="background: #fff7ed; border: 1px solid #fed7aa;">
-          <div class="d-flex align-items-center gap-2">
-            <i class="bi bi-envelope text-warning"></i>
-            <span class="fw-medium text-warning-emphasis" style="font-size: 0.9rem;">Pending Invites</span>
-          </div>
-          <span class="badge bg-warning text-dark rounded-pill">{{ pending_invitations }}</span>
         </div>
 
         <div class="d-flex align-items-center justify-content-between p-2 mt-2 rounded"
@@ -303,6 +346,10 @@
 <!-- Safe data injection -->
 {{ analytics_labels|json_script:"dash-chart-labels" }}
 {{ analytics_data|json_script:"dash-chart-data" }}
+{{ demo_chart_labels|json_script:"demo-chart-labels" }}
+{{ demo_chart_data|json_script:"demo-chart-data" }}
+{{ monthly_trend_labels|json_script:"monthly-trend-labels" }}
+{{ monthly_trend_data|json_script:"monthly-trend-data" }}
 
 {% endblock %}
 
@@ -407,9 +454,9 @@
   const dashLabels = JSON.parse(document.getElementById('dash-chart-labels').textContent);
   const dashData   = JSON.parse(document.getElementById('dash-chart-data').textContent);
 
+  // Token-sourced palette: --primary, --secondary, --teal, amber (icon variant), --indigo, --success
   const dashPalette = [
-    '#0d2d6b', '#fd7e14', '#10b981', '#8b5cf6', 
-    '#ec4899', '#f59e0b', '#06b6d4', '#6366f1'
+    '#0d2d6b', '#134ed5', '#0d7377', '#d97706', '#3730a3', '#22A06B'
   ];
 
   const dashBgColors = dashLabels.map((l, i) => dashPalette[i % dashPalette.length]);
@@ -426,6 +473,101 @@
           backgroundColor: dashBgColors,
           borderRadius: 4,
           borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.parsed.y} claims`
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 },
+            grid: { color: '#e2eaf4' }
+          },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // ── Demographics Comparison Chart ─────────────────────────
+  const demoLabels = JSON.parse(document.getElementById('demo-chart-labels').textContent);
+  const demoData   = JSON.parse(document.getElementById('demo-chart-data').textContent);
+
+  const demoPalette = ['#8b5cf6', '#ec4899', '#f97316']; // PWD, Solo Parent, Senior Citizen colors
+
+  const demoChartCtx = document.getElementById('demographicsChart');
+  if (demoChartCtx && demoLabels.length > 0) {
+    new Chart(demoChartCtx, {
+      type: 'bar',
+      data: {
+        labels: demoLabels,
+        datasets: [{
+          label: 'Count',
+          data: demoData,
+          backgroundColor: demoPalette,
+          borderRadius: 4,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.parsed.y} residents`
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 },
+            grid: { color: 'rgba(0,0,0,.05)' }
+          },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // ── Monthly Trend Chart ───────────────────────────────────
+  const trendLabels = JSON.parse(document.getElementById('monthly-trend-labels').textContent);
+  const trendData   = JSON.parse(document.getElementById('monthly-trend-data').textContent);
+
+  // Color corresponds to --secondary in base.css (#134ed5)
+  const trendColor = '#134ed5';
+  const trendFill = 'rgba(19, 78, 213, 0.15)';
+
+  const trendChartCtx = document.getElementById('monthlyTrendChart');
+  if (trendChartCtx && trendLabels.length > 0) {
+    new Chart(trendChartCtx, {
+      type: 'line',
+      data: {
+        labels: trendLabels,
+        datasets: [{
+          label: 'Claims',
+          data: trendData,
+          borderColor: trendColor,
+          backgroundColor: trendFill,
+          borderWidth: 2,
+          pointBackgroundColor: trendColor,
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          fill: true,
+          tension: 0.3
         }]
       },
       options: {

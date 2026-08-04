@@ -125,7 +125,6 @@
         </p>
         {% endif %}
     </div>
-    </div>
     <div class="dash-header-actions">
       {% if request.user.role == 'MSWDO_STAFF' %}
         <a href="{% url 'staff_dashboard' %}" class="btn-dash-outline">
@@ -235,11 +234,10 @@
 
     <div class="dash-panel__body p-0">
         {% if entries %}
-        <div class="table-responsive">
-            <table class="table acct-table mb-0">
+        <table class="table acct-table mb-0">
                 <thead>
                     <tr>
-                        <th class="acct-th" style="width: 50px;">#</th>
+                        <th class="acct-th">#</th>
                         <th class="acct-th">Beneficiary Name</th>
                         <th class="acct-th">Barangay</th>
                         <th class="acct-th">Zone</th>
@@ -327,7 +325,6 @@
                     {% endfor %}
                 </tbody>
             </table>
-        </div>
         {% else %}
         <div class="p-5 text-center text-muted">
             <i class="bi bi-inbox fs-1 mb-3 d-block opacity-50"></i>

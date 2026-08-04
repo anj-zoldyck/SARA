@@ -5,7 +5,33 @@
 
 {% block navbar_title %}AUDIT LOG{% endblock %}
 
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
+{% endblock %}
+
 {% block content %}
+
+<!-- ======================================================
+     PAGE HEADER
+====================================================== -->
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Audit Logs</span>
+    </div>
+    <h1 class="dash-page-title">Audit Logs</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-people me-1"></i>
+      System security event tracking
+    </p>
+  </div>
+
 <!-- ── Django Messages ────────────────────────────────────── -->
 {% if messages %}
 {% for message in messages %}
@@ -19,17 +45,6 @@
 {% endfor %}
 {% endif %}
 
-<!-- ======================================================
-     PAGE HEADER
-====================================================== -->
-<div class="dash-page-header">
-  <div>
-    <h1 class="dash-page-title">Audit Log</h1>
-    <p class="dash-page-sub">
-      &nbsp;·&nbsp; System security event tracking
-    </p>
-  </div>
-</div>
 
 <!-- ======================================================
      FILTERS
