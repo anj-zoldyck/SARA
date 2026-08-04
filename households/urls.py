@@ -6,6 +6,7 @@ def family_members_redirect(request, family_id):
     return HttpResponseRedirect(reverse('family_detail', kwargs={'family_id': family_id}))
 
 urlpatterns = [
+    path('mswdo/residents/', views.residents_overview, name='residents_overview'),
     path('mswdo/barangays/', views.barangay_list, name='barangay_list'),
     path('mswdo/barangays/<int:barangay_id>/zones/', views.barangay_zones, name='barangay_zones'),
     path('mswdo/zones/<int:zone_id>/households/', views.zone_households, name='zone_households'),
@@ -23,6 +24,7 @@ urlpatterns = [
     path('barangay/members/<int:member_id>/edit/', views.edit_family_member, name='edit_family_member'),
     path('barangay/members/<int:member_id>/delete/', views.delete_family_member, name='delete_family_member'),
     path('barangay/members/<int:member_id>/details/', views.member_details_modal, name='member_details_modal'),
+    path('mswdo/members/<int:member_id>/profile-view/', views.member_profile_view_modal, name='member_profile_view_modal'),
     path('barangay/households/<int:household_id>/modal/', views.household_modal_content, name='household_modal_content'),
     path('map/', views.household_map, name='household_map'),
     path('map/data/', views.household_map_data, name='household_map_data'),

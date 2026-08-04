@@ -57,6 +57,97 @@ def barangay_list(request):
 @login_required
 @session_protected
 @mswdo_or_staff_required
+def residents_overview(request):
+    # Get filter parameters
+    selected_barangay_id = request.GET.get('barangay')
+    selected_zone_id = request.GET.get('zone')
+    search_query = request.GET.get('search', '').strip()
+    filter_senior = request.GET.get('senior')
+    filter_pwd = request.GET.get('pwd')
+    filter_solo_parent = request.GET.get('solo_parent')
+
+    all_barangays = Barangay.objects.all().order_by('name')
+    all_zones = Zone.objects.select_related('barangay').all().order_by('barangay__name', 'name')
+
+    selected_barangay = None
+    selected_zone = None
+
+    if selected_barangay_id:
+        selected_barangay = get_object_or_404(Barangay, id=selected_barangay_id)
+    if selected_zone_id:
+        selected_zone = get_object_or_404(Zone, id=selected_zone_id)
+
+    # Build queryset of family members
+    members_qs = FamilyMember.objects.select_related(
+        'family',
+        'family__household',
+        'family__household__zone',
+        'family__household__zone__barangay'
+    )
+
+    # Apply barangay filter
+    if selected_barangay:
+        members_qs = members_qs.filter(family__household__zone__barangay=selected_barangay)
+
+    # Apply zone filter
+    if selected_zone:
+        members_qs = members_qs.filter(family__household__zone=selected_zone)
+
+    # Apply search filter (first name or last name)
+    if search_query:
+        members_qs = members_qs.filter(
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query)
+        )
+
+    # Apply category filters
+    if filter_senior:
+        members_qs = members_qs.filter(is_senior_citizen=True)
+    if filter_pwd:
+        members_qs = members_qs.filter(is_pwd=True)
+    if filter_solo_parent:
+        members_qs = members_qs.filter(is_solo_parent=True)
+
+    # Order by last name, then first name
+    members_qs = members_qs.order_by('last_name', 'first_name')
+
+    # Calculate stats
+    total_members = members_qs.count()
+    total_families = members_qs.values('family').distinct().count()
+    total_households = members_qs.values('family__household').distinct().count()
+    seniors_count = members_qs.filter(is_senior_citizen=True).count()
+    pwd_count = members_qs.filter(is_pwd=True).count()
+    solo_parent_count = members_qs.filter(is_solo_parent=True).count()
+
+    stats = {
+        'total_members': total_members,
+        'total_families': total_families,
+        'total_households': total_households,
+        'seniors_count': seniors_count,
+        'pwd_count': pwd_count,
+        'solo_parent_count': solo_parent_count,
+    }
+
+    context = {
+        'barangays': all_barangays,
+        'all_zones': all_zones,
+        'selected_barangay': selected_barangay,
+        'selected_zone': selected_zone,
+        'search_query': search_query,
+        'filter_senior': filter_senior,
+        'filter_pwd': filter_pwd,
+        'filter_solo_parent': filter_solo_parent,
+        'members': members_qs,
+        'stats': stats,
+        'requires_auth': True,
+    }
+
+    return render(request, 'households/residents_overview.html', context)
+
+
+@login_required
+@session_protected
+@mswdo_or_staff_required
 def barangay_zones(request, barangay_id):
 
     barangay = get_object_or_404(Barangay, id=barangay_id)
@@ -548,6 +639,30 @@ def member_details_modal(request, member_id):
     ).select_related('assistance__program', 'assistance__aid_category').order_by('-claimed_at')
 
     return render(request, 'households/partials/member_detail_modal.html', {
+        'member': member,
+        'claims': claims
+    })
+
+
+@login_required
+@session_protected
+@mswdo_or_staff_required
+def member_profile_view_modal(request, member_id):
+    member = get_object_or_404(
+        FamilyMember.objects.select_related(
+            'family',
+            'family__household',
+            'family__household__zone',
+            'family__household__zone__barangay'
+        ),
+        id=member_id
+    )
+
+    claims = AidClaim.objects.filter(
+        Q(family_member=member) | Q(family=member.family, family_member__isnull=True)
+    ).select_related('assistance__program', 'assistance__aid_category').order_by('-claimed_at')
+
+    return render(request, 'households/partials/member_profile_view_modal.html', {
         'member': member,
         'claims': claims
     })

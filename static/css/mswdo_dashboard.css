@@ -956,3 +956,26 @@ textarea.modal-form__control {
 .confirm-text strong {
   color: var(--text-main);
 }
+
+/* =============================================================
+   ANALYTICS CHARTS
+============================================================= */
+.analytics-chart {
+  background: #f8fafd;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.analytics-chart__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0 0 12px;
+}
+
+.analytics-chart__container {
+  position: relative;
+  height: 200px;
+  width: 100%;
+}

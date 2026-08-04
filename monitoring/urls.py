@@ -5,7 +5,6 @@ urlpatterns = [
     path('mswdo/rfid/monitoring/', views.rfid_claim_monitoring, name='rfid_claim_monitoring'),
     path('mswdo/rfid/live-claims/', views.rfid_live_claims, name='rfid_live_claims'),
     path('mswdo/schedule/status/', views.schedule_status, name='schedule_status'),
-    path('mswdo/aid/', views.aid_type_list, name='aid_type_list'),
     path('mswdo/aid/<int:assistance_id>/barangays/', views.aid_barangay_list, name='aid_barangay_list'),
     path('mswdo/aid/<int:assistance_id>/barangays/<int:barangay_id>/', views.aid_barangay_detail, name='aid_barangay_detail'),
     path('mswdo/analytics/', views.analytics, name='analytics'),

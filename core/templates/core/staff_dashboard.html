@@ -7,6 +7,7 @@
 
 {% block css %}
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -75,26 +76,26 @@
     <i class="bi bi-arrow-right-short stat-card__arrow"></i>
   </a>
 
-<!-- Aid Monitoring shortcut -->
-<a href="{% url 'aid_type_list' %}" class="stat-card stat-card--teal">
+<!-- Active Aid Programs -->
+<a href="{% url 'analytics' %}" class="stat-card stat-card--teal">
   <div class="stat-card__icon">
     <i class="bi bi-box-seam"></i>
   </div>
   <div class="stat-card__body">
-    <span class="stat-card__label">Aid Monitoring</span>
-    <span class="stat-card__value stat-card__value--sm">View</span>
+    <span class="stat-card__label">Active Aid Programs</span>
+    <span class="stat-card__value">{{ active_programs_count }}</span>
   </div>
   <i class="bi bi-arrow-right-short stat-card__arrow"></i>
 </a>
 
-<!-- Resident Profiling shortcut -->
-<a href="{% url 'barangay_list' %}" class="stat-card stat-card--amber">
+<!-- RFID Cards Registered -->
+<a href="{% url 'barangay_list' %}" class="stat-card stat-card--indigo">
   <div class="stat-card__icon">
-    <i class="bi bi-person-lines-fill"></i>
+    <i class="bi bi-credit-card-2-front"></i>
   </div>
   <div class="stat-card__body">
-    <span class="stat-card__label">Beneficiaries</span>
-    <span class="stat-card__value stat-card__value--sm">View</span>
+    <span class="stat-card__label">RFID Cards Registered</span>
+    <span class="stat-card__value">{{ rfid_count }}</span>
   </div>
   <i class="bi bi-arrow-right-short stat-card__arrow"></i>
 </a>
@@ -123,6 +124,29 @@
 
       {% include "core/_dashboard_schedule_panel.html" %}
 
+    </div>
+  </div>
+
+  <!-- ── ANALYTICS OVERVIEW ───────────────────────────────── -->
+  <div class="dash-panel">
+    <div class="dash-panel__header">
+      <div class="dash-panel__header-left">
+        <i class="bi bi-graph-up dash-panel__icon"></i>
+        <div>
+          <h2 class="dash-panel__title">Analytics Overview</h2>
+          <p class="dash-panel__sub">Key insights and distribution patterns</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-panel__body">
+      <!-- Aid Type Distribution Chart -->
+      <div class="analytics-chart">
+        <h3 class="analytics-chart__title">Aid Type Distribution</h3>
+        <div class="analytics-chart__container">
+          <canvas id="aidTypeChart"></canvas>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -257,5 +281,49 @@
 
   refreshSchedules();
   setInterval(refreshSchedules, 30000);
+
+  // ── Analytics Charts ───────────────────────────────────────
+  function initAnalyticsCharts() {
+    // Aid Type Distribution Chart (Donut)
+    const aidTypeCtx = document.getElementById('aidTypeChart');
+    if (aidTypeCtx) {
+      new Chart(aidTypeCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Medical', 'Food', 'Educational', 'Burial', 'Cash'],
+          datasets: [{
+            data: [35, 25, 20, 12, 8],
+            backgroundColor: [
+              '#134ed5',  // secondary (blue)
+              '#0d2d6b',  // primary (dark blue)
+              '#4a6fa5',  // lighter blue
+              '#8492a6',  // text-muted (gray-blue)
+              '#1a2340'   // text-main (dark blue-gray)
+            ],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                padding: 15,
+                usePointStyle: true,
+                font: { size: 11 }
+              }
+            }
+          },
+          cutout: '65%'
+        }
+      });
+    }
+  }
+
+  // Initialize charts when DOM is ready
+  document.addEventListener('DOMContentLoaded', initAnalyticsCharts);
+
 </script>
 {% endblock %}

@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ barangay.name }} — RFID Registration — SARA{% endblock %}
+{% block navbar_title %}{{ barangay.name }} RFID{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+<link rel="stylesheet" href="{% static 'css/register_rfid.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Page Header ─────────────────────────────────────────── -->
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% if request.user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'register_rfid' %}" class="breadcrumb-link">
+        <i class="breadcrumb-current"></i> RFID Registration
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">{{ barangay.name }}</span>
+    </div>
+    <h1 class="dash-page-title">Barangay {{ barangay.name }}</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-geo-alt me-1"></i>
+      Manage RFID registration for residents in {{ barangay.name }}
+    </p>
+  </div>
+  <div class="page-back-row">
+    <a href="{% url 'register_rfid' %}" class="btn-dash-outline">
+      <i class="bi bi-arrow-left"></i> Back to RFID Overview
+    </a>
+  </div>
+</div>
+
+<!-- ── Barangay Stats Strip ─────────────────────────────────── -->
+<div class="brgy-info-strip rfid-stats-strip">
+  <div class="brgy-info-item">
+    <div class="brgy-info-icon"><i class="bi bi-people"></i></div>
+    <div>
+      <span class="brgy-info-val">{{ stats.total }}</span>
+      <span class="brgy-info-label">Total Families</span>
+    </div>
+  </div>
+  <div class="brgy-info-divider"></div>
+  <div class="brgy-info-item">
+    <div class="brgy-info-icon brgy-info-icon--teal"><i class="bi bi-credit-card-2-front"></i></div>
+    <div>
+      <span class="brgy-info-val">{{ stats.registered }}</span>
+      <span class="brgy-info-label">Registered</span>
+    </div>
+  </div>
+  <div class="brgy-info-divider"></div>
+  <div class="brgy-info-item">
+    <div class="brgy-info-icon brgy-info-icon--warn"><i class="bi bi-x-circle"></i></div>
+    <div>
+      <span class="brgy-info-val">{{ stats.unregistered }}</span>
+      <span class="brgy-info-label">Unregistered</span>
+    </div>
+  </div>
+  <div class="brgy-info-divider"></div>
+  <div class="brgy-info-item">
+    <div class="brgy-info-icon brgy-info-icon--navy"><i class="bi bi-percent"></i></div>
+    <div>
+      <span class="brgy-info-val">{{ stats.rate }}%</span>
+      <span class="brgy-info-label">Coverage Rate</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Filters ─────────────────────────────────────────────── -->
+<div class="dash-panel rfid-filter-panel">
+  <div class="dash-panel__body">
+    <div class="rfid-filter-row">
+      <div class="rfid-filter-group">
+        <label class="rfid-filter-label" for="filter-zone">
+          <i class="bi bi-map"></i> Zone
+        </label>
+        <select class="rfid-filter-select" id="filter-zone">
+          <option value="">All Zones</option>
+          {% for zone in zones %}
+            <option value="{{ zone.id }}" {% if selected_zone and selected_zone.id == zone.id %}selected{% endif %}>
+              {{ zone.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="rfid-filter-group">
+        <label class="rfid-filter-label" for="search-input">
+          <i class="bi bi-search"></i> Search
+        </label>
+        <input type="text" class="form-control" id="search-input" placeholder="Search family name or household head..." value="{{ search_query }}">
+      </div>
+
+      <div class="rfid-filter-actions">
+        <button class="btn-dash-primary" id="btn-apply-filter">
+          <i class="bi bi-funnel"></i> Apply Filter
+        </button>
+        <a href="{% url 'barangay_rfid_detail' barangay.id %}" class="btn-dash-outline">
+          <i class="bi bi-x-circle"></i> Clear
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Families Table ───────────────────────────────────────── -->
+<div class="dash-panel">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-table dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Families in {{ barangay.name }}</h2>
+        <p class="dash-panel__sub">Register and manage RFID cards for families</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-panel__body p-0">
+    <div class="table-responsive">
+      <table class="acct-table">
+        <thead>
+          <tr>
+            <th class="acct-th">#</th>
+            <th class="acct-th">Family Name</th>
+            <th class="acct-th">Household Head</th>
+            <th class="acct-th">Zone</th>
+            <th class="acct-th">RFID Status</th>
+            <th class="acct-th acct-th--actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for family in families %}
+          <tr class="acct-row">
+            <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
+            <td class="acct-td">
+              <div class="acct-barangay-cell" style="cursor: pointer;" onclick="openFamilyModal('{{ family.id }}')">
+                <div class="acct-avatar">{{ family.family_name|first|upper }}</div>
+                <span class="text-primary">{{ family.family_name }}</span>
+              </div>
+            </td>
+            <td class="acct-td">
+              {% if family.head_member %}
+                {{ family.head_member.first_name }} {{ family.head_member.last_name }}
+              {% else %}
+                <span class="text-muted">Not specified</span>
+              {% endif %}
+            </td>
+            <td class="acct-td">
+              <span class="hh-rfid-tag hh-rfid-tag--registered">
+                <i class="bi bi-map"></i> {{ family.household.zone.name }}
+              </span>
+            </td>
+            <td class="acct-td">
+              {% if family.rfid_uid %}
+                <span class="rfid-count rfid-count--reg">
+                  <i class="bi bi-check-circle"></i> Registered
+                </span>
+                <small class="text-muted d-block mt-1">UID: {{ family.rfid_uid }}</small>
+              {% else %}
+                <span class="rfid-count rfid-count--unreg">
+                  <i class="bi bi-x-circle"></i> Unregistered
+                </span>
+              {% endif %}
+            </td>
+            <td class="acct-td acct-td--actions">
+              <div class="acct-actions">
+                <a href="{% url 'register_rfid_family' family.id %}" class="acct-btn acct-btn--edit">
+                  <i class="bi bi-credit-card-2-front"></i><span>{% if family.rfid_uid %}Update RFID{% else %}Register{% endif %}</span>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="acct-empty">
+              <div class="acct-empty-state">
+                <i class="bi bi-people"></i>
+                <p>No families found matching the current filter.</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Family Members Modal -->
+<div class="modal-overlay" id="familyModalOverlay">
+  <div class="kiosk-modal" style="max-width: 700px;">
+    <div class="kiosk-modal-header text-center" style="position: relative;">
+      <h4 class="kiosk-modal-title"><i class="bi bi-people"></i> Family Members</h4>
+      <button type="button" class="btn-close modal-close-btn" onclick="hideFamilyModal()" style="position: absolute; right: 20px; top: 20px;"></button>
+    </div>
+    <div class="kiosk-modal-body p-4 pt-3" style="background: #f8fafc; text-align: left; max-height: 40vh; overflow-y: auto;">
+      <div id="familyModalContent">
+        <div class="p-5 text-center">
+          <div class="spinner-border text-primary" role="status"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block js %}
+<script>
+  // ── Apply filter → submit as GET params ─────────────────────
+  document.getElementById('btn-apply-filter').addEventListener('click', () => {
+    const zoneSelect = document.getElementById('filter-zone');
+    const searchInput = document.getElementById('search-input');
+    
+    const params = new URLSearchParams();
+    if (zoneSelect.value) params.set('zone', zoneSelect.value);
+    if (searchInput.value.trim()) params.set('search', searchInput.value.trim());
+    
+    window.location.href = '{% url "barangay_rfid_detail" barangay.id %}?' + params.toString();
+  });
+
+  // ── Allow Enter key to trigger filter ─────────────────────
+  document.getElementById('search-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      document.getElementById('btn-apply-filter').click();
+    }
+  });
+
+  // ── Family Modal Functions ─────────────────────────────────
+  const familyModalOverlay = document.getElementById('familyModalOverlay');
+  
+  function showFamilyModal() {
+    familyModalOverlay.classList.add('active');
+  }
+  
+  function hideFamilyModal() {
+    familyModalOverlay.classList.remove('active');
+  }
+  
+  familyModalOverlay.addEventListener('click', function(e) {
+    if (e.target === this) hideFamilyModal();
+  });
+  
+  function openFamilyModal(familyId) {
+    const content = document.getElementById('familyModalContent');
+    content.innerHTML = '<div class="p-5 text-center"><div class="spinner-border text-primary" role="status"></div></div>';
+    showFamilyModal();
+    
+    fetch(`/mswdo/rfid/family/${familyId}/members/`)
+      .then(res => {
+        if (!res.ok) throw new Error('Network error');
+        return res.text();
+      })
+      .then(html => {
+        content.innerHTML = html;
+      })
+      .catch(err => {
+        content.innerHTML = '<div class="p-4 text-center text-danger"><i class="bi bi-exclamation-triangle fs-1"></i><p class="mt-2">Failed to load family members.</p></div>';
+      });
+  }
+</script>
+{% endblock %}

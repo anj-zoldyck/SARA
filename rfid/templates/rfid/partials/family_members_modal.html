@@ -1,0 +1,63 @@
+<!-- Location Context -->
+<div class="mb-4 bg-white p-3 rounded border" style="border-color: #e2e8f0 !important;">
+  <div class="d-flex align-items-center gap-2 mb-1">
+    <i class="bi bi-geo-alt-fill text-primary"></i>
+    <span class="fw-bold text-dark" style="font-size: 0.95rem;">Location</span>
+  </div>
+  <div class="text-muted small">
+    House {{ family.household.house_number }}, {{ family.household.zone.name }}, {{ family.household.barangay.name }}
+  </div>
+</div>
+
+<!-- RFID Status -->
+<div class="mb-4 bg-white p-3 rounded border" style="border-color: #e2e8f0 !important;">
+  <div class="d-flex align-items-center gap-2 mb-1">
+    <i class="bi bi-credit-card-2-front text-primary"></i>
+    <span class="fw-bold text-dark" style="font-size: 0.95rem;">RFID Status</span>
+  </div>
+  {% if family.rfid_uid %}
+    <div class="text-success small">
+      <i class="bi bi-check-circle-fill"></i> Registered: {{ family.rfid_uid }}
+    </div>
+  {% else %}
+    <div class="text-warning small">
+      <i class="bi bi-x-circle-fill"></i> No RFID registered
+    </div>
+  {% endif %}
+</div>
+
+<!-- Family Members -->
+<div class="bg-white p-3 rounded border" style="border-color: #e2e8f0 !important;">
+  <h6 class="text-uppercase text-muted small fw-bold mb-3 border-bottom pb-2">Family Members ({{ members|length }})</h6>
+  {% if members %}
+    <div class="list-group list-group-flush">
+      {% for member in members %}
+      <div class="list-group-item px-0 py-2 border-0 border-bottom">
+        <div class="d-flex align-items-center gap-3">
+          <div class="acct-avatar" style="width: 40px; height: 40px; font-size: 0.9rem;">
+            {% if member.profile_image %}
+              <img src="{{ member.profile_image.url }}" alt="Photo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+            {% else %}
+              {{ member.first_name|first|upper }}{{ member.last_name|first|upper }}
+            {% endif %}
+          </div>
+          <div class="flex-grow-1">
+            <div class="fw-bold text-dark" style="font-size: 0.95rem;">{{ member.first_name }} {{ member.last_name }}</div>
+            <div class="small text-muted">{{ member.get_relationship_display }} &bull; {{ member.age|default:"N/A" }} yrs old</div>
+          </div>
+          <div>
+            {% if member.is_senior_citizen %}<span class="badge bg-primary me-1">Senior</span>{% endif %}
+            {% if member.is_pwd %}<span class="badge bg-info text-dark me-1">PWD</span>{% endif %}
+            {% if member.is_solo_parent %}<span class="badge bg-secondary">Solo Parent</span>{% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-center py-4 rounded text-muted">
+      <i class="bi bi-people d-block mb-2 text-secondary opacity-50" style="font-size: 2rem;"></i>
+      <span style="font-size: 0.9rem;">No family members found.</span>
+    </div>
+  {% endif %}
+</div>

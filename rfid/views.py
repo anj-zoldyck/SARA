@@ -237,6 +237,87 @@ def deactivate_rfid(request, family_id):
 
 @login_required
 @session_protected
+@mswdo_or_staff_required
+def barangay_rfid_detail(request, barangay_id):
+    barangay = get_object_or_404(Barangay, id=barangay_id)
+    
+    # Get filter parameters
+    selected_zone_id = request.GET.get('zone')
+    search_query = request.GET.get('search', '').strip()
+    
+    # Get zones for this barangay
+    zones = Zone.objects.filter(barangay=barangay).order_by('name')
+    selected_zone = None
+    if selected_zone_id:
+        selected_zone = get_object_or_404(Zone, id=selected_zone_id, barangay=barangay)
+    
+    # Build queryset of families in this barangay
+    families_qs = Family.objects.select_related(
+        'household__zone__barangay'
+    ).prefetch_related(
+        'members'
+    ).filter(
+        household__zone__barangay=barangay
+    )
+    
+    # Apply zone filter
+    if selected_zone:
+        families_qs = families_qs.filter(household__zone=selected_zone)
+    
+    # Apply search filter (family name or family member names)
+    if search_query:
+        families_qs = families_qs.filter(
+            Q(family_name__icontains=search_query) |
+            Q(members__first_name__icontains=search_query) |
+            Q(members__last_name__icontains=search_query)
+        ).distinct()
+    
+    # Order by family name
+    families_qs = families_qs.order_by('family_name')
+    
+    # Calculate stats for this barangay
+    total = families_qs.count()
+    registered = families_qs.filter(rfid_uid__isnull=False).exclude(rfid_uid='').count()
+    unregistered = total - registered
+    rate = round((registered / total * 100), 1) if total else 0
+    
+    stats = {
+        'total': total,
+        'registered': registered,
+        'unregistered': unregistered,
+        'rate': rate,
+    }
+    
+    context = {
+        'barangay': barangay,
+        'zones': zones,
+        'selected_zone': selected_zone,
+        'search_query': search_query,
+        'families': families_qs,
+        'stats': stats,
+        'requires_auth': True,
+    }
+    
+    return render(request, 'rfid/barangay_rfid_detail.html', context)
+
+
+@login_required
+@session_protected
+@mswdo_or_staff_required
+def family_members_modal(request, family_id):
+    family = get_object_or_404(Family, id=family_id)
+    members = family.members.all().order_by('relationship', 'first_name')
+    
+    context = {
+        'family': family,
+        'members': members,
+    }
+    
+    return render(request, 'rfid/partials/family_members_modal.html', context)
+
+
+@login_required
+@session_protected
 def rfid_overview(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")

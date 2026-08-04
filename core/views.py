@@ -238,6 +238,12 @@ def staff_dashboard(request):
     household_count = Household.objects.count()
     family_count = Family.objects.count()
 
+    # Count active aid programs
+    active_programs_count = Assistance.objects.filter(is_active=True).count()
+
+    # Count registered RFID cards
+    rfid_count = Family.objects.filter(rfid_uid__isnull=False).exclude(rfid_uid="").count()
+
     now = timezone.localtime(timezone.now())
     today_claims = AidClaim.objects.filter(claimed_at__date=now.date()).count()
 
@@ -258,6 +264,8 @@ def staff_dashboard(request):
     context = {
         'household_count': household_count,
         'family_count': family_count,
+        'active_programs_count': active_programs_count,
+        'rfid_count': rfid_count,
         'today_claims': today_claims,
         'active_schedules': active_schedules,
         'upcoming_schedules': upcoming_schedules,
