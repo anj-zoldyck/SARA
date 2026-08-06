@@ -18,7 +18,7 @@
 <div class="dash-page-header">
   <div>
     <div class="page-breadcrumb">
-      <a href="{% if request.user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="breadcrumb-link">
+      <a href="{% if user.role == 'MSWDO_STAFF' %}{% url 'staff_dashboard' %}{% elif user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'barangay_dashboard' %}{% endif %}" class="breadcrumb-link">
         <i class="bi bi-speedometer2"></i> Dashboard
       </a>
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
@@ -31,7 +31,7 @@
     </p>
   </div>
   <div class="page-back-row">
-    <a href="{% if request.user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="btn-dash-outline">
+    <a href="{% if user.role == 'MSWDO_STAFF' %}{% url 'staff_dashboard' %}{% elif user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'barangay_dashboard' %}{% endif %}" class="btn-dash-outline">
       <i class="bi bi-arrow-left"></i> Back to Dashboard
     </a>
   </div>
