@@ -102,3 +102,64 @@ class AssistanceForm(forms.ModelForm):
                 "Minimum age is only applicable for individual-based assistance."
             )
         return cleaned_data
+
+
+# ----------------- Assistance Modal Form -----------------
+class AssistanceModalForm(forms.ModelForm):
+    """Form for Assistance creation/editing via modal with inline category creation"""
+    category_name = forms.CharField(
+        max_length=100,
+        required=True,
+        label="Assistance/Category Name",
+        widget=forms.TextInput(attrs={
+            'class': 'modal-form__control',
+            'list': 'category-datalist',
+            'placeholder': 'e.g. Burial Assistance'
+        })
+    )
+    
+    class Meta:
+        model = Assistance
+        fields = ['beneficiary_type', 'aid_type', 'minimum_age', 
+                  'requires_pwd', 'requires_solo_parent', 'requires_senior_citizen', 'is_active']
+        widgets = {
+            'beneficiary_type': forms.Select(attrs={
+                'class': 'modal-form__control'
+            }),
+            'aid_type': forms.Select(attrs={
+                'class': 'modal-form__control'
+            }),
+            'minimum_age': forms.NumberInput(attrs={
+                'class': 'modal-form__control',
+                'placeholder': 'Leave blank if no age requirement'
+            }),
+            'requires_pwd': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'requires_solo_parent': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'requires_senior_citizen': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['minimum_age'].required = False
+        self.fields['aid_type'].label = "Aid Type — Cash or Goods-in-Kind"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        beneficiary_type = cleaned_data.get('beneficiary_type')
+        minimum_age = cleaned_data.get('minimum_age')
+
+        # minimum_age only makes sense for individual-based assistance
+        if beneficiary_type == 'family' and minimum_age:
+            raise forms.ValidationError(
+                "Minimum age is only applicable for individual-based assistance."
+            )
+        return cleaned_data

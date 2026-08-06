@@ -18,7 +18,7 @@ from distribution.models import AidSchedule, AidClaim
 
 from accounts.forms import CreateUserForm
 from households.forms import HouseholdForm, FamilyForm, FamilyMemberForm
-from programs.forms import ProgramForm, AidCategoryForm, AssistanceForm
+from programs.forms import ProgramForm, AidCategoryForm, AssistanceForm, AssistanceModalForm
 # from distribution.forms import AidScheduleForm  # if any
 
 from django.utils.safestring import mark_safe
@@ -133,6 +133,42 @@ def add_assistance(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
 
+    # Handle modal submission (JSON response)
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        if request.method == 'POST':
+            program_id = request.POST.get('program_id')
+            category_name = request.POST.get('category_name')
+            
+            if not program_id or not category_name:
+                return JsonResponse({'success': False, 'error': 'Program and category name are required'}, status=400)
+            
+            program = get_object_or_404(Program, id=program_id)
+            
+            # Filter-then-create logic for AidCategory (case-insensitive)
+            category = AidCategory.objects.filter(
+                program=program, name__iexact=category_name
+            ).first()
+            if category is None:
+                category = AidCategory.objects.create(
+                    program=program, name=category_name, is_active=True
+                )
+            
+            # Create Assistance
+            form = AssistanceModalForm(request.POST)
+            if form.is_valid():
+                assistance = form.save(commit=False)
+                assistance.program = program
+                assistance.aid_category = category
+                assistance.save()
+                return JsonResponse({'success': True, 'message': 'Assistance entry added successfully.'})
+            else:
+                # Log form errors for debugging
+                print(f"Form validation errors: {form.errors}")
+                return JsonResponse({'success': False, 'errors': dict(form.errors)}, status=400)
+        
+        return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=405)
+    
+    # Handle traditional page-based submission (backward compatibility)
     if request.method == 'POST':
         form = AssistanceForm(request.POST)
         if form.is_valid():
@@ -171,6 +207,42 @@ def edit_assistance(request, assistance_id):
         id=assistance_id
     )
 
+    # Handle modal submission (JSON response)
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        if request.method == 'POST':
+            program_id = request.POST.get('program_id')
+            category_name = request.POST.get('category_name')
+            
+            if not program_id or not category_name:
+                return JsonResponse({'success': False, 'error': 'Program and category name are required'}, status=400)
+            
+            program = get_object_or_404(Program, id=program_id)
+            
+            # Filter-then-create logic for AidCategory (case-insensitive)
+            category = AidCategory.objects.filter(
+                program=program, name__iexact=category_name
+            ).first()
+            if category is None:
+                category = AidCategory.objects.create(
+                    program=program, name=category_name, is_active=True
+                )
+            
+            # Update Assistance
+            form = AssistanceModalForm(request.POST, instance=assistance)
+            if form.is_valid():
+                assistance = form.save(commit=False)
+                assistance.program = program
+                assistance.aid_category = category
+                assistance.save()
+                return JsonResponse({'success': True, 'message': f"Assistance '{assistance}' updated successfully."})
+            else:
+                # Log form errors for debugging
+                print(f"Form validation errors: {form.errors}")
+                return JsonResponse({'success': False, 'errors': dict(form.errors)}, status=400)
+        
+        return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=405)
+    
+    # Handle traditional page-based submission (backward compatibility)
     if request.method == 'POST':
         form = AssistanceForm(request.POST, instance=assistance)
         if form.is_valid():
@@ -184,4 +256,18 @@ def edit_assistance(request, assistance_id):
         'form': form,
         'assistance': assistance,
     })
+
+
+@login_required
+@session_protected
+def get_program_category_names(request, program_id):
+    """AJAX: Return list of category names for a program (for datalist)"""
+    if request.user.role != 'MSWDO':
+        return JsonResponse({'error': 'Access Denied'}, status=403)
+    
+    categories = AidCategory.objects.filter(
+        program_id=program_id
+    ).values_list('name', flat=True).distinct()
+    
+    return JsonResponse({'category_names': list(categories)})
 

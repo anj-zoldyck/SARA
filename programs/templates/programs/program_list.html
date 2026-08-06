@@ -40,6 +40,49 @@
     margin-top: 2px;
     text-transform: none;
   }
+
+  /* Override Bootstrap modal to match .kiosk-modal pattern */
+  .modal-backdrop {
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
+  }
+
+  /* Fix scroll lock - ensure body is locked when modal is open */
+  body.modal-open {
+    overflow: hidden !important;
+  }
+
+  /* Restore vertical centering for the four modals (program_list.css overrides this) */
+  #addProgramModal .modal-dialog.modal-dialog-centered,
+  #editProgramModal .modal-dialog.modal-dialog-centered,
+  #addAssistanceModal .modal-dialog.modal-dialog-centered,
+  #editAssistanceModal .modal-dialog.modal-dialog-centered {
+    align-items: center !important;
+  }
+
+  #addProgramModal .modal-content,
+  #editProgramModal .modal-content,
+  #addAssistanceModal .modal-content,
+  #editAssistanceModal .modal-content {
+    border-radius: 12px;
+    border: 1px solid var(--border-color, #e2e8f0);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    overflow: hidden;
+  }
+
+  #addProgramModal .modal-body,
+  #editProgramModal .modal-body,
+  #addAssistanceModal .modal-body,
+  #editAssistanceModal .modal-body {
+    max-height: 60vh;
+    overflow-y: auto;
+    background: #ffffff;
+  }
+
+  #addAssistanceModal .modal-dialog,
+  #editAssistanceModal .modal-dialog {
+    max-width: 800px;
+  }
 </style>
 {% endblock %}
 
@@ -76,9 +119,6 @@
     <button class="btn-dash-outline" data-bs-toggle="modal" data-bs-target="#addProgramModal">
       <i class="bi bi-plus-lg"></i> Add Program
     </button>
-    <a href="{% url 'add_assistance' %}" class="btn-dash-primary" style="text-decoration:none;">
-      <i class="bi bi-plus-lg"></i> Add Assistance
-    </a>
   </div>
 </div>
 
@@ -126,14 +166,14 @@
       <!-- Program Actions -->
       <div class="acct-actions">
         <button
-          class="acct-btn acct-btn--edit"
+          class="btn-dash-outline"
           data-bs-toggle="modal"
-          data-bs-target="#addCategoryModal"
+          data-bs-target="#addAssistanceModal"
           data-program-id="{{ program.id }}"
           data-program-name="{{ program.name }}"
-          title="Add aid category">
-          <i class="bi bi-folder-plus"></i>
-          <span>+ Category</span>
+          title="Add assistance">
+          <i class="bi bi-plus-circle"></i>
+          <span>+ Assistance</span>
         </button>
         <button
           class="acct-btn acct-btn--edit"
@@ -219,13 +259,25 @@
               <td class="acct-td acct-td--actions">
                 <div class="acct-actions">
                   <!-- Edit Assistance -->
-                  <a href="{% url 'edit_assistance' a.id %}"
-                     class="acct-btn acct-btn--edit"
-                     title="Edit assistance"
-                     style="text-decoration:none;">
+                  <button
+                    class="acct-btn acct-btn--edit"
+                    data-bs-toggle="modal"
+                    data-bs-target="#editAssistanceModal"
+                    data-assistance-id="{{ a.id }}"
+                    data-program-id="{{ a.program.id }}"
+                    data-program-name="{{ a.program.name }}"
+                    data-category-name="{{ a.aid_category.name }}"
+                    data-beneficiary-type="{{ a.beneficiary_type }}"
+                    data-aid-type="{{ a.aid_type }}"
+                    data-minimum-age="{{ a.minimum_age|default:'' }}"
+                    data-requires-pwd="{{ a.requires_pwd|yesno:'true,false' }}"
+                    data-requires-solo-parent="{{ a.requires_solo_parent|yesno:'true,false' }}"
+                    data-requires-senior="{{ a.requires_senior_citizen|yesno:'true,false' }}"
+                    data-is-active="{{ a.is_active|yesno:'true,false' }}"
+                    title="Edit assistance">
                     <i class="bi bi-pencil"></i>
                     <span>Edit</span>
-                  </a>
+                  </button>
                   <!-- Toggle Assistance -->
                   <button
                     class="acct-btn {% if a.is_active %}acct-btn--deactivate{% else %}acct-btn--activate{% endif %}"
@@ -532,7 +584,292 @@
 
 
 
-<!-- ── 6. Toggle Assistance Modal ────────────────────────────────── -->
+<!-- ── 5. Add Assistance Modal ───────────────────────────────────── -->
+<div class="modal fade sara-modal" id="addAssistanceModal" tabindex="-1" aria-labelledby="addAssistanceModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addAssistanceModalLabel">
+          <i class="bi bi-plus-circle"></i> Add Assistance
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" id="addAssistanceModalForm">
+        {% csrf_token %}
+        <div class="modal-body">
+          
+          <div class="modal-form__group">
+            <label class="modal-form__label">
+              <i class="bi bi-gift"></i> Program
+            </label>
+            <input
+              type="text"
+              id="add_asst_program_display"
+              class="modal-form__control"
+              readonly
+              style="background:#f8fafd; cursor:default;">
+            <input type="hidden" name="program_id" id="add_asst_program_id">
+          </div>
+
+          <div class="modal-divider"></div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="add_asst_category_name">
+              <i class="bi bi-tag"></i> Assistance Name
+              <span class="modal-form__required">*</span>
+            </label>
+            <input
+              type="text"
+              id="add_asst_category_name"
+              name="category_name"
+              class="modal-form__control"
+              list="add-category-datalist"
+              placeholder="e.g. Burial Assistance"
+              required
+              maxlength="100">
+            <datalist id="add-category-datalist"></datalist>
+            <p class="modal-form__check-sub">Type to see existing categories or enter a new one.</p>
+          </div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="add_asst_beneficiary_type">
+              <i class="bi bi-people"></i> Beneficiary Type
+              <span class="modal-form__required">*</span>
+            </label>
+            <select
+              id="add_asst_beneficiary_type"
+              name="beneficiary_type"
+              class="modal-form__control"
+              required>
+              <option value="">Select...</option>
+              <option value="individual">Individual</option>
+              <option value="family">Family</option>
+            </select>
+            <p class="modal-form__check-sub">Choose 'Family' if one claim covers the whole household. Choose 'Individual' if each qualifying person claims separately.</p>
+          </div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="add_asst_aid_type">
+              <i class="bi bi-cash-coin"></i> Aid Type
+              <span class="modal-form__required">*</span>
+            </label>
+            <select
+              id="add_asst_aid_type"
+              name="aid_type"
+              class="modal-form__control"
+              required>
+              <option value="">Select...</option>
+              <option value="CASH">Cash Assistance</option>
+              <option value="GOODS">Goods-in-Kind (rice, noodles, canned goods, etc.)</option>
+            </select>
+            <p class="modal-form__check-sub">Cash Assistance is money given directly. Goods-in-Kind means physical items like rice or canned goods.</p>
+          </div>
+
+          <div id="add_asst_eligibility_group" style="display:none;">
+            <div class="modal-divider"></div>
+            <h6 class="mb-2">Eligibility Requirements</h6>
+            
+            <div class="modal-form__group">
+              <label class="modal-form__label" for="add_asst_minimum_age">
+                <i class="bi bi-person-check"></i> Minimum Age
+              </label>
+              <input
+                type="number"
+                id="add_asst_minimum_age"
+                name="minimum_age"
+                class="modal-form__control"
+                placeholder="Leave blank if no age requirement">
+              <p class="modal-form__check-sub">Only used for Individual-type assistance. Leave blank if there's no age requirement.</p>
+            </div>
+
+            <div class="modal-form__check-row">
+              <input type="checkbox" id="add_asst_requires_pwd" name="requires_pwd">
+              <div>
+                <label class="modal-form__check-label" for="add_asst_requires_pwd">PWD Only</label>
+              </div>
+            </div>
+
+            <div class="modal-form__check-row">
+              <input type="checkbox" id="add_asst_requires_solo_parent" name="requires_solo_parent">
+              <div>
+                <label class="modal-form__check-label" for="add_asst_requires_solo_parent">Solo Parent Only</label>
+              </div>
+            </div>
+
+            <div class="modal-form__check-row">
+              <input type="checkbox" id="add_asst_requires_senior" name="requires_senior_citizen">
+              <div>
+                <label class="modal-form__check-label" for="add_asst_requires_senior">Senior Citizen Only</label>
+              </div>
+            </div>
+            <p class="modal-form__check-sub">Check only the categories required to qualify for this aid. Leave all unchecked if anyone can qualify regardless of these categories.</p>
+          </div>
+
+          <div class="modal-form__check-row mt-3">
+            <input type="checkbox" id="add_asst_is_active" name="is_active" checked>
+            <div>
+              <label class="modal-form__check-label" for="add_asst_is_active">Active</label>
+              <p class="modal-form__check-sub">When unchecked, this aid entry will be hidden from staff when scheduling a new distribution. Existing schedules that already use it are not affected.</p>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-dash-primary">
+            <i class="bi bi-plus-lg"></i> Add Assistance
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── 6. Edit Assistance Modal ───────────────────────────────────── -->
+<div class="modal fade sara-modal" id="editAssistanceModal" tabindex="-1" aria-labelledby="editAssistanceModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editAssistanceModalLabel">
+          <i class="bi bi-pencil"></i> Edit Assistance
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" id="editAssistanceModalForm">
+        {% csrf_token %}
+        <div class="modal-body">
+          
+          <div class="modal-form__group">
+            <label class="modal-form__label">
+              <i class="bi bi-gift"></i> Program
+            </label>
+            <input
+              type="text"
+              id="edit_asst_program_display"
+              class="modal-form__control"
+              readonly
+              style="background:#f8fafd; cursor:default;">
+            <input type="hidden" name="program_id" id="edit_asst_program_id">
+            <input type="hidden" name="assistance_id" id="edit_asst_assistance_id">
+          </div>
+
+          <div class="modal-divider"></div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="edit_asst_category_name">
+              <i class="bi bi-tag"></i> Assistance Name
+              <span class="modal-form__required">*</span>
+            </label>
+            <input
+              type="text"
+              id="edit_asst_category_name"
+              name="category_name"
+              class="modal-form__control"
+              list="edit-category-datalist"
+              placeholder="e.g. Burial Assistance"
+              required
+              maxlength="100">
+            <datalist id="edit-category-datalist"></datalist>
+            <p class="modal-form__check-sub">Type to see existing categories or enter a new one.</p>
+          </div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="edit_asst_beneficiary_type">
+              <i class="bi bi-people"></i> Beneficiary Type
+              <span class="modal-form__required">*</span>
+            </label>
+            <select
+              id="edit_asst_beneficiary_type"
+              name="beneficiary_type"
+              class="modal-form__control"
+              required>
+              <option value="">Select...</option>
+              <option value="individual">Individual</option>
+              <option value="family">Family</option>
+            </select>
+            <p class="modal-form__check-sub">Choose 'Family' if one claim covers the whole household. Choose 'Individual' if each qualifying person claims separately.</p>
+          </div>
+
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="edit_asst_aid_type">
+              <i class="bi bi-cash-coin"></i> Aid Type
+              <span class="modal-form__required">*</span>
+            </label>
+            <select
+              id="edit_asst_aid_type"
+              name="aid_type"
+              class="modal-form__control"
+              required>
+              <option value="">Select...</option>
+              <option value="CASH">Cash Assistance</option>
+              <option value="GOODS">Goods-in-Kind (rice, noodles, canned goods, etc.)</option>
+            </select>
+            <p class="modal-form__check-sub">Cash Assistance is money given directly. Goods-in-Kind means physical items like rice or canned goods.</p>
+          </div>
+
+          <div id="edit_asst_eligibility_group" style="display:none;">
+            <div class="modal-divider"></div>
+            <h6 class="mb-2">Eligibility Requirements</h6>
+            
+            <div class="modal-form__group">
+              <label class="modal-form__label" for="edit_asst_minimum_age">
+                <i class="bi bi-person-check"></i> Minimum Age
+              </label>
+              <input
+                type="number"
+                id="edit_asst_minimum_age"
+                name="minimum_age"
+                class="modal-form__control"
+                placeholder="Leave blank if no age requirement">
+              <p class="modal-form__check-sub">Only used for Individual-type assistance. Leave blank if there's no age requirement.</p>
+            </div>
+
+            <div class="modal-form__check-row">
+              <input type="checkbox" id="edit_asst_requires_pwd" name="requires_pwd">
+              <div>
+                <label class="modal-form__check-label" for="edit_asst_requires_pwd">PWD Only</label>
+              </div>
+            </div>
+
+            <div class="modal-form__check-row">
+              <input type="checkbox" id="edit_asst_requires_solo_parent" name="requires_solo_parent">
+              <div>
+                <label class="modal-form__check-label" for="edit_asst_requires_solo_parent">Solo Parent Only</label>
+              </div>
+            </div>
+
+            <div class="modal-form__check-row">
+              <input type="checkbox" id="edit_asst_requires_senior" name="requires_senior_citizen">
+              <div>
+                <label class="modal-form__check-label" for="edit_asst_requires_senior">Senior Citizen Only</label>
+              </div>
+            </div>
+            <p class="modal-form__check-sub">Check only the categories required to qualify for this aid. Leave all unchecked if anyone can qualify regardless of these categories.</p>
+          </div>
+
+          <div class="modal-form__check-row mt-3">
+            <input type="checkbox" id="edit_asst_is_active" name="is_active">
+            <div>
+              <label class="modal-form__check-label" for="edit_asst_is_active">Active</label>
+              <p class="modal-form__check-sub">When unchecked, this aid entry will be hidden from staff when scheduling a new distribution. Existing schedules that already use it are not affected.</p>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-dash-primary">
+            <i class="bi bi-check-lg"></i> Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── 7. Toggle Assistance Modal ────────────────────────────────── -->
 <div class="modal fade sara-modal" id="toggleAssistanceModal" tabindex="-1" aria-labelledby="toggleAssistanceModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-sm">
     <div class="modal-content">
@@ -638,6 +975,15 @@ document.getElementById('addCategoryModal').addEventListener('show.bs.modal', fu
 });
 
 
+// ================================================================
+//  TOGGLE ASSISTANCE MODAL — populate confirm text + action URL
+// ================================================================
+document.getElementById('toggleAssistanceModal').addEventListener('show.bs.modal', function (e) {
+  const btn           = e.relatedTarget;
+  const assistanceId  = btn.dataset.assistanceId;
+  const name          = btn.dataset.assistanceName;
+  const isActive      = btn.dataset.assistanceActive === 'true';
+
   const action    = isActive ? 'deactivate' : 'activate';
   const iconClass = isActive ? 'confirm-icon--danger' : 'confirm-icon--success';
   const iconBI    = isActive ? 'bi-slash-circle'       : 'bi-check-circle';
@@ -653,6 +999,216 @@ document.getElementById('addCategoryModal').addEventListener('show.bs.modal', fu
   document.getElementById('toggleAssistanceIcon').innerHTML     = `<i class="bi ${iconBI}"></i>`;
   document.getElementById('toggleAssistanceConsequence').textContent = consequence;
   document.getElementById('toggleAssistanceBtn').href           = `/mswdo/programs/assistance/${assistanceId}/toggle/`;
+});
+
+
+// ================================================================
+//  ADD ASSISTANCE MODAL — populate program + load datalist
+// ================================================================
+document.getElementById('addAssistanceModal').addEventListener('show.bs.modal', function (e) {
+  const btn         = e.relatedTarget;
+  const programId   = btn.dataset.programId;
+  const programName = btn.dataset.programName;
+
+  // Set program fields
+  document.getElementById('add_asst_program_display').value = programName;
+  document.getElementById('add_asst_program_id').value      = programId;
+
+  // Clear form fields
+  document.getElementById('add_asst_category_name').value = '';
+  document.getElementById('add_asst_beneficiary_type').value = '';
+  document.getElementById('add_asst_aid_type').value = '';
+  document.getElementById('add_asst_minimum_age').value = '';
+  document.getElementById('add_asst_requires_pwd').checked = false;
+  document.getElementById('add_asst_requires_solo_parent').checked = false;
+  document.getElementById('add_asst_requires_senior').checked = false;
+  document.getElementById('add_asst_is_active').checked = true;
+  document.getElementById('add_asst_eligibility_group').style.display = 'none';
+
+  // Load category names for datalist
+  const datalist = document.getElementById('add-category-datalist');
+  datalist.innerHTML = '';
+  
+  fetch(`/ajax/get-program-category-names/${programId}/`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.category_names && data.category_names.length > 0) {
+        data.category_names.forEach(name => {
+          const option = document.createElement('option');
+          option.value = name;
+          datalist.appendChild(option);
+        });
+      }
+    })
+    .catch(err => console.error('Error loading category names:', err));
+});
+
+// Handle beneficiary type change for Add Assistance
+document.getElementById('add_asst_beneficiary_type').addEventListener('change', function() {
+  const eligibilityGroup = document.getElementById('add_asst_eligibility_group');
+  if (this.value === 'individual') {
+    eligibilityGroup.style.display = 'block';
+  } else {
+    eligibilityGroup.style.display = 'none';
+    document.getElementById('add_asst_minimum_age').value = '';
+    document.getElementById('add_asst_requires_pwd').checked = false;
+    document.getElementById('add_asst_requires_solo_parent').checked = false;
+    document.getElementById('add_asst_requires_senior').checked = false;
+  }
+});
+
+// Handle Add Assistance form submission
+document.getElementById('addAssistanceModalForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const formData = new FormData(this);
+  formData.append('program_id', document.getElementById('add_asst_program_id').value);
+  
+  fetch('/mswdo/programs/assistance/add/', {
+    method: 'POST',
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      // Close modal and reload page
+      const modal = bootstrap.Modal.getInstance(document.getElementById('addAssistanceModal'));
+      modal.hide();
+      location.reload();
+    } else {
+      // Show errors - either general error or form validation errors
+      if (data.errors) {
+        let errorMsg = 'Please fix the following errors:\n';
+        for (const [field, messages] of Object.entries(data.errors)) {
+          errorMsg += `\n${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`;
+        }
+        alert(errorMsg);
+      } else {
+        alert(data.error || 'Error adding assistance');
+      }
+    }
+  })
+  .catch(err => {
+    console.error('Error:', err);
+    alert('Error adding assistance');
+  });
+});
+
+
+// ================================================================
+//  EDIT ASSISTANCE MODAL — populate fields + load datalist
+// ================================================================
+document.getElementById('editAssistanceModal').addEventListener('show.bs.modal', function (e) {
+  const btn              = e.relatedTarget;
+  const assistanceId     = btn.dataset.assistanceId;
+  const programId        = btn.dataset.programId;
+  const programName      = btn.dataset.programName;
+  const categoryName     = btn.dataset.categoryName;
+  const beneficiaryType  = btn.dataset.beneficiaryType;
+  const aidType          = btn.dataset.aidType;
+  const minimumAge       = btn.dataset.minimumAge;
+  const requiresPwd      = btn.dataset.requiresPwd === 'true';
+  const requiresSolo     = btn.dataset.requiresSoloParent === 'true';
+  const requiresSenior   = btn.dataset.requiresSenior === 'true';
+  const isActive         = btn.dataset.isActive === 'true';
+
+  // Set program fields
+  document.getElementById('edit_asst_program_display').value = programName;
+  document.getElementById('edit_asst_program_id').value      = programId;
+  document.getElementById('edit_asst_assistance_id').value   = assistanceId;
+
+  // Populate form fields
+  document.getElementById('edit_asst_category_name').value = categoryName;
+  document.getElementById('edit_asst_beneficiary_type').value = beneficiaryType;
+  document.getElementById('edit_asst_aid_type').value = aidType;
+  document.getElementById('edit_asst_minimum_age').value = minimumAge;
+  document.getElementById('edit_asst_requires_pwd').checked = requiresPwd;
+  document.getElementById('edit_asst_requires_solo_parent').checked = requiresSolo;
+  document.getElementById('edit_asst_requires_senior').checked = requiresSenior;
+  document.getElementById('edit_asst_is_active').checked = isActive;
+
+  // Show/hide eligibility section based on beneficiary type
+  const eligibilityGroup = document.getElementById('edit_asst_eligibility_group');
+  if (beneficiaryType === 'individual') {
+    eligibilityGroup.style.display = 'block';
+  } else {
+    eligibilityGroup.style.display = 'none';
+  }
+
+  // Load category names for datalist
+  const datalist = document.getElementById('edit-category-datalist');
+  datalist.innerHTML = '';
+  
+  fetch(`/ajax/get-program-category-names/${programId}/`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.category_names && data.category_names.length > 0) {
+        data.category_names.forEach(name => {
+          const option = document.createElement('option');
+          option.value = name;
+          datalist.appendChild(option);
+        });
+      }
+    })
+    .catch(err => console.error('Error loading category names:', err));
+});
+
+// Handle beneficiary type change for Edit Assistance
+document.getElementById('edit_asst_beneficiary_type').addEventListener('change', function() {
+  const eligibilityGroup = document.getElementById('edit_asst_eligibility_group');
+  if (this.value === 'individual') {
+    eligibilityGroup.style.display = 'block';
+  } else {
+    eligibilityGroup.style.display = 'none';
+    document.getElementById('edit_asst_minimum_age').value = '';
+    document.getElementById('edit_asst_requires_pwd').checked = false;
+    document.getElementById('edit_asst_requires_solo_parent').checked = false;
+    document.getElementById('edit_asst_requires_senior').checked = false;
+  }
+});
+
+// Handle Edit Assistance form submission
+document.getElementById('editAssistanceModalForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const assistanceId = document.getElementById('edit_asst_assistance_id').value;
+  const formData = new FormData(this);
+  formData.append('program_id', document.getElementById('edit_asst_program_id').value);
+  
+  fetch(`/mswdo/programs/assistance/${assistanceId}/edit/`, {
+    method: 'POST',
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      // Close modal and reload page
+      const modal = bootstrap.Modal.getInstance(document.getElementById('editAssistanceModal'));
+      modal.hide();
+      location.reload();
+    } else {
+      // Show errors - either general error or form validation errors
+      if (data.errors) {
+        let errorMsg = 'Please fix the following errors:\n';
+        for (const [field, messages] of Object.entries(data.errors)) {
+          errorMsg += `\n${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`;
+        }
+        alert(errorMsg);
+      } else {
+        alert(data.error || 'Error updating assistance');
+      }
+    }
+  })
+  .catch(err => {
+    console.error('Error:', err);
+    alert('Error updating assistance');
+  });
 });
 </script>
 {% endblock %}

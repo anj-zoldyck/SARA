@@ -10,4 +10,5 @@ urlpatterns = [
     path('mswdo/programs/assistance/add/', views.add_assistance, name='add_assistance'),
     path('mswdo/programs/assistance/<int:assistance_id>/toggle/', views.toggle_assistance, name='toggle_assistance'),
     path('mswdo/programs/assistance/<int:assistance_id>/edit/', views.edit_assistance, name='edit_assistance'),
+    path('ajax/get-program-category-names/<int:program_id>/', views.get_program_category_names, name='get_program_category_names'),
 ]
