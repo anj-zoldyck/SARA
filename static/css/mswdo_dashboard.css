@@ -198,6 +198,18 @@
   background: #94a3b8;
 }
 
+/* Tighter table padding for Barangay Profiling Progress */
+.dash-panel__scrollable .table th,
+.dash-panel__scrollable .table td {
+  padding: 8px 12px;
+  font-size: 0.85rem;
+}
+
+.dash-panel__scrollable .table th.ps-4,
+.dash-panel__scrollable .table td.ps-4 {
+  padding-left: 12px !important;
+}
+
 .dash-side {
   display: flex;
   flex-direction: column;
@@ -978,4 +990,14 @@ textarea.modal-form__control {
   position: relative;
   height: 200px;
   width: 100%;
+}
+
+/* Chart Modal Content */
+.modal-content-scrollable {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.modal-content-scrollable table {
+  margin-bottom: 0;
 }

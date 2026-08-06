@@ -10,6 +10,7 @@ from django.utils import timezone
 from datetime import date
 from django.db.models import Count, Q
 from django.db import transaction, IntegrityError
+from django.core.paginator import Paginator
 
 from accounts.decorators import session_protected, mswdo_or_staff_required
 from accounts.models import User, Barangay
@@ -274,26 +275,32 @@ def barangay_rfid_detail(request, barangay_id):
     
     # Order by family name
     families_qs = families_qs.order_by('family_name')
-    
+
     # Calculate stats for this barangay
     total = families_qs.count()
     registered = families_qs.filter(rfid_uid__isnull=False).exclude(rfid_uid='').count()
     unregistered = total - registered
     rate = round((registered / total * 100), 1) if total else 0
-    
+
     stats = {
         'total': total,
         'registered': registered,
         'unregistered': unregistered,
         'rate': rate,
     }
-    
+
+    # Pagination
+    paginator = Paginator(families_qs, 10)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
     context = {
         'barangay': barangay,
         'zones': zones,
         'selected_zone': selected_zone,
         'search_query': search_query,
-        'families': families_qs,
+        'families': page_obj,
+        'page_obj': page_obj,
         'stats': stats,
         'requires_auth': True,
     }

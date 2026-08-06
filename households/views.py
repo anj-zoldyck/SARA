@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.utils import timezone
 from datetime import date
 from django.db.models import Count, Q
+from django.core.paginator import Paginator
 
 from accounts.decorators import session_protected, mswdo_or_staff_required
 from accounts.models import User, Barangay
@@ -128,6 +129,11 @@ def residents_overview(request):
         'solo_parent_count': solo_parent_count,
     }
 
+    # Pagination
+    paginator = Paginator(members_qs, 10)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
     context = {
         'barangays': all_barangays,
         'all_zones': all_zones,
@@ -137,7 +143,8 @@ def residents_overview(request):
         'filter_senior': filter_senior,
         'filter_pwd': filter_pwd,
         'filter_solo_parent': filter_solo_parent,
-        'members': members_qs,
+        'members': page_obj,
+        'page_obj': page_obj,
         'stats': stats,
         'requires_auth': True,
     }

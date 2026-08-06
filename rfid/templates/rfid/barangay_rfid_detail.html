@@ -194,6 +194,43 @@
       </table>
     </div>
   </div>
+
+  <!-- Pagination -->
+  {% if page_obj.has_other_pages %}
+  <div class="dash-panel__body">
+    <nav aria-label="Page navigation">
+      <ul class="pagination justify-content-center" style="gap: 8px;">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link pagination-btn" data-page="1" href="?page=1{% if selected_zone %}&zone={{ selected_zone.id }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&laquo;&laquo;</a>
+        </li>
+        <li class="page-item">
+          <a class="page-link pagination-btn" data-page="{{ page_obj.previous_page_number }}" href="?page={{ page_obj.previous_page_number }}{% if selected_zone %}&zone={{ selected_zone.id }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&laquo;</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">&laquo;&laquo;</span></li>
+        <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+        {% endif %}
+
+        <li class="page-item">
+          <span class="page-link" style="background: none; border: 1px solid #dee2e6; color: #212529;">{{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        </li>
+
+        {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link pagination-btn" data-page="{{ page_obj.next_page_number }}" href="?page={{ page_obj.next_page_number }}{% if selected_zone %}&zone={{ selected_zone.id }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&raquo;</a>
+        </li>
+        <li class="page-item">
+          <a class="page-link pagination-btn" data-page="{{ page_obj.paginator.num_pages }}" href="?page={{ page_obj.paginator.num_pages }}{% if selected_zone %}&zone={{ selected_zone.id }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&raquo;&raquo;</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+        <li class="page-item disabled"><span class="page-link">&raquo;&raquo;</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
 </div>
 
 <!-- Family Members Modal -->
@@ -236,6 +273,53 @@
       document.getElementById('btn-apply-filter').click();
     }
   });
+
+  // ── AJAX Pagination ────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', function() {
+    const paginationBtns = document.querySelectorAll('.pagination-btn');
+    paginationBtns.forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const url = this.getAttribute('href');
+        loadPage(url);
+      });
+    });
+  });
+
+  function loadPage(url) {
+    fetch(url)
+      .then(response => response.text())
+      .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        // Update table body
+        const newTableBody = doc.querySelector('.acct-table tbody');
+        const currentTableBody = document.querySelector('.acct-table tbody');
+        if (newTableBody && currentTableBody) {
+          currentTableBody.innerHTML = newTableBody.innerHTML;
+        }
+        
+        // Update pagination
+        const newPagination = doc.querySelector('.pagination');
+        const currentPagination = document.querySelector('.pagination');
+        if (newPagination && currentPagination) {
+          currentPagination.innerHTML = newPagination.innerHTML;
+          // Re-attach event listeners to new pagination buttons
+          const newPaginationBtns = currentPagination.querySelectorAll('.pagination-btn');
+          newPaginationBtns.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+              e.preventDefault();
+              const url = this.getAttribute('href');
+              loadPage(url);
+            });
+          });
+        }
+      })
+      .catch(err => {
+        console.error('Error loading page:', err);
+      });
+  }
 
   // ── Family Modal Functions ─────────────────────────────────
   const familyModalOverlay = document.getElementById('familyModalOverlay');

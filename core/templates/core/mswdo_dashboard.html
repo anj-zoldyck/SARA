@@ -198,110 +198,67 @@
   <!-- ── LEFT COLUMN ─────────────────────────────────────── -->
   <div class="dash-main-left">
 
-    <!-- Scheduled Distribution & Monthly Trend -->
-    <div class="dash-grid dash-grid--panels">
-      <!-- Scheduled Distribution -->
-      <div class="dash-panel">
-        <div class="dash-panel__header">
-          <div class="dash-panel__header-left">
-            <i class="bi bi-calendar-check dash-panel__icon"></i>
-            <div>
-              <h2 class="dash-panel__title">Scheduled Distribution</h2>
-              <p class="dash-panel__sub">Active and upcoming aid schedules</p>
-            </div>
+    <!-- Scheduled Distribution -->
+    <div class="dash-panel mb-4">
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-calendar-check dash-panel__icon"></i>
+          <div>
+            <h2 class="dash-panel__title">Scheduled Distribution</h2>
+            <p class="dash-panel__sub">Active and upcoming aid schedules</p>
           </div>
-        </div>
-
-        <!-- Schedule Lists (populated by fetch) -->
-        <div class="dash-panel__body">
-
-          {% include "core/_dashboard_schedule_panel.html" %}
-
-
         </div>
       </div>
 
-      <!-- Monthly Aid Distribution Trend -->
-      <div class="dash-panel">
-        <div class="dash-panel__header">
-          <div class="dash-panel__header-left">
-            <i class="bi bi-graph-up dash-panel__icon"></i>
-            <div>
-              <h2 class="dash-panel__title">Monthly Trend</h2>
-              <p class="dash-panel__sub">Claims over the last 6 months</p>
-            </div>
+      <!-- Schedule Lists (populated by fetch) -->
+      <div class="dash-panel__body">
+
+        {% include "core/_dashboard_schedule_panel.html" %}
+
+
+      </div>
+    </div>
+
+    <!-- Monthly Aid Distribution Trend -->
+    <div class="dash-panel mb-4">
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-graph-up dash-panel__icon"></i>
+          <div>
+            <h2 class="dash-panel__title">Monthly Trend</h2>
+            <p class="dash-panel__sub">Claims over the last 6 months</p>
           </div>
         </div>
-        <div class="dash-panel__body">
-          <div class="chart-wrap" style="height: 200px; position: relative;">
-            <canvas id="monthlyTrendChart"></canvas>
-          </div>
+      </div>
+      <div class="dash-panel__body">
+        <div class="chart-wrap" style="height: 290px; position: relative;">
+          <canvas id="monthlyTrendChart"></canvas>
         </div>
       </div>
     </div>
 
-    <!-- This Month's Distribution & Barangay Profiling Progress -->
-    <div class="dash-grid dash-grid--panels">
-      <!-- This Month's Distribution -->
-      <div class="dash-panel">
-        <div class="dash-panel__header">
-          <div class="dash-panel__header-left">
-            <i class="bi bi-bar-chart-line dash-panel__icon"></i>
-            <div>
-              <h2 class="dash-panel__title">This Month's Distribution</h2>
-              <p class="dash-panel__sub">Claims summary across all barangays</p>
-            </div>
-          </div>
-          <a href="{% url 'analytics' %}" class="btn-dash-outline btn-sm">
-            <i class="bi bi-arrow-right"></i> View Full Analytics
-          </a>
-        </div>
-        <div class="dash-panel__body">
-          <div class="chart-wrap" style="height: 250px; position: relative;">
-            <canvas id="mswdoDashAnalyticsChart"></canvas>
-          </div>
-        </div>
+    <!-- This Month's Distribution -->
+    <div class="dash-panel mb-4">
+      <div id="filterIndicator" class="alert alert-info alert-dismissible fade show d-none mb-3" role="alert">
+        <i class="bi bi-funnel me-2"></i>
+        Filtered by: <strong id="filterBarangayName"></strong>
+        <button type="button" class="btn-close" onclick="clearBarangayFilter()" aria-label="Close"></button>
       </div>
-
-      <!-- Barangay Profiling Progress -->
-      <div class="dash-panel">
-        <div class="dash-panel__header">
-          <div class="dash-panel__header-left">
-            <i class="bi bi-bar-chart-steps dash-panel__icon"></i>
-            <div>
-              <h2 class="dash-panel__title">Barangay Profiling Progress</h2>
-              <p class="dash-panel__sub">Households, Families, and RFID coverage</p>
-            </div>
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-bar-chart-line dash-panel__icon"></i>
+          <div>
+            <h2 class="dash-panel__title">This Month's Distribution</h2>
+            <p class="dash-panel__sub">Claims summary across all barangays</p>
           </div>
         </div>
-        <div class="dash-panel__body p-0 dash-panel__scrollable">
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
-              <thead class="table-light sticky-top">
-                <tr>
-                  <th class="ps-4">Barangay</th>
-                  <th class="text-center">Households</th>
-                  <th class="text-center">Families</th>
-                  <th class="text-center">RFID</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for b in barangays %}
-                <tr>
-                  <td class="ps-4 fw-medium">{{ b.name }}</td>
-                  <td class="text-center">{{ b.household_count }}</td>
-                  <td class="text-center">{{ b.family_count }}</td>
-                  <td class="text-center">
-                    {{ b.rfid_count }}
-                    <span class="text-muted" style="font-size: 0.8em;">
-                      ({% if b.family_count > 0 %}{% widthratio b.rfid_count b.family_count 100 %}{% else %}0{% endif %}%)
-                    </span>
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+        <a href="{% url 'analytics' %}" class="btn-dash-outline btn-sm">
+          <i class="bi bi-arrow-right"></i> View Full Analytics
+        </a>
+      </div>
+      <div class="dash-panel__body">
+        <div class="chart-wrap" style="height: 290px; position: relative;">
+          <canvas id="mswdoDashAnalyticsChart"></canvas>
         </div>
       </div>
     </div>
@@ -336,12 +293,69 @@
       </div>
     </div>
 
+    <!-- Barangay Profiling Progress -->
+    <div class="dash-panel mb-4">
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-bar-chart-steps dash-panel__icon"></i>
+          <div>
+            <h2 class="dash-panel__title">Barangay Profiling Progress</h2>
+            <p class="dash-panel__sub">Households, Families, and RFID coverage</p>
+          </div>
+        </div>
+      </div>
+      <div class="dash-panel__body p-0 dash-panel__scrollable">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th class="ps-4">Barangay</th>
+                <th class="text-center">Households</th>
+                <th class="text-center">Families</th>
+                <th class="text-center">RFID</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for b in barangays %}
+              <tr>
+                <td class="ps-4 fw-medium">{{ b.name }}</td>
+                <td class="text-center">{{ b.household_count }}</td>
+                <td class="text-center">{{ b.family_count }}</td>
+                <td class="text-center">
+                  {{ b.rfid_count }}
+                  <span class="text-muted" style="font-size: 0.8em;">
+                    ({% if b.family_count > 0 %}{% widthratio b.rfid_count b.family_count 100 %}{% else %}0{% endif %}%)
+                  </span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     {% include "core/_dashboard_quick_actions.html" %}
 
   </div>
 </div>
 
 {% include "core/_schedule_selector_modal.html" %}
+
+<!-- Chart Interaction Modal -->
+<div id="chartModal" class="modal-overlay" style="display: none;">
+  <div class="kiosk-modal">
+    <div class="kiosk-modal-header">
+      <h3 id="modalTitle" class="kiosk-modal-title">Title</h3>
+      <button type="button" class="btn-close" onclick="closeChartModal()" aria-label="Close"></button>
+    </div>
+    <div class="kiosk-modal-body">
+      <div id="modalContent" class="modal-content-scrollable">
+        <!-- Dynamic content -->
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Safe data injection -->
 {{ analytics_labels|json_script:"dash-chart-labels" }}
@@ -350,6 +364,7 @@
 {{ demo_chart_data|json_script:"demo-chart-data" }}
 {{ monthly_trend_labels|json_script:"monthly-trend-labels" }}
 {{ monthly_trend_data|json_script:"monthly-trend-data" }}
+{{ monthly_trend_iso|json_script:"monthly-trend-iso" }}
 
 {% endblock %}
 
@@ -478,6 +493,13 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        onClick: (event, elements) => {
+          if (elements.length > 0) {
+            const index = elements[0].index;
+            const barangayName = dashLabels[index];
+            applyBarangayFilter(barangayName);
+          }
+        },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -521,6 +543,15 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        onClick: (event, elements) => {
+          if (elements.length > 0) {
+            const index = elements[0].index;
+            const categories = ['pwd', 'solo_parent', 'senior'];
+            const category = categories[index];
+            const label = demoLabels[index];
+            openDemographicsModal(category, label);
+          }
+        },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -544,6 +575,7 @@
   // ── Monthly Trend Chart ───────────────────────────────────
   const trendLabels = JSON.parse(document.getElementById('monthly-trend-labels').textContent);
   const trendData   = JSON.parse(document.getElementById('monthly-trend-data').textContent);
+  const trendIso    = JSON.parse(document.getElementById('monthly-trend-iso').textContent);
 
   // Color corresponds to --secondary in base.css (#134ed5)
   const trendColor = '#134ed5';
@@ -573,6 +605,14 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        onClick: (event, elements) => {
+          if (elements.length > 0) {
+            const index = elements[0].index;
+            const monthLabel = trendLabels[index];
+            const monthIso = trendIso[index];
+            openMonthlyClaimsModal(monthIso, monthLabel);
+          }
+        },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -592,5 +632,151 @@
       }
     });
   }
+
+  // ── Chart Modal Functions ─────────────────────────────────────
+  function openChartModal(title, content) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalContent').innerHTML = content;
+    const modal = document.getElementById('chartModal');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('active'), 10);
+  }
+
+  function closeChartModal() {
+    const modal = document.getElementById('chartModal');
+    modal.classList.remove('active');
+    setTimeout(() => modal.style.display = 'none', 300);
+  }
+
+  function openDemographicsModal(category, label) {
+    fetch(`/mswdo/api/demographics/${category}/`)
+      .then(res => {
+        if (!res.ok) throw new Error('Network error');
+        return res.json();
+      })
+      .then(data => {
+        if (data.residents && data.residents.length > 0) {
+          let tableHtml = `
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Barangay</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+          data.residents.forEach(resident => {
+            tableHtml += `
+              <tr>
+                <td>${resident.name}</td>
+                <td>${resident.barangay}</td>
+              </tr>
+            `;
+          });
+          tableHtml += `
+              </tbody>
+            </table>
+          `;
+          openChartModal(`${label} Residents`, tableHtml);
+        } else {
+          openChartModal(`${label} Residents`, '<p class="text-muted text-center py-4">No residents found.</p>');
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load demographics:', err);
+        openChartModal(`${label} Residents`, '<p class="text-danger text-center py-4">Failed to load data.</p>');
+      });
+  }
+
+  function openMonthlyClaimsModal(monthIso, monthLabel) {
+    fetch(`/mswdo/api/monthly-claims/${monthIso}/`)
+      .then(res => {
+        if (!res.ok) throw new Error('Network error');
+        return res.json();
+      })
+      .then(data => {
+        if (data.breakdown && data.breakdown.length > 0) {
+          let tableHtml = `
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Program</th>
+                  <th class="text-end">Claims</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+          data.breakdown.forEach(item => {
+            tableHtml += `
+              <tr>
+                <td>${item.program_name}</td>
+                <td class="text-end">${item.claim_count}</td>
+              </tr>
+            `;
+          });
+          tableHtml += `
+              </tbody>
+            </table>
+          `;
+          openChartModal(`${monthLabel} Claims Breakdown`, tableHtml);
+        } else {
+          openChartModal(`${monthLabel} Claims Breakdown`, '<p class="text-muted text-center py-4">No claims data found.</p>');
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load monthly claims:', err);
+        openChartModal(`${monthLabel} Claims Breakdown`, '<p class="text-danger text-center py-4">Failed to load data.</p>');
+      });
+  }
+
+  // ── Barangay Filter Functions ─────────────────────────────────
+  let analyticsChartInstance = null;
+  let originalDashLabels = [...dashLabels];
+  let originalDashData = [...dashData];
+
+  function applyBarangayFilter(barangayName) {
+    fetch(`/mswdo/api/analytics-chart-data/?barangay=${encodeURIComponent(barangayName)}`)
+      .then(res => {
+        if (!res.ok) throw new Error('Network error');
+        return res.json();
+      })
+      .then(data => {
+        // Update chart data
+        const chart = Chart.getChart('mswdoDashAnalyticsChart');
+        if (chart) {
+          chart.data.labels = data.labels;
+          chart.data.datasets[0].data = data.data;
+          chart.update();
+        }
+
+        // Show filter indicator
+        document.getElementById('filterBarangayName').textContent = barangayName;
+        document.getElementById('filterIndicator').classList.remove('d-none');
+      })
+      .catch(err => {
+        console.error('Failed to apply barangay filter:', err);
+      });
+  }
+
+  function clearBarangayFilter() {
+    // Restore original data
+    const chart = Chart.getChart('mswdoDashAnalyticsChart');
+    if (chart) {
+      chart.data.labels = originalDashLabels;
+      chart.data.datasets[0].data = originalDashData;
+      chart.update();
+    }
+
+    // Hide filter indicator
+    document.getElementById('filterIndicator').classList.add('d-none');
+  }
+
+  // Close modal on overlay click
+  document.getElementById('chartModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeChartModal();
+    }
+  });
 </script>
 {% endblock %}

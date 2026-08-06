@@ -96,12 +96,15 @@ def mswdo_dashboard(request):
     # Monthly trend data (last 6 months)
     monthly_trend_labels = []
     monthly_trend_data = []
+    monthly_trend_iso = []
     for i in range(5, -1, -1):
         month_date = now.replace(day=1) - timedelta(days=32 * i)
         month_date = month_date.replace(day=1)
         month_end = month_date.replace(day=calendar.monthrange(month_date.year, month_date.month)[1])
         month_name = month_date.strftime('%b %Y')
+        month_iso = month_date.strftime('%Y-%m')
         monthly_trend_labels.append(month_name)
+        monthly_trend_iso.append(month_iso)
         month_claims = AidClaim.objects.filter(
             claimed_at__date__gte=month_date.date(),
             claimed_at__date__lte=month_end.date()
@@ -162,6 +165,7 @@ def mswdo_dashboard(request):
         'demo_chart_data': [pwd_count, solo_parent_count, senior_count],
         'monthly_trend_labels': monthly_trend_labels,
         'monthly_trend_data': monthly_trend_data,
+        'monthly_trend_iso': monthly_trend_iso,
     }
 
     return render(request, 'core/mswdo_dashboard.html', context)
@@ -332,7 +336,7 @@ def audit_log_view(request):
     logs = logs.order_by('-created_at')
 
     # Pagination
-    paginator = Paginator(logs, 50)
+    paginator = Paginator(logs, 10)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
 
@@ -354,3 +358,88 @@ def audit_log_view(request):
     })
 
 
+@login_required(login_url='login')
+@session_protected
+def api_demographics(request, category):
+    """API endpoint to get residents by demographic category (PWD, Solo Parent, Senior)"""
+    valid_categories = ['pwd', 'solo_parent', 'senior']
+    if category not in valid_categories:
+        return JsonResponse({'error': 'Invalid category'}, status=400)
+
+    residents = []
+    if category == 'pwd':
+        members = FamilyMember.objects.filter(is_pwd=True).select_related('family__household__barangay')
+    elif category == 'solo_parent':
+        members = FamilyMember.objects.filter(is_solo_parent=True).select_related('family__household__barangay')
+    else:  # senior
+        members = FamilyMember.objects.filter(is_senior_citizen=True).select_related('family__household__barangay')
+
+    for member in members:
+        residents.append({
+            'name': f"{member.first_name} {member.last_name}",
+            'barangay': member.family.household.barangay.name if member.family.household.barangay else 'N/A'
+        })
+
+    return JsonResponse({'residents': residents})
+
+
+@login_required(login_url='login')
+@session_protected
+def api_monthly_claims(request, month):
+    """API endpoint to get claims breakdown by program for a specific month (ISO format: YYYY-MM)"""
+    try:
+        year, month_num = map(int, month.split('-'))
+        if month_num < 1 or month_num > 12:
+            return JsonResponse({'error': 'Invalid month'}, status=400)
+    except (ValueError, AttributeError):
+        return JsonResponse({'error': 'Invalid month format'}, status=400)
+
+    from collections import defaultdict
+
+    start_date = date(year, month_num, 1)
+    last_day = calendar.monthrange(year, month_num)[1]
+    end_date = date(year, month_num, last_day)
+
+    claims = AidClaim.objects.filter(
+        claimed_at__date__gte=start_date,
+        claimed_at__date__lte=end_date
+    ).select_related('assistance__aid_category')
+
+    program_breakdown = defaultdict(int)
+    for claim in claims:
+        if claim.assistance and claim.assistance.aid_category:
+            program_breakdown[claim.assistance.aid_category.name] += 1
+
+    breakdown = [{'program_name': name, 'claim_count': count} for name, count in program_breakdown.items()]
+    breakdown.sort(key=lambda x: x['program_name'])
+
+    return JsonResponse({'breakdown': breakdown})
+
+
+@login_required(login_url='login')
+@session_protected
+def api_analytics_chart_data(request):
+    """API endpoint to get analytics chart data, optionally filtered by barangay"""
+    barangay_name = request.GET.get('barangay')
+    barangay = None
+
+    if barangay_name:
+        try:
+            barangay = Barangay.objects.get(name=barangay_name)
+        except Barangay.DoesNotExist:
+            return JsonResponse({'error': 'Barangay not found'}, status=404)
+
+    now = timezone.localtime(timezone.now())
+    start_date = now.replace(day=1).date()
+    last_day = calendar.monthrange(start_date.year, start_date.month)[1]
+    end_date = now.replace(day=last_day).date()
+
+    labels, data, total_claims = get_category_claims_data(
+        barangay=barangay, start_date=start_date, end_date=end_date
+    )
+
+    return JsonResponse({
+        'labels': labels,
+        'data': data,
+        'total_claims': total_claims
+    })

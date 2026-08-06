@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.utils import timezone
 from datetime import date
 from django.db.models import Count, Q
+from django.core.paginator import Paginator
 
 from accounts.decorators import session_protected
 from accounts.models import User, Barangay
@@ -251,8 +252,14 @@ def user_accounts(request):
     # We need all barangays for the filter dropdown
     barangays = Barangay.objects.all().order_by('name')
 
+    # Pagination
+    paginator = Paginator(users, 10)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
     return render(request, 'accounts/user_accounts.html', {
-        'users': users,
+        'users': page_obj,
+        'page_obj': page_obj,
         'active_count': active_count,
         'barangays': barangays,
         'selected_role': role_filter,
