@@ -8,6 +8,8 @@
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
 <link rel="stylesheet" href="{% static 'css/aid_reports.css' %}">
+<link rel="stylesheet" href="{% static 'css/program_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -76,190 +78,43 @@
 </div>
 {% endif %}
 
-<!-- ── Filter Panel ───────────────────────────────────────── -->
-<div class="dash-panel rpt-filter-panel">
-  <div class="dash-panel__header">
-    <div class="dash-panel__header-left">
-      <i class="bi bi-funnel dash-panel__icon"></i>
-      <div>
-        <h2 class="dash-panel__title">Filter Reports</h2>
-        <p class="dash-panel__sub">Narrow results by barangay</p>
+<!-- ── Program Cards ──────────────────────────────────────── -->
+{% if programs_data %}
+  <div class="dash-panel" style="margin-bottom: 20px;">
+    <div class="dash-panel__header">
+      <div class="dash-panel__header-left">
+        <i class="bi bi-gift dash-panel__icon"></i>
+        <div>
+          <h2 class="dash-panel__title">Available Programs</h2>
+          <p class="dash-panel__sub">Select a program to view distribution claims and reports</p>
+        </div>
       </div>
     </div>
   </div>
-  <div class="dash-panel__body">
-    <form method="get" class="rpt-filter-form">
-      <div class="rpt-filter-form__fields">
-        <div class="rpt-filter-form__group">
-          <label class="rpt-filter-form__label">
-            <i class="bi bi-buildings"></i> Barangay
-          </label>
-          <select name="barangay" class="form-select form-select-sm rpt-filter-select">
-            <option value="">All Barangays</option>
-            {% for b in barangays %}
-              <option value="{{ b.id }}"
-                {% if selected_barangay == b.id|stringformat:"s" %}selected{% endif %}>
-                {{ b.name }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-      </div>
-      <button type="submit" class="btn-dash-primary rpt-filter-btn">
-        <i class="bi bi-funnel-fill"></i> Apply Filter
-      </button>
-    </form>
-  </div>
-</div>
-
-<!-- ── Schedule Report Cards ──────────────────────────────── -->
-{% if schedules %}
-
-  {% for sched in schedules %}
-  <div class="rpt-card">
-
-    <!-- Card Header -->
-    <div class="rpt-card__header">
-      <div class="rpt-card__header-left">
-
-        <!-- Aid type icon -->
-        <div class="rpt-card__type-icon rpt-card__type-icon--{% if sched.assistance.beneficiary_type == 'family' %}blue{% else %}amber{% endif %}">
-          {% if sched.assistance.beneficiary_type == 'family' %}
-            <i class="bi bi-box-seam"></i>
-          {% else %}
-            <i class="bi bi-heart-pulse"></i>
-          {% endif %}
-        </div>
-
-        <div class="rpt-card__header-info">
-          <div class="rpt-card__title-row">
-            <h3 class="rpt-card__aid-type">
-              {% if sched.assistance %}
-                {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
-              {% else %}
-                N/A
-              {% endif %}
-            </h3>
-            <!-- Status badge -->
-            {% if sched.is_finished %}
-              {% if sched.finish_reason == 'CANCELLED' %}
-              <span class="rpt-status rpt-status--expired" style="background-color: #fef2f2; color: #dc2626; border-color: #fecaca;">
-                <i class="bi bi-x-circle-fill"></i> Cancelled
-              </span>
-              {% else %}
-              <span class="rpt-status rpt-status--expired">
-                <i class="bi bi-circle-fill"></i> Finished
-              </span>
-              {% endif %}
-            {% else %}
-              <span class="rpt-status rpt-status--active">
-                <i class="bi bi-circle-fill"></i> Active
-              </span>
-            {% endif %}
-            <!-- Barangay scope badge -->
-            {% if sched.barangay %}
-              <span class="rpt-scope rpt-scope--specific">
-                <i class="bi bi-buildings"></i> {{ sched.barangay }}
-              </span>
-            {% else %}
-              <span class="rpt-scope rpt-scope--all">
-                <i class="bi bi-buildings"></i> All Barangays
-              </span>
-            {% endif %}
-          </div>
-
-          <div class="rpt-card__meta">
-            <span>
-              <i class="bi bi-calendar-event"></i>
-              {{ sched.schedule_datetime }}
-            </span>
-            <span class="rpt-card__meta-sep">→</span>
-            <span>{% if sched.is_finished %}{{ sched.finished_at }}{% else %}Ongoing{% endif %}</span>
-            <span class="rpt-card__meta-dot"></span>
-            <span>
-              <i class="bi bi-geo-alt"></i> {{ sched.location }}
-            </span>
+  <div class="row g-4">
+    {% for program_data in programs_data %}
+    <div class="col-md-6 col-lg-4">
+      <div class="dash-panel prog-card" style="cursor: pointer;" onclick="showAssistancesModal('{{ program_data.program.id }}', '{{ program_data.program.name|escapejs }}')">
+        <div class="dash-panel__header">
+          <div class="dash-panel__header-left">
+            <div class="dash-panel__icon">
+              <i class="bi bi-gift"></i>
+            </div>
+            <div>
+              <h2 class="dash-panel__title">{{ program_data.program.name }}</h2>
+              <p class="dash-panel__sub">
+                {{ program_data.assistances|length }} assistance entr{{ program_data.assistances|length|pluralize:"y,ies" }}
+                {% if program_data.program.description %}
+                  &nbsp;·&nbsp; {{ program_data.program.description }}
+                {% endif %}
+              </p>
+            </div>
           </div>
         </div>
       </div>
-
-      <!-- Claims count -->
-      <div class="rpt-card__claims-count">
-        <span class="rpt-card__claims-val">{{ sched.claims|length }}</span>
-        <span class="rpt-card__claims-label">Claim{{ sched.claims|length|pluralize }}</span>
-      </div>
     </div>
-
-    <!-- Card Body — Claims Table -->
-    <div class="rpt-card__body">
-      {% if sched.claims %}
-        <div class="table-responsive">
-          <table class="rpt-table">
-            <thead>
-              <tr>
-                <th class="rpt-th">#</th>
-                <th class="rpt-th">RFID UID</th>
-                <th class="rpt-th">Family</th>
-                <th class="rpt-th">Member</th>
-                <th class="rpt-th">Address</th>
-                <th class="rpt-th">Claimed At</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for c in sched.claims %}
-              <tr class="rpt-row">
-                <td class="rpt-td rpt-td--num">{{ forloop.counter }}</td>
-                <td class="rpt-td">
-                  <span class="rpt-rfid">
-                    <i class="bi bi-credit-card-2-front"></i>
-                    {{ c.family.rfid_uid }}
-                  </span>
-                </td>
-                <td class="rpt-td">
-                  <div class="acct-barangay-cell">
-                    <div class="acct-avatar">{{ c.family.family_name|first|upper }}</div>
-                    <span class="acct-barangay-name">{{ c.family.family_name }}</span>
-                  </div>
-                </td>
-                <td class="rpt-td">
-                  {% if c.family_member %}
-                    <span class="rpt-member">
-                      {{ c.family_member.first_name }} {{ c.family_member.last_name }}
-                    </span>
-                  {% else %}
-                    <span class="rpt-member rpt-member--all">
-                      <i class="bi bi-people"></i> All Members
-                    </span>
-                  {% endif %}
-                </td>
-                <td class="rpt-td rpt-td--address">
-                  <span class="rpt-address">
-                    <i class="bi bi-house-door"></i>
-                    {{ c.family.household.address }}
-                  </span>
-                </td>
-                <td class="rpt-td">
-                  <span class="rpt-timestamp">
-                    <i class="bi bi-clock"></i>
-                    {{ c.claimed_at }}
-                  </span>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-
-      {% else %}
-        <div class="rpt-no-claims">
-          <i class="bi bi-inbox"></i>
-          <p>No claims recorded for this schedule.</p>
-        </div>
-      {% endif %}
-    </div>
-
+    {% endfor %}
   </div>
-  {% endfor %}
 
 {% else %}
   <!-- Empty State -->
@@ -267,15 +122,27 @@
     <div class="dash-panel__body">
       <div class="brgy-empty">
         <i class="bi bi-file-earmark-bar-graph"></i>
-        <h3>No Schedules Found</h3>
-        <p>No distribution schedules match the selected filter. Try selecting a different barangay or clear the filter.</p>
-        <a href="{% url 'aid_reports' %}" class="btn-dash-outline">
-          <i class="bi bi-x-circle"></i> Clear Filter
-        </a>
+        <h3>No Programs Found</h3>
+        <p>No aid programs with distribution records found.</p>
       </div>
     </div>
   </div>
 {% endif %}
+
+<!-- ── Assistances Modal ───────────────────────────────────── -->
+<div class="modal-overlay" id="assistancesModal">
+  <div class="kiosk-modal">
+    <div class="kiosk-modal-header d-flex justify-content-between align-items-center">
+      <h3 class="kiosk-modal-title mb-0" id="assistancesModalLabel">Assistances</h3>
+      <button type="button" class="btn-close" onclick="closeAssistancesModal()" aria-label="Close"></button>
+    </div>
+    <div class="kiosk-modal-body">
+      <div id="assistancesList">
+        <!-- Assistances will be loaded here via JavaScript -->
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ── Back Link ──────────────────────────────────────────── -->
 <div class="page-back-row">
@@ -284,4 +151,76 @@
   </a>
 </div>
 
+{% endblock %}
+
+{% block js %}
+<script>
+  // Store programs data for modal
+  const programsData = {
+    {% for program_data in programs_data %}
+    '{{ program_data.program.id }}': {
+      'name': '{{ program_data.program.name|escapejs }}',
+      'assistances': [
+        {% for assistance in program_data.assistances %}
+        {
+          'id': {{ assistance.id }},
+          'category': '{{ assistance.aid_category.name|escapejs }}',
+          'beneficiary_type': '{{ assistance.get_beneficiary_type_display|escapejs }}',
+          'beneficiary_type_raw': '{{ assistance.beneficiary_type }}'
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+      ]
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  };
+
+  // Show assistances modal
+  function showAssistancesModal(programId, programName) {
+    const modal = document.getElementById('assistancesModal');
+    const modalTitle = document.getElementById('assistancesModalLabel');
+    const assistancesList = document.getElementById('assistancesList');
+    
+    modalTitle.textContent = programName + ' - Assistances';
+    
+    const program = programsData[programId];
+    if (program && program.assistances) {
+      let html = '<div class="list-group">';
+      program.assistances.forEach(assistance => {
+        html += `
+          <a href="{% url 'distribution_claims' %}?program_id=${programId}&assistance_id=${assistance.id}" 
+             class="list-group-item list-group-item-action d-flex align-items-center gap-3" style="padding: 16px; border: 1px solid var(--border-color); margin-bottom: 8px; border-radius: 8px; text-decoration: none; color: inherit;">
+            <div class="acct-avatar" style="width: 40px; height: 40px;">
+              <i class="bi bi-tag" style="font-size: 16px;"></i>
+            </div>
+            <div>
+              <div class="fw-bold">${assistance.category}</div>
+              <small class="text-muted">
+                <i class="bi bi-${assistance.beneficiary_type_raw === 'individual' ? 'person' : 'people'}"></i>
+                ${assistance.beneficiary_type}
+              </small>
+            </div>
+            <i class="bi bi-chevron-right ms-auto"></i>
+          </a>
+        `;
+      });
+      html += '</div>';
+      assistancesList.innerHTML = html;
+    }
+    
+    modal.classList.add('active');
+  }
+
+  // Close assistances modal
+  function closeAssistancesModal() {
+    const modal = document.getElementById('assistancesModal');
+    modal.classList.remove('active');
+  }
+
+  // Close modal when clicking outside
+  document.getElementById('assistancesModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeAssistancesModal();
+    }
+  });
+</script>
 {% endblock %}

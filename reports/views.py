@@ -6,8 +6,9 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden, JsonResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.utils import timezone
-from datetime import date
+from datetime import date, datetime
 from django.db.models import Count, Q
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 from accounts.decorators import session_protected, mswdo_or_staff_required
 from accounts.models import User, Barangay
@@ -40,35 +41,176 @@ User = get_user_model()
 @session_protected
 @mswdo_or_staff_required
 def aid_reports(request):
+    # Get all programs with their assistances
+    programs = Program.objects.prefetch_related(
+        'assistances__aid_category'
+    ).filter(is_active=True).order_by('name')
 
+    # Group assistances by program
+    programs_data = []
+    for program in programs:
+        assistances = program.assistances.filter(is_active=True)
+        
+        if assistances:
+            programs_data.append({
+                'program': program,
+                'assistances': assistances
+            })
+
+    return render(request, 'reports/aid_reports.html', {
+        'programs_data': programs_data,
+        'now': timezone.now(),
+    })
+
+
+@login_required
+@session_protected
+@mswdo_or_staff_required
+def distribution_claims(request):
+    program_id = request.GET.get('program_id')
+    assistance_id = request.GET.get('assistance_id')
     selected_barangay = request.GET.get('barangay')
-
-    schedules = AidSchedule.objects.select_related(
-    'assistance', 'assistance__program', 'assistance__aid_category', 'barangay'
-        ).all().order_by('-schedule_datetime')
-
-    if selected_barangay:
-        schedules = schedules.filter(barangay_id=selected_barangay)
-
-    # Attach claims per schedule
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    search_query = request.GET.get('search', '')
+    
+    program = get_object_or_404(Program, id=program_id, is_active=True)
+    assistance = get_object_or_404(Assistance, id=assistance_id, program=program, is_active=True)
+    
+    # Get all schedules for this assistance
+    schedules = AidSchedule.objects.filter(
+        assistance=assistance
+    ).select_related('barangay').order_by('-schedule_datetime')
+    
+    # Build schedule data with filtered and paginated claims
+    schedules_data = []
+    
+    # Prioritize schedules based on filters
+    # Case 1: Search only (no dates) - prioritize by match count
+    # Case 2: Dates only (no search) - prioritize by claim count in date range
+    # Case 3: Both search and dates - prioritize by matching claim count in date range
+    if (search_query and not date_from and not date_to) or \
+       (not search_query and (date_from or date_to)) or \
+       (search_query and (date_from or date_to)):
+        
+        schedules_with_match_count = []
+        
+        # Parse date filters if present
+        date_from_dt = None
+        date_to_dt = None
+        if date_from:
+            try:
+                date_from_dt = datetime.strptime(date_from, '%Y-%m-%d')
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                date_to_dt = datetime.strptime(date_to, '%Y-%m-%d')
+                from datetime import timedelta
+                date_to_dt += timedelta(days=1)
+            except ValueError:
+                pass
+        
+        for sched in schedules:
+            # Build base queryset for counting
+            claims_count_qs = AidClaim.objects.filter(schedule=sched)
+            
+            # Apply date filters if present
+            if date_from_dt:
+                claims_count_qs = claims_count_qs.filter(claimed_at__gte=date_from_dt)
+            if date_to_dt:
+                claims_count_qs = claims_count_qs.filter(claimed_at__lt=date_to_dt)
+            
+            # Apply search filter if present
+            if search_query:
+                claims_count_qs = claims_count_qs.filter(
+                    Q(family__family_name__icontains=search_query) |
+                    Q(family_member__first_name__icontains=search_query) |
+                    Q(family_member__last_name__icontains=search_query)
+                )
+            
+            match_count = claims_count_qs.count()
+            schedules_with_match_count.append((sched, match_count))
+        
+        # Sort by match count descending, then by schedule_datetime descending
+        schedules_with_match_count.sort(key=lambda x: (-x[1], x[0].schedule_datetime), reverse=False)
+        schedules = [sched for sched, count in schedules_with_match_count]
+    
     for sched in schedules:
-        sched.claims = AidClaim.objects.filter(
-            schedule=sched          #filter by schedule directly
+        # Get claims for this schedule
+        claims_queryset = AidClaim.objects.filter(
+            schedule=sched
         ).select_related(
             'family',
             'family_member',
             'family__household',
             'family__household__barangay',
-            'assistance',
-            'assistance__aid_category',
+            'schedule'
         )
-
+        
+        # Filter by barangay
+        if selected_barangay:
+            claims_queryset = claims_queryset.filter(
+                family__household__barangay_id=selected_barangay
+            )
+        
+        # Filter by date range
+        if date_from:
+            try:
+                date_from_dt = datetime.strptime(date_from, '%Y-%m-%d')
+                claims_queryset = claims_queryset.filter(claimed_at__gte=date_from_dt)
+            except ValueError:
+                pass
+        
+        if date_to:
+            try:
+                date_to_dt = datetime.strptime(date_to, '%Y-%m-%d')
+                from datetime import timedelta
+                date_to_dt += timedelta(days=1)
+                claims_queryset = claims_queryset.filter(claimed_at__lt=date_to_dt)
+            except ValueError:
+                pass
+        
+        # Search by name (family name or member name)
+        if search_query:
+            claims_queryset = claims_queryset.filter(
+                Q(family__family_name__icontains=search_query) |
+                Q(family_member__first_name__icontains=search_query) |
+                Q(family_member__last_name__icontains=search_query)
+            )
+        
+        # Order by claimed_at
+        claims_queryset = claims_queryset.order_by('-claimed_at')
+        
+        # Paginate claims for this schedule (5 per page)
+        page = request.GET.get(f'page_{sched.id}', 1)
+        paginator = Paginator(claims_queryset, 5)
+        
+        try:
+            claims_page = paginator.page(page)
+        except PageNotAnInteger:
+            claims_page = paginator.page(1)
+        except EmptyPage:
+            claims_page = paginator.page(paginator.num_pages)
+        
+        schedules_data.append({
+            'schedule': sched,
+            'claims': claims_page,
+            'paginator': paginator,
+            'page_id': f'page_{sched.id}',
+        })
+    
     barangays = Barangay.objects.all()
-
-    return render(request, 'reports/aid_reports.html', {
-        'schedules': schedules,
+    
+    return render(request, 'reports/distribution_claims.html', {
+        'program': program,
+        'assistance': assistance,
+        'schedules_data': schedules_data,
         'barangays': barangays,
         'selected_barangay': selected_barangay,
+        'date_from': date_from,
+        'date_to': date_to,
+        'search_query': search_query,
         'now': timezone.now(),
     })
 
