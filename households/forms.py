@@ -87,11 +87,11 @@ class FamilyMemberForm(forms.ModelForm):
             'sex': forms.Select(attrs={'class': 'form-select'}),
             'civil_status': forms.Select(attrs={'class': 'form-select'}),
             'government_id_type': forms.Select(attrs={'class': 'form-select'}),
-            'government_id_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'government_id_number': forms.TextInput(attrs={'class': 'form-control', 'inputmode': 'numeric', 'pattern': '[0-9-]+', 'oninput': "this.value = this.value.replace(/[^0-9-]/g, '')"}),
             'religion': forms.TextInput(attrs={'class': 'form-control'}),
             'citizenship': forms.TextInput(attrs={'class': 'form-control'}),
             'occupation': forms.TextInput(attrs={'class': 'form-control'}),
-            'contact_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '09...'}),
+            'contact_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '09...', 'inputmode': 'numeric', 'pattern': '[0-9-]+', 'oninput': "this.value = this.value.replace(/[^0-9-]/g, '')"}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
             'monthly_income': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Enter 0 if unemployed, a student, or a minor with no income'}),
             'educational_attainment': forms.Select(attrs={'class': 'form-select', 'id': 'id_educational_attainment'}),
@@ -118,9 +118,9 @@ class SeniorCitizenProfileForm(forms.ModelForm):
         model = SeniorCitizenProfile
         exclude = ['member', 'registered_at', 'registered_by']
         widgets = {
-            'senior_citizen_id_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'senior_citizen_id_number': forms.TextInput(attrs={'class': 'form-control', 'inputmode': 'numeric', 'pattern': '[0-9-]+', 'oninput': "this.value = this.value.replace(/[^0-9-]/g, '')"}),
             'other_skills': forms.TextInput(attrs={'class': 'form-control'}),
-            'ctc_no': forms.TextInput(attrs={'class': 'form-control'}),
+            'ctc_no': forms.TextInput(attrs={'class': 'form-control', 'inputmode': 'numeric', 'pattern': '[0-9-]+', 'oninput': "this.value = this.value.replace(/[^0-9-]/g, '')"}),
         }
 
 class SoloParentProfileForm(forms.ModelForm):
@@ -128,7 +128,7 @@ class SoloParentProfileForm(forms.ModelForm):
         model = SoloParentProfile
         exclude = ['member', 'registered_at', 'registered_by']
         widgets = {
-            'id_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'id_number': forms.TextInput(attrs={'class': 'form-control', 'inputmode': 'numeric', 'pattern': '[0-9-]+', 'oninput': "this.value = this.value.replace(/[^0-9-]/g, '')"}),
             'category': forms.Select(choices=SOLO_PARENT_CATEGORY_CHOICES, attrs={'class': 'form-select'}),
             'is_4ps_member': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_indigenous': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -136,7 +136,7 @@ class SoloParentProfileForm(forms.ModelForm):
             'is_pwd': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'emergency_contact_name': forms.TextInput(attrs={'class': 'form-control'}),
             'emergency_contact_address': forms.TextInput(attrs={'class': 'form-control'}),
-            'emergency_contact_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'emergency_contact_number': forms.TextInput(attrs={'class': 'form-control', 'inputmode': 'numeric', 'pattern': '[0-9-]+', 'oninput': "this.value = this.value.replace(/[^0-9-]/g, '')"}),
             'date_of_application': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         }
 
@@ -146,7 +146,7 @@ class PWDProfileForm(forms.ModelForm):
         exclude = ['member', 'registered_at', 'registered_by']
         widgets = {
             'application_type': forms.RadioSelect(attrs={'class': 'form-check-input'}),
-            'pwd_id_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Format: RR-PPMM-BBB-NNNNNNN'}),
+            'pwd_id_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Format: RR-PPMM-BBB-NNNNNNN', 'inputmode': 'numeric', 'pattern': '[0-9-]+', 'oninput': "this.value = this.value.replace(/[^0-9-]/g, '')"}),
             'date_applied': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             
             'disability_type': forms.Select(attrs={'class': 'form-select'}),
@@ -159,13 +159,13 @@ class PWDProfileForm(forms.ModelForm):
             'organization_affiliated': forms.TextInput(attrs={'class': 'form-control'}),
             'organization_contact_person': forms.TextInput(attrs={'class': 'form-control'}),
             'organization_office_address': forms.TextInput(attrs={'class': 'form-control'}),
-            'organization_tel_no': forms.TextInput(attrs={'class': 'form-control'}),
+            'organization_tel_no': forms.TextInput(attrs={'class': 'form-control', 'inputmode': 'numeric', 'pattern': '[0-9-]+', 'oninput': "this.value = this.value.replace(/[^0-9-]/g, '')"}),
             
-            'sss_no': forms.TextInput(attrs={'class': 'form-control'}),
-            'gsis_no': forms.TextInput(attrs={'class': 'form-control'}),
-            'pagibig_no': forms.TextInput(attrs={'class': 'form-control'}),
-            'psn_no': forms.TextInput(attrs={'class': 'form-control'}),
-            'philhealth_no': forms.TextInput(attrs={'class': 'form-control'}),
+            'sss_no': forms.TextInput(attrs={'class': 'form-control', 'inputmode': 'numeric', 'pattern': '[0-9-]+', 'oninput': "this.value = this.value.replace(/[^0-9-]/g, '')"}),
+            'gsis_no': forms.TextInput(attrs={'class': 'form-control', 'inputmode': 'numeric', 'pattern': '[0-9-]+', 'oninput': "this.value = this.value.replace(/[^0-9-]/g, '')"}),
+            'pagibig_no': forms.TextInput(attrs={'class': 'form-control', 'inputmode': 'numeric', 'pattern': '[0-9-]+', 'oninput': "this.value = this.value.replace(/[^0-9-]/g, '')"}),
+            'psn_no': forms.TextInput(attrs={'class': 'form-control', 'inputmode': 'numeric', 'pattern': '[0-9-]+', 'oninput': "this.value = this.value.replace(/[^0-9-]/g, '')"}),
+            'philhealth_no': forms.TextInput(attrs={'class': 'form-control', 'inputmode': 'numeric', 'pattern': '[0-9-]+', 'oninput': "this.value = this.value.replace(/[^0-9-]/g, '')"}),
             
             'father_last_name': forms.TextInput(attrs={'class': 'form-control'}),
             'father_first_name': forms.TextInput(attrs={'class': 'form-control'}),

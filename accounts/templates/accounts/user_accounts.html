@@ -443,6 +443,15 @@
             });
           });
         }
+        
+        // Update modal overlays - remove old ones and add new ones
+        const currentModals = document.querySelectorAll('.modal-overlay[id^="userModalOverlay"]');
+        currentModals.forEach(modal => modal.remove());
+        
+        const newModals = doc.querySelectorAll('.modal-overlay[id^="userModalOverlay"]');
+        newModals.forEach(modal => {
+          document.body.appendChild(modal.cloneNode(true));
+        });
       })
       .catch(err => {
         console.error('Error loading page:', err);

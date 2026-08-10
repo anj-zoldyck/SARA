@@ -42,7 +42,7 @@ class CreateUserForm(forms.ModelForm):
             'birth_place': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Place of Birth'}),
             'civil_status': forms.Select(attrs={'class': 'form-select'}),
             'citizenship': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Citizenship'}),
-            'contact_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '09XXXXXXXXX'}),
+            'contact_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '09XXXXXXXXX', 'inputmode': 'numeric', 'pattern': '[0-9-]+', 'oninput': "this.value = this.value.replace(/[^0-9-]/g, '')"}),
             'position': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Job Position'}),
         }
 
@@ -118,7 +118,7 @@ class ProfileSettingsForm(forms.ModelForm):
     )
     contact_number = forms.CharField(
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '09XXXXXXXXX'})
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '09XXXXXXXXX', 'inputmode': 'numeric', 'pattern': '[0-9-]+', 'oninput': "this.value = this.value.replace(/[^0-9-]/g, '')"})
     )
     username = forms.CharField(
         widget=forms.TextInput(attrs={'class': 'form-control'})

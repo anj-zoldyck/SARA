@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
 <link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
+<link rel="stylesheet" href="{% static 'css/register_rfid.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -46,58 +47,75 @@
 {% endif %}
 
 
-<!-- ======================================================
-     FILTERS
-====================================================== -->
-<div class="card mb-4">
-  <div class="card-body">
-    <form method="get" class="row g-3">
-      <div class="col-md-3">
-        <label class="form-label">Actor</label>
-        <select name="actor" class="form-select">
-          <option value="">All Users</option>
-          {% for user in users %}
-          <option value="{{ user.id }}" {% if selected_actor == user.id|stringformat:"s" %}selected{% endif %}>
-            {{ user.username }} ({{ user.get_role_display }})
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Action Type</label>
-        <select name="action_type" class="form-select">
-          <option value="">All Actions</option>
-          {% for value, label in action_types %}
-          <option value="{{ value }}" {% if selected_action_type == value %}selected{% endif %}>
-            {{ label }}
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Date From</label>
-        <input type="datetime-local" name="date_from" class="form-control" value="{{ selected_date_from }}">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Date To</label>
-        <input type="datetime-local" name="date_to" class="form-control" value="{{ selected_date_to }}">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">Barangay</label>
-        <select name="barangay" class="form-select">
-          <option value="">All Barangays</option>
-          {% for barangay in barangays %}
-          <option value="{{ barangay.id }}" {% if selected_barangay == barangay.id|stringformat:"s" %}selected{% endif %}>
-            {{ barangay.name }}
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-12">
-        <button type="submit" class="btn btn-primary">
-          <i class="bi bi-filter me-2"></i>Apply Filters
-        </button>
-        <a href="{% url 'audit_log' %}" class="btn btn-outline-secondary">Clear Filters</a>
+<!-- ── Filter Panel ───────────────────────────────────────── -->
+<div class="dash-panel rfid-filter-panel">
+  <div class="dash-panel__body">
+    <form method="get">
+      <div class="rfid-filter-row">
+        <div class="rfid-filter-group">
+          <label class="rfid-filter-label" for="filter-actor">
+            <i class="bi bi-person"></i> Actor
+          </label>
+          <select class="rfid-filter-select" id="filter-actor" name="actor">
+            <option value="">All Users</option>
+            {% for user in users %}
+            <option value="{{ user.id }}" {% if selected_actor == user.id|stringformat:"s" %}selected{% endif %}>
+              {{ user.username }} ({{ user.get_role_display }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="rfid-filter-group">
+          <label class="rfid-filter-label" for="filter-action-type">
+            <i class="bi bi-lightning"></i> Action Type
+          </label>
+          <select class="rfid-filter-select" id="filter-action-type" name="action_type">
+            <option value="">All Actions</option>
+            {% for value, label in action_types %}
+            <option value="{{ value }}" {% if selected_action_type == value %}selected{% endif %}>
+              {{ label }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="rfid-filter-group">
+          <label class="rfid-filter-label" for="filter-date-from">
+            <i class="bi bi-calendar-event"></i> Date From
+          </label>
+          <input type="datetime-local" class="rfid-filter-select" id="filter-date-from" name="date_from" value="{{ selected_date_from }}">
+        </div>
+
+        <div class="rfid-filter-group">
+          <label class="rfid-filter-label" for="filter-date-to">
+            <i class="bi bi-calendar-event"></i> Date To
+          </label>
+          <input type="datetime-local" class="rfid-filter-select" id="filter-date-to" name="date_to" value="{{ selected_date_to }}">
+        </div>
+
+        <div class="rfid-filter-group">
+          <label class="rfid-filter-label" for="filter-barangay">
+            <i class="bi bi-geo-alt"></i> Barangay
+          </label>
+          <select class="rfid-filter-select" id="filter-barangay" name="barangay">
+            <option value="">All Barangays</option>
+            {% for barangay in barangays %}
+            <option value="{{ barangay.id }}" {% if selected_barangay == barangay.id|stringformat:"s" %}selected{% endif %}>
+              {{ barangay.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="rfid-filter-actions">
+          <button type="submit" class="btn-dash-primary">
+            <i class="bi bi-funnel"></i> Apply Filter
+          </button>
+          <a href="{% url 'audit_log' %}" class="btn-dash-outline">
+            <i class="bi bi-x-circle"></i> Clear
+          </a>
+        </div>
       </div>
     </form>
   </div>
