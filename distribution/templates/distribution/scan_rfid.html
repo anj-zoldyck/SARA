@@ -270,6 +270,8 @@
   let currentUid = '';
   let isProcessing = false;
   let errorModalTimeout = null;
+  let keyPressStartTime = null;
+  let keyPressCount = 0;
 
   // ---------------- Focus Management ----------------
   function focusRfidInput() {
@@ -373,8 +375,43 @@
     }
   }
 
+  // ---------------- RFID Input Validation ----------------
+  function isValidRfidInput(uid, keyPressDuration) {
+    // RFID scanners typically type 8-20 characters in < 100ms
+    const MIN_LENGTH = 8;
+    const MAX_LENGTH = 20;
+    const MAX_TYPING_DURATION_MS = 150; // Allow some margin for slower scanners
+
+    // Check length
+    if (uid.length < MIN_LENGTH || uid.length > MAX_LENGTH) {
+      return false;
+    }
+
+    // Check typing speed (if we tracked it)
+    if (keyPressDuration !== null && keyPressDuration > MAX_TYPING_DURATION_MS) {
+      return false;
+    }
+
+    // Check format (alphanumeric only)
+    const rfidPattern = /^[A-Za-z0-9]+$/;
+    if (!rfidPattern.test(uid)) {
+      return false;
+    }
+
+    return true;
+  }
+
   // ---------------- Main Flow ----------------
   rfidInput.addEventListener('keydown', async (e) => {
+    // Track typing speed for validation
+    if (keyPressStartTime === null) {
+      keyPressStartTime = Date.now();
+      keyPressCount = 0;
+    }
+    if (e.key !== 'Enter' && e.key.length === 1) {
+      keyPressCount++;
+    }
+
     if (isProcessing && e.key !== 'Enter') {
       e.preventDefault();
       return;
@@ -384,11 +421,29 @@
 
       if (isProcessing) {
         rfidInput.value = '';
+        keyPressStartTime = null;
+        keyPressCount = 0;
         return;
       }
 
       const uid = rfidInput.value.trim();
-      if (!uid) return;
+      if (!uid) {
+        keyPressStartTime = null;
+        keyPressCount = 0;
+        return;
+      }
+
+      // Calculate typing duration
+      const keyPressDuration = keyPressStartTime ? (Date.now() - keyPressStartTime) : null;
+
+      // Validate RFID input
+      if (!isValidRfidInput(uid, keyPressDuration)) {
+        showError('Invalid RFID input. Please use an RFID scanner.');
+        rfidInput.value = '';
+        keyPressStartTime = null;
+        keyPressCount = 0;
+        return;
+      }
 
       isProcessing = true;
       currentUid = uid;
@@ -407,6 +462,10 @@
         // Show Member Selection Modal
         showMemberModal(result);
       }
+
+      // Reset tracking
+      keyPressStartTime = null;
+      keyPressCount = 0;
     }
   });
 

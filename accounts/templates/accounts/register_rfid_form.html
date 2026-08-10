@@ -234,6 +234,8 @@
   const statusIcon = document.getElementById('statusIcon');
   const statusText = document.getElementById('statusText');
   let modalTimeout = null;
+  let keyPressStartTime = null;
+  let keyPressCount = 0;
 
   // Autofocus fallback for browsers that may not respect autofocus on hidden inputs
   document.addEventListener('DOMContentLoaded', function() {
@@ -259,15 +261,71 @@
     rfidInput.focus();
   }
 
+  // RFID Input Validation
+  function isValidRfidInput(uid, keyPressDuration) {
+    const MIN_LENGTH = 8;
+    const MAX_LENGTH = 20;
+    const MAX_TYPING_DURATION_MS = 150;
+
+    if (uid.length < MIN_LENGTH || uid.length > MAX_LENGTH) {
+      return false;
+    }
+
+    if (keyPressDuration !== null && keyPressDuration > MAX_TYPING_DURATION_MS) {
+      return false;
+    }
+
+    const rfidPattern = /^[A-Za-z0-9]+$/;
+    if (!rfidPattern.test(uid)) {
+      return false;
+    }
+
+    return true;
+  }
+
   // Auto-submit on Enter key (RFID reader behavior)
   rfidInput.addEventListener('keydown', (e) => {
+    // Track typing speed for validation
+    if (keyPressStartTime === null) {
+      keyPressStartTime = Date.now();
+      keyPressCount = 0;
+    }
+    if (e.key !== 'Enter' && e.key.length === 1) {
+      keyPressCount++;
+    }
+
     if (e.key === 'Enter') {
       e.preventDefault();
+
+      const uid = rfidInput.value.trim();
+      if (!uid) {
+        keyPressStartTime = null;
+        keyPressCount = 0;
+        return;
+      }
+
+      // Calculate typing duration
+      const keyPressDuration = keyPressStartTime ? (Date.now() - keyPressStartTime) : null;
+
+      // Validate RFID input
+      if (!isValidRfidInput(uid, keyPressDuration)) {
+        document.getElementById('errorModalMsg').textContent = 'Invalid RFID input. Please use an RFID scanner.';
+        errorModal.classList.add('active');
+        rfidInput.value = '';
+        keyPressStartTime = null;
+        keyPressCount = 0;
+        return;
+      }
+
       setStatusProcessing();
       // Brief delay to show processing state before submit
       setTimeout(() => {
         document.getElementById('rfidForm').submit();
       }, 300);
+
+      // Reset tracking
+      keyPressStartTime = null;
+      keyPressCount = 0;
     }
   });
 
