@@ -7,6 +7,10 @@
 {% block css %}
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<!-- Leaflet Routing Machine -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
 <style>
   .toggle-container {
     background: #f8fafc;
@@ -31,6 +35,96 @@
   }
 
   .budget-fields.show {
+    display: block;
+  }
+
+  .location-picker-container {
+    position: relative;
+  }
+
+  .location-search-wrapper {
+    position: relative;
+  }
+
+  .location-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 0 0 6px 6px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    display: none;
+  }
+
+  .location-suggestions.show {
+    display: block;
+  }
+
+  .suggestion-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .suggestion-item:hover {
+    background: #f8fafc;
+  }
+
+  .suggestion-item:last-child {
+    border-bottom: none;
+  }
+
+  .suggestion-type {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+
+  .suggestion-type-venue {
+    color: #0d47a1;
+  }
+
+  .suggestion-type-osm {
+    color: #64748b;
+  }
+
+  .suggestion-name {
+    font-weight: 500;
+    color: #1e293b;
+  }
+
+  .suggestion-address {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-top: 2px;
+  }
+
+  .location-map {
+    height: 300px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    margin-top: 12px;
+    z-index: 1;
+  }
+
+  .route-info {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-top: 12px;
+    font-size: 0.85rem;
+    color: #1e40af;
+    display: none;
+  }
+
+  .route-info.show {
     display: block;
   }
 </style>
@@ -171,9 +265,20 @@
           <label class="acct-form__label">
             <i class="bi bi-geo-alt"></i> Location <span class="acct-form__required">*</span>
           </label>
-          <div class="acct-form__control-wrap">
-            <input type="text" name="location" class="form-control" placeholder="e.g. Municipal Plaza" required>
+          <div class="acct-form__control-wrap location-picker-container">
+            <div class="location-search-wrapper">
+              <input type="text" name="location" id="locationInput" class="form-control" placeholder="Search for a venue or address..." required autocomplete="off">
+              <div id="locationSuggestions" class="location-suggestions"></div>
+            </div>
+            <div id="locationMap" class="location-map"></div>
+            <div id="routeInfo" class="route-info">
+              <i class="bi bi-signpost"></i> Route preview from MSWDO Office will appear here
+            </div>
+            <!-- Hidden inputs for coordinates -->
+            <input type="hidden" name="location_lat" id="locationLat">
+            <input type="hidden" name="location_lng" id="locationLng">
           </div>
+          <p class="acct-form__hint">Search for saved venues or any address in Santa Rita, Pampanga. You can also click on the map to set a location manually.</p>
         </div>
 
         <div class="acct-form__group">
@@ -201,7 +306,28 @@
 {% endblock %}
 
 {% block js %}
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<!-- Leaflet Routing Machine -->
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
 <script>
+  // Venues data rendered from Django
+  const venuesData = [
+    {% for venue in venues %}
+    {
+      id: {{ venue.id }},
+      name: "{{ venue.name|escapejs }}",
+      latitude: {{ venue.latitude }},
+      longitude: {{ venue.longitude }},
+      barangay: "{% if venue.barangay %}{{ venue.barangay.name|escapejs }}{% endif %}"
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+
+  // MSWDO Office coordinates
+  const MSWDO_OFFICE_COORDS = [15.000328483552574, 120.61805645102072];
+
   document.addEventListener('DOMContentLoaded', function () {
     const toggle = document.getElementById('enableSelectionToggle');
     const budgetFields = document.getElementById('budgetFieldsContainer');
@@ -272,6 +398,231 @@
         prioritizationInput.required = false;
         submitBtn.innerHTML = '<i class="bi bi-calendar-plus me-1"></i> Create Schedule';
       }
+    });
+
+    // ========== LOCATION PICKER ==========
+    const locationInput = document.getElementById('locationInput');
+    const locationSuggestions = document.getElementById('locationSuggestions');
+    const locationLat = document.getElementById('locationLat');
+    const locationLng = document.getElementById('locationLng');
+    const routeInfo = document.getElementById('routeInfo');
+
+    // Initialize map
+    const DEFAULT_MAP_CENTER = [14.9993, 120.6117];
+    const DEFAULT_MAP_ZOOM = 15;
+    
+    const map = L.map('locationMap').setView(DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    // Custom marker icon
+    const markerIcon = L.divIcon({
+        className: 'custom-div-icon',
+        html: `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#0d47a1" width="32px" height="32px">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                <path d="M0 0h24v24H0z" fill="none"/>
+            </svg>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32]
+    });
+
+    let currentMarker = null;
+    let routingControl = null;
+
+    // Function to set location
+    function setLocation(lat, lng, name) {
+        // Remove existing marker
+        if (currentMarker) {
+            map.removeLayer(currentMarker);
+        }
+
+        // Add new marker
+        currentMarker = L.marker([lat, lng], { icon: markerIcon, draggable: true }).addTo(map);
+        
+        // Update hidden inputs
+        locationLat.value = lat;
+        locationLng.value = lng;
+        
+        // Update text input
+        if (name) {
+            locationInput.value = name;
+        }
+
+        // Center map on location
+        map.setView([lat, lng], 16);
+
+        // Update route preview
+        updateRoutePreview(lat, lng);
+
+        // Handle marker drag
+        currentMarker.on('dragend', function(e) {
+            const newPos = e.target.getLatLng();
+            locationLat.value = newPos.lat;
+            locationLng.value = newPos.lng;
+            updateRoutePreview(newPos.lat, newPos.lng);
+            reverseGeocode(newPos.lat, newPos.lng);
+        });
+    }
+
+    // Function to update route preview
+    function updateRoutePreview(destLat, destLng) {
+        // Remove existing routing control
+        if (routingControl) {
+            map.removeControl(routingControl);
+        }
+
+        // Add new route
+        routingControl = L.Routing.control({
+            waypoints: [
+                L.latLng(MSWDO_OFFICE_COORDS[0], MSWDO_OFFICE_COORDS[1]),
+                L.latLng(destLat, destLng)
+            ],
+            router: L.Routing.osrmv1({
+                serviceUrl: 'https://router.project-osrm.org/route/v1'
+            }),
+            routeWhileDragging: false,
+            addWaypoints: false,
+            draggableWaypoints: false,
+            fitSelectedRoutes: true,
+            showAlternatives: false,
+            lineOptions: {
+                styles: [{ color: '#0d47a1', weight: 5, opacity: 0.7 }]
+            },
+            createMarker: function() { return null; }  // Don't show routing markers
+        }).addTo(map);
+
+        // Show route info
+        routeInfo.classList.add('show');
+        routeInfo.innerHTML = '<i class="bi bi-signpost"></i> Route preview from MSWDO Office to selected location';
+    }
+
+    // Reverse geocoding
+    function reverseGeocode(lat, lng) {
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.display_name) {
+                    locationInput.value = data.display_name.split(',')[0]; // Use first part of address
+                }
+            })
+            .catch(err => console.error('Reverse geocode error:', err));
+    }
+
+    // Search functionality with debouncing
+    let searchTimeout;
+    locationInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            locationSuggestions.classList.remove('show');
+            return;
+        }
+
+        searchTimeout = setTimeout(() => {
+            searchLocations(query);
+        }, 300);
+    });
+
+    // Search locations
+    function searchLocations(query) {
+        const lowerQuery = query.toLowerCase();
+        
+        // First, search venues (client-side)
+        const venueMatches = venuesData.filter(v => 
+            v.name.toLowerCase().includes(lowerQuery)
+        );
+
+        // If few venue matches, also search Nominatim
+        if (venueMatches.length < 3) {
+            searchNominatim(query, venueMatches);
+        } else {
+            displaySuggestions(venueMatches, []);
+        }
+    }
+
+    // Search Nominatim
+    function searchNominatim(query, venueMatches) {
+        // Bounding box for Santa Rita, Pampanga (approximate)
+        // viewbox format: left,bottom,right,top
+        const viewbox = '120.5,14.9,120.7,15.1';
+        
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&viewbox=${viewbox}&bounded=1&countrycodes=ph&limit=5`)
+            .then(res => res.json())
+            .then(data => {
+                const osmMatches = data.map(item => ({
+                    name: item.display_name,
+                    latitude: parseFloat(item.lat),
+                    longitude: parseFloat(item.lon),
+                    type: 'osm'
+                }));
+                displaySuggestions(venueMatches, osmMatches);
+            })
+            .catch(err => {
+                console.error('Nominatim search error:', err);
+                displaySuggestions(venueMatches, []);
+            });
+    }
+
+    // Display suggestions
+    function displaySuggestions(venueMatches, osmMatches) {
+        locationSuggestions.innerHTML = '';
+        
+        if (venueMatches.length === 0 && osmMatches.length === 0) {
+            locationSuggestions.classList.remove('show');
+            return;
+        }
+
+        // Add venue matches
+        venueMatches.forEach(venue => {
+            const div = document.createElement('div');
+            div.className = 'suggestion-item';
+            div.innerHTML = `
+                <div class="suggestion-type suggestion-type-venue">Saved Venue</div>
+                <div class="suggestion-name">${venue.name}</div>
+                ${venue.barangay ? `<div class="suggestion-address">${venue.barangay}</div>` : ''}
+            `;
+            div.addEventListener('click', () => {
+                setLocation(venue.latitude, venue.longitude, venue.name);
+                locationSuggestions.classList.remove('show');
+            });
+            locationSuggestions.appendChild(div);
+        });
+
+        // Add OSM matches
+        osmMatches.forEach(match => {
+            const div = document.createElement('div');
+            div.className = 'suggestion-item';
+            div.innerHTML = `
+                <div class="suggestion-type suggestion-type-osm">OpenStreetMap</div>
+                <div class="suggestion-name">${match.name.split(',')[0]}</div>
+                <div class="suggestion-address">${match.name}</div>
+            `;
+            div.addEventListener('click', () => {
+                setLocation(match.latitude, match.longitude, match.name.split(',')[0]);
+                locationSuggestions.classList.remove('show');
+            });
+            locationSuggestions.appendChild(div);
+        });
+
+        locationSuggestions.classList.add('show');
+    }
+
+    // Click on map to set location
+    map.on('click', function(e) {
+        setLocation(e.latlng.lat, e.latlng.lng, '');
+        reverseGeocode(e.latlng.lat, e.latlng.lng);
+    });
+
+    // Close suggestions when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.location-search-wrapper')) {
+            locationSuggestions.classList.remove('show');
+        }
     });
   });
 

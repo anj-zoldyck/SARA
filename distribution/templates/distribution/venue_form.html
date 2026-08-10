@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if is_edit %}Edit Venue{% else %}Add Venue{% endif %} — SARA{% endblock %}
+{% block navbar_title %}{% if is_edit %}EDIT VENUE{% else %}ADD VENUE{% endif %}{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<style>
+  .location-map {
+    height: 300px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    margin-top: 12px;
+    z-index: 1;
+  }
+  .coordinates-hint {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-top: 12px;
+    font-size: 0.85rem;
+    color: #64748b;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'venue_list' %}" class="breadcrumb-link">Manage Venues</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">{% if is_edit %}Edit Venue{% else %}Add Venue{% endif %}</span>
+    </div>
+    <h1 class="dash-page-title">{% if is_edit %}Edit Venue{% else %}Add New Venue{% endif %}</h1>
+    <p class="dash-page-sub">
+      {% if is_edit %}
+        <i class="bi bi-pencil me-1"></i> Update venue details and location.
+      {% else %}
+        <i class="bi bi-plus-lg me-1"></i> Add a new distribution venue to the system.
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show mt-3" role="alert">
+      <i class="bi bi-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<div class="dash-panel" style="max-width: 800px; margin: 0 auto;">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-geo-alt dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">{% if is_edit %}Edit Venue Details{% else %}Venue Details{% endif %}</h2>
+        <p class="dash-panel__sub">Enter venue information and location coordinates.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-panel__body">
+    <form method="post" class="acct-form">
+      {% csrf_token %}
+
+      <div class="acct-form__group">
+        <label class="acct-form__label">
+          <i class="bi bi-card-text"></i> Venue Name <span class="acct-form__required">*</span>
+        </label>
+        <div class="acct-form__control-wrap">
+          <input type="text" name="name" class="form-control" 
+                 value="{% if is_edit %}{{ venue.name }}{% endif %}" 
+                 placeholder="e.g. Santa Rita Town Plaza" required>
+        </div>
+        <p class="acct-form__hint">A descriptive name for this distribution location.</p>
+      </div>
+
+      <div class="acct-form__group">
+        <label class="acct-form__label">
+          <i class="bi bi-buildings"></i> Associated Barangay (Optional)
+        </label>
+        <div class="acct-form__control-wrap">
+          <select name="barangay" class="form-select">
+            <option value="">Municipal-wide (no specific barangay)</option>
+            {% for b in barangays %}
+            <option value="{{ b.id }}" 
+                    {% if is_edit and venue.barangay.id == b.id %}selected{% endif %}>
+              {{ b.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <p class="acct-form__hint">Leave blank for municipal-wide venues like the town plaza.</p>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-crosshair"></i> Latitude <span class="acct-form__required">*</span>
+            </label>
+            <div class="acct-form__control-wrap">
+              <input type="number" step="any" name="latitude" id="latitudeInput" class="form-control"
+                     value="{% if is_edit %}{{ venue.latitude }}{% endif %}"
+                     placeholder="e.g. 14.9993" required>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-crosshair"></i> Longitude <span class="acct-form__required">*</span>
+            </label>
+            <div class="acct-form__control-wrap">
+              <input type="number" step="any" name="longitude" id="longitudeInput" class="form-control"
+                     value="{% if is_edit %}{{ venue.longitude }}{% endif %}"
+                     placeholder="e.g. 120.6117" required>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="acct-form__group">
+        <label class="acct-form__label">
+          <i class="bi bi-map"></i> Pick Location on Map
+        </label>
+        <div id="venueMap" class="location-map"></div>
+        <div class="coordinates-hint">
+          <i class="bi bi-info-circle"></i> Click on the map to set coordinates, or enter them manually above.
+        </div>
+      </div>
+
+      <div class="acct-form__actions">
+        <a href="{% url 'venue_list' %}" class="btn-dash-outline">
+          <i class="bi bi-x-lg"></i> Cancel
+        </a>
+        <button type="submit" class="btn-dash-primary">
+          <i class="bi bi-check-lg"></i> {% if is_edit %}Update Venue{% else %}Add Venue{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const DEFAULT_MAP_CENTER = [14.9993, 120.6117];
+    const DEFAULT_MAP_ZOOM = 15;
+    
+    const latInput = document.getElementById('latitudeInput');
+    const lngInput = document.getElementById('longitudeInput');
+    
+    // Determine initial center
+    let initialCenter = DEFAULT_MAP_CENTER;
+    let initialZoom = DEFAULT_MAP_ZOOM;
+    
+    {% if is_edit %}
+        initialCenter = [{{ venue.latitude }}, {{ venue.longitude }}];
+        initialZoom = 16;
+    {% endif %}
+    
+    const map = L.map('venueMap').setView(initialCenter, initialZoom);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    // Custom marker icon
+    const markerIcon = L.divIcon({
+        className: 'custom-div-icon',
+        html: `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#0d47a1" width="32px" height="32px">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                <path d="M0 0h24v24H0z" fill="none"/>
+            </svg>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32]
+    });
+
+    let currentMarker = null;
+
+    function updateMarker(lat, lng) {
+        if (currentMarker) {
+            map.removeLayer(currentMarker);
+        }
+        currentMarker = L.marker([lat, lng], { icon: markerIcon, draggable: true }).addTo(map);
+        
+        // Update inputs
+        latInput.value = lat;
+        lngInput.value = lng;
+        
+        // Handle marker drag
+        currentMarker.on('dragend', function(e) {
+            const newPos = e.target.getLatLng();
+            latInput.value = newPos.lat;
+            lngInput.value = newPos.lng;
+        });
+    }
+
+    // Initialize marker if editing
+    {% if is_edit %}
+        updateMarker({{ venue.latitude }}, {{ venue.longitude }});
+    {% endif %}
+
+    // Click on map to set location
+    map.on('click', function(e) {
+        updateMarker(e.latlng.lat, e.latlng.lng);
+    });
+
+    // Update marker when coordinates are manually entered
+    latInput.addEventListener('change', function() {
+        const lat = parseFloat(this.value);
+        const lng = parseFloat(lngInput.value);
+        if (!isNaN(lat) && !isNaN(lng)) {
+            updateMarker(lat, lng);
+            map.setView([lat, lng], 16);
+        }
+    });
+
+    lngInput.addEventListener('change', function() {
+        const lat = parseFloat(latInput.value);
+        const lng = parseFloat(this.value);
+        if (!isNaN(lat) && !isNaN(lng)) {
+            updateMarker(lat, lng);
+            map.setView([lat, lng], 16);
+        }
+    });
+});
+</script>
+{% endblock %}

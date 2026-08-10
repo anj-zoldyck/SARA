@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Manage Venues — SARA{% endblock %}
+{% block navbar_title %}MANAGE VENUES{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'mswdo_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Manage Venues</span>
+    </div>
+    <h1 class="dash-page-title">Manage Distribution Venues</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-geo-alt me-1"></i> Add, edit, and manage distribution locations for aid events.
+    </p>
+  </div>
+  <div>
+    <a href="{% url 'venue_add' %}" class="btn-dash-primary">
+      <i class="bi bi-plus-lg"></i> Add New Venue
+    </a>
+  </div>
+</div>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show mt-3" role="alert">
+      <i class="bi bi-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<div class="dash-panel mt-4">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-geo-alt dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">All Venues</h2>
+        <p class="dash-panel__sub">Distribution locations for aid scheduling</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-panel__body p-0">
+    <div class="table-responsive">
+      <table class="table acct-table mb-0">
+        <thead>
+          <tr>
+            <th class="acct-th" style="width: 30%;">Venue Name</th>
+            <th class="acct-th">Coordinates</th>
+            <th class="acct-th">Barangay</th>
+            <th class="acct-th">Status</th>
+            <th class="acct-th text-end pe-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for venue in venues %}
+          <tr class="acct-row">
+            <td class="acct-td fw-medium text-dark">
+              {{ venue.name }}
+            </td>
+            <td class="acct-td">
+              <i class="bi bi-crosshair text-muted me-2"></i>
+              {{ venue.latitude }}, {{ venue.longitude }}
+            </td>
+            <td class="acct-td">
+              <i class="bi bi-buildings text-muted me-2"></i>
+              {{ venue.barangay.name|default:"Municipal-wide" }}
+            </td>
+            <td class="acct-td">
+              {% if venue.is_active %}
+                <span class="badge bg-success">Active</span>
+              {% else %}
+                <span class="badge bg-secondary">Inactive</span>
+              {% endif %}
+            </td>
+            <td class="acct-td acct-td--actions">
+              <div class="acct-actions">
+                <a href="{% url 'venue_edit' venue.id %}" class="acct-btn acct-btn--edit">
+                  <i class="bi bi-pencil"></i><span>Edit</span>
+                </a>
+                {% if venue.is_active %}
+                  <form action="{% url 'venue_deactivate' venue.id %}" method="post" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="acct-btn acct-btn--deactivate" onclick="return confirm('Deactivate this venue? It will no longer appear in location pickers.')">
+                      <i class="bi bi-x-circle"></i><span>Deactivate</span>
+                    </button>
+                  </form>
+                {% else %}
+                  <form action="{% url 'venue_activate' venue.id %}" method="post" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="acct-btn acct-btn--activate">
+                      <i class="bi bi-check-circle"></i><span>Activate</span>
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="acct-td text-center text-muted py-5">
+              <i class="bi bi-geo-alt" style="font-size: 2rem;"></i>
+              <p class="mt-2 mb-0">No venues found. Add your first distribution venue.</p>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

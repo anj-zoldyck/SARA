@@ -4,6 +4,36 @@ from accounts.models import Barangay
 from households.models import Family, FamilyMember
 from programs.models import Assistance
 
+# ----------------- DistributionVenue Model -----------------
+class DistributionVenue(models.Model):
+    """
+    Pre-defined venues for distribution events.
+    Staff can manage these via the admin interface to provide
+    quick location selection for scheduling distributions.
+    """
+    name = models.CharField(max_length=255, help_text="Venue name (e.g., Santa Rita Town Plaza)")
+    latitude = models.DecimalField(max_digits=10, decimal_places=7, help_text="Latitude coordinate")
+    longitude = models.DecimalField(max_digits=10, decimal_places=7, help_text="Longitude coordinate")
+    barangay = models.ForeignKey(
+        Barangay,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Associated barangay (optional - some venues like town plaza are municipal-wide)"
+    )
+    is_active = models.BooleanField(default=True, help_text="Active venues appear in location picker. Deactivate instead of deleting to preserve history.")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Distribution Venue'
+        verbose_name_plural = 'Distribution Venues'
+
+    def __str__(self):
+        barangay_suffix = f" ({self.barangay.name})" if self.barangay else ""
+        return f"{self.name}{barangay_suffix}"
+
 # ----------------- AidClaim Model -----------------
 class AidClaim(models.Model):
     family = models.ForeignKey(Family, on_delete=models.CASCADE)
@@ -92,6 +122,23 @@ class AidSchedule(models.Model):
     )
 
     location = models.CharField(max_length=255)
+    
+    # Geographic coordinates for the distribution location
+    # These are populated by the map picker in the schedule form
+    location_lat = models.DecimalField(
+        max_digits=10, 
+        decimal_places=7, 
+        null=True, 
+        blank=True,
+        help_text="Latitude coordinate of the distribution location"
+    )
+    location_lng = models.DecimalField(
+        max_digits=10, 
+        decimal_places=7, 
+        null=True, 
+        blank=True,
+        help_text="Longitude coordinate of the distribution location"
+    )
 
     barangay = models.ForeignKey(
         Barangay,

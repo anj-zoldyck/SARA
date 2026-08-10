@@ -4,7 +4,7 @@ from datetime import timedelta
 from accounts.models import User, Barangay
 from households.models import Zone, Household, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
-from distribution.models import AidSchedule, AssignedTo, AidClaim, GeneratedBeneficiaryList, GeneratedBeneficiary
+from distribution.models import AidSchedule, AssignedTo, AidClaim, GeneratedBeneficiaryList, GeneratedBeneficiary, DistributionVenue
 from distribution.services import is_staff_assigned_to_scan
 from distribution.views import scan_rfid, staff_walkin, search_eligible_candidates, finish_distribution
 from django.contrib.messages.storage.fallback import FallbackStorage
@@ -1294,3 +1294,391 @@ class StaffAssignmentAccessControlTestCase(TestCase):
         self.assertEqual(response.status_code, 302)
         self.open_schedule.refresh_from_db()
         self.assertTrue(self.open_schedule.is_finished)
+
+
+class DistributionVenueCRUDTestCase(TestCase):
+    """
+    Test DistributionVenue CRUD operations via the venue management views.
+    """
+
+    def setUp(self):
+        self.mswdo = User.objects.create_user(
+            username='mswdo',
+            email='mswdo@test.com',
+            role='MSWDO',
+            password='pwd'
+        )
+        self.staff = User.objects.create_user(
+            username='staff',
+            email='staff@test.com',
+            role='MSWDO_STAFF',
+            password='pwd'
+        )
+        self.barangay = Barangay.objects.create(name='Test Barangay')
+        self.factory = RequestFactory()
+
+    def test_venue_list_restricted_to_mswdo_and_staff(self):
+        """Venue list should be accessible to MSWDO and MSWDO_STAFF."""
+        # MSWDO should have access
+        request = self.factory.get('/mswdo/venues/')
+        add_messages(request)
+        request.user = self.mswdo
+        from distribution.views import venue_list
+        response = venue_list(request)
+        self.assertEqual(response.status_code, 200)
+
+        # Staff should have access
+        request = self.factory.get('/mswdo/venues/')
+        add_messages(request)
+        request.user = self.staff
+        response = venue_list(request)
+        self.assertEqual(response.status_code, 200)
+
+    def test_venue_add_creates_venue(self):
+        """Test creating a new venue via venue_add view."""
+        from distribution.views import venue_add
+        
+        request = self.factory.post('/mswdo/venues/add/', {
+            'name': 'Test Venue',
+            'latitude': '14.9993',
+            'longitude': '120.6117',
+            'barangay': self.barangay.id
+        })
+        add_messages(request)
+        request.user = self.mswdo
+        response = venue_add(request)
+        
+        # Should redirect to venue list
+        self.assertEqual(response.status_code, 302)
+        
+        # Verify venue was created
+        venue = DistributionVenue.objects.get(name='Test Venue')
+        self.assertEqual(venue.latitude, Decimal('14.9993'))
+        self.assertEqual(venue.longitude, Decimal('120.6117'))
+        self.assertEqual(venue.barangay, self.barangay)
+        self.assertTrue(venue.is_active)
+
+    def test_venue_add_without_barangay(self):
+        """Test creating a municipal-wide venue (no barangay)."""
+        from distribution.views import venue_add
+        
+        request = self.factory.post('/mswdo/venues/add/', {
+            'name': 'Town Plaza',
+            'latitude': '14.9993',
+            'longitude': '120.6117',
+            'barangay': ''
+        })
+        add_messages(request)
+        request.user = self.mswdo
+        response = venue_add(request)
+        
+        self.assertEqual(response.status_code, 302)
+        
+        venue = DistributionVenue.objects.get(name='Town Plaza')
+        self.assertIsNone(venue.barangay)
+
+    def test_venue_edit_updates_venue(self):
+        """Test editing an existing venue."""
+        from distribution.views import venue_edit
+        
+        venue = DistributionVenue.objects.create(
+            name='Original Name',
+            latitude=Decimal('14.9993'),
+            longitude=Decimal('120.6117'),
+            barangay=self.barangay
+        )
+        
+        request = self.factory.post(f'/mswdo/venues/{venue.id}/edit/', {
+            'name': 'Updated Name',
+            'latitude': '15.0000',
+            'longitude': '120.6200',
+            'barangay': self.barangay.id
+        })
+        add_messages(request)
+        request.user = self.mswdo
+        response = venue_edit(request, venue.id)
+        
+        self.assertEqual(response.status_code, 302)
+        
+        venue.refresh_from_db()
+        self.assertEqual(venue.name, 'Updated Name')
+        self.assertEqual(venue.latitude, Decimal('15.0000'))
+        self.assertEqual(venue.longitude, Decimal('120.6200'))
+
+    def test_venue_deactivate_soft_deletes(self):
+        """Test deactivating a venue (soft delete)."""
+        from distribution.views import venue_deactivate
+        
+        venue = DistributionVenue.objects.create(
+            name='Test Venue',
+            latitude=Decimal('14.9993'),
+            longitude=Decimal('120.6117'),
+            barangay=self.barangay
+        )
+        
+        request = self.factory.post(f'/mswdo/venues/{venue.id}/deactivate/')
+        add_messages(request)
+        request.user = self.mswdo
+        response = venue_deactivate(request, venue.id)
+        
+        self.assertEqual(response.status_code, 302)
+        
+        venue.refresh_from_db()
+        self.assertFalse(venue.is_active)
+        # Venue should still exist in database
+        self.assertTrue(DistributionVenue.objects.filter(id=venue.id).exists())
+
+    def test_venue_activate_reactivates_venue(self):
+        """Test reactivating a deactivated venue."""
+        from distribution.views import venue_activate
+        
+        venue = DistributionVenue.objects.create(
+            name='Test Venue',
+            latitude=Decimal('14.9993'),
+            longitude=Decimal('120.6117'),
+            barangay=self.barangay,
+            is_active=False
+        )
+        
+        request = self.factory.post(f'/mswdo/venues/{venue.id}/activate/')
+        add_messages(request)
+        request.user = self.mswdo
+        response = venue_activate(request, venue.id)
+        
+        self.assertEqual(response.status_code, 302)
+        
+        venue.refresh_from_db()
+        self.assertTrue(venue.is_active)
+
+
+class AidScheduleCoordinatesTestCase(TestCase):
+    """
+    Test AidSchedule saving with location_lat and location_lng coordinates.
+    """
+
+    def setUp(self):
+        self.mswdo = User.objects.create_user(
+            username='mswdo',
+            email='mswdo@test.com',
+            role='MSWDO',
+            password='pwd'
+        )
+        self.barangay = Barangay.objects.create(name='Test Barangay')
+        self.program = Program.objects.create(name='Test Program')
+        self.category = AidCategory.objects.create(program=self.program, name='Test Category')
+        self.assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='family',
+            is_active=True
+        )
+
+    def test_schedule_model_saves_coordinates(self):
+        """Test that AidSchedule model can save and retrieve coordinates."""
+        schedule = AidSchedule.objects.create(
+            assistance=self.assistance,
+            schedule_datetime=timezone.now() + timedelta(hours=1),
+            location='Test Location',
+            location_lat=Decimal('14.9993'),
+            location_lng=Decimal('120.6117'),
+            barangay=self.barangay,
+            created_by=self.mswdo
+        )
+        
+        schedule.refresh_from_db()
+        self.assertEqual(schedule.location_lat, Decimal('14.9993'))
+        self.assertEqual(schedule.location_lng, Decimal('120.6117'))
+
+    def test_schedule_model_without_coordinates(self):
+        """Test that AidSchedule can be created without coordinates (legacy compatibility)."""
+        schedule = AidSchedule.objects.create(
+            assistance=self.assistance,
+            schedule_datetime=timezone.now() + timedelta(hours=1),
+            location='Test Location',
+            barangay=self.barangay,
+            created_by=self.mswdo
+        )
+        
+        schedule.refresh_from_db()
+        self.assertIsNone(schedule.location_lat)
+        self.assertIsNone(schedule.location_lng)
+
+    def test_schedule_model_updates_coordinates(self):
+        """Test that coordinates can be updated on an existing schedule."""
+        schedule = AidSchedule.objects.create(
+            assistance=self.assistance,
+            schedule_datetime=timezone.now() + timedelta(hours=1),
+            location='Test Location',
+            location_lat=Decimal('14.9993'),
+            location_lng=Decimal('120.6117'),
+            barangay=self.barangay,
+            created_by=self.mswdo
+        )
+        
+        schedule.location_lat = Decimal('15.0000')
+        schedule.location_lng = Decimal('120.6200')
+        schedule.save()
+        
+        schedule.refresh_from_db()
+        self.assertEqual(schedule.location_lat, Decimal('15.0000'))
+        self.assertEqual(schedule.location_lng, Decimal('120.6200'))
+
+
+class DistributionVenueMigrationTestCase(TestCase):
+    """
+    Test that the data migration seeds the venues correctly.
+    """
+
+    def test_migration_seeds_venues(self):
+        """Test that migration 0011_seed_distribution_venues creates 9 venues."""
+        # The migration is applied automatically when the test database is created
+        # We just need to verify the venues exist
+        
+        # Verify 9 venues were created
+        venue_count = DistributionVenue.objects.count()
+        self.assertEqual(venue_count, 9)
+        
+        # Verify specific venues exist
+        venue_names = list(DistributionVenue.objects.values_list('name', flat=True))
+        expected_venues = [
+            'Santa Rita Town Plaza',
+            'Becuran Covered Court',
+            'Dila-Dila Sports Center',
+            'San Matias Covered Court',
+            'Santa Monica Covered Court',
+            'San Agustin Covered Court',
+            'San Basilio Covered Court',
+            'San Isidro Covered Court',
+            'San Juan Covered Court'
+        ]
+        
+        for expected in expected_venues:
+            self.assertIn(expected, venue_names)
+        
+        # All venues should be active
+        inactive_count = DistributionVenue.objects.filter(is_active=False).count()
+        self.assertEqual(inactive_count, 0)
+
+
+class ReviewBeneficiariesLocationMapTestCase(TestCase):
+    """
+    Test that the review_beneficiaries page correctly displays the location map
+    when coordinates are available, and shows fallback text when they are not.
+    """
+
+    def setUp(self):
+        """Set up test data for review_beneficiaries tests."""
+        from accounts.models import User, Barangay
+        from programs.models import AidCategory, Program, Assistance
+        from distribution.models import AidSchedule, GeneratedBeneficiaryList
+        
+        # Create MSWDO user
+        self.mswdo_user = User.objects.create_user(
+            username='mswdo_user',
+            password='testpass123',
+            role='MSWDO',
+            first_name='MSWDO',
+            last_name='User'
+        )
+        
+        # Create barangay
+        self.barangay = Barangay.objects.create(name='Test Barangay')
+        
+        # Create program, aid category, and assistance
+        self.program = Program.objects.create(name='Test Program')
+        self.aid_category = AidCategory.objects.create(name='Food Assistance', program=self.program)
+        self.assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.aid_category,
+            beneficiary_type='family',
+            requires_pwd=False,
+            requires_senior_citizen=False,
+            requires_solo_parent=False
+        )
+        
+        # Create schedule with coordinates
+        self.schedule_with_coords = AidSchedule.objects.create(
+            assistance=self.assistance,
+            schedule_datetime=timezone.now() + timedelta(days=7),
+            location='Santa Rita Town Plaza',
+            location_lat=Decimal('15.000282968104935'),
+            location_lng=Decimal('120.61762685746417'),
+            budget=Decimal('50000'),
+            per_beneficiary_amount=Decimal('500'),
+            created_by=self.mswdo_user
+        )
+        
+        # Create beneficiary list for schedule with coords
+        self.ben_list_with_coords = GeneratedBeneficiaryList.objects.create(
+            schedule=self.schedule_with_coords,
+            prioritization_strategy_used='LOWEST_INCOME_FIRST'
+        )
+        
+        # Create schedule without coordinates (legacy)
+        self.schedule_without_coords = AidSchedule.objects.create(
+            assistance=self.assistance,
+            schedule_datetime=timezone.now() + timedelta(days=14),
+            location='Municipal Hall (legacy entry)',
+            location_lat=None,
+            location_lng=None,
+            budget=Decimal('30000'),
+            per_beneficiary_amount=Decimal('300'),
+            created_by=self.mswdo_user
+        )
+        
+        # Create beneficiary list for schedule without coords
+        self.ben_list_without_coords = GeneratedBeneficiaryList.objects.create(
+            schedule=self.schedule_without_coords,
+            prioritization_strategy_used='LOWEST_INCOME_FIRST'
+        )
+
+    def test_review_beneficiaries_with_coordinates_shows_map(self):
+        """Test that review_beneficiaries shows map when coordinates are present."""
+        self.client.force_login(self.mswdo_user)
+        
+        response = self.client.get(f'/mswdo/schedule/{self.schedule_with_coords.id}/beneficiaries/')
+        
+        self.assertEqual(response.status_code, 200)
+        
+        # Check that the location map div is present
+        self.assertContains(response, 'locationMap')
+        
+        # Check that the Open in Maps link is present
+        self.assertContains(response, 'Open in Maps')
+        
+        # Check that the fallback message is NOT present
+        self.assertNotContains(response, 'Map location not available for this schedule')
+
+    def test_review_beneficiaries_without_coordinates_shows_fallback(self):
+        """Test that review_beneficiaries shows fallback text when coordinates are missing."""
+        self.client.force_login(self.mswdo_user)
+        
+        response = self.client.get(f'/mswdo/schedule/{self.schedule_without_coords.id}/beneficiaries/')
+        
+        self.assertEqual(response.status_code, 200)
+        
+        # Check that the location map div is NOT present
+        self.assertNotContains(response, 'id="locationMap"')
+        
+        # Check that the fallback message is present
+        self.assertContains(response, 'Map location not available for this schedule')
+        
+        # Check that the Open in Maps link is NOT present
+        self.assertNotContains(response, 'Open in Maps')
+        
+        # Check that the location text is still shown
+        self.assertContains(response, self.schedule_without_coords.location)
+
+    def test_review_beneficiaries_open_in_maps_url_format(self):
+        """Test that the Open in Maps URL has the correct format."""
+        self.client.force_login(self.mswdo_user)
+        
+        response = self.client.get(f'/mswdo/schedule/{self.schedule_with_coords.id}/beneficiaries/')
+        
+        self.assertEqual(response.status_code, 200)
+        
+        # Check that the Open in Maps link is present
+        self.assertContains(response, 'Open in Maps')
+        
+        # Check that the Google Maps URL pattern is present
+        self.assertContains(response, 'google.com/maps/dir/')

@@ -9,6 +9,8 @@
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
 <link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 <style>
     /* Search Results & Chips Styling */
     .search-results-container {
@@ -84,6 +86,14 @@
 
     .chip .chip-remove:hover {
         color: #312e81;
+    }
+
+    .location-map {
+        height: 250px;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+        margin-top: 12px;
+        z-index: 1;
     }
 </style>
 {% endblock %}
@@ -212,6 +222,39 @@
         </p>
     </div>
 </div>
+</div>
+
+<div class="dash-panel mt-4">
+    <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+            <i class="bi bi-geo-alt dash-panel__icon"></i>
+            <div>
+                <h2 class="dash-panel__title">Distribution Location</h2>
+                <p class="dash-panel__sub">Venue and directions</p>
+            </div>
+        </div>
+    </div>
+    <div class="dash-panel__body">
+        <div class="d-flex align-items-start justify-content-between">
+            <div>
+                <span class="text-muted d-block" style="font-size: 0.85rem;">Location</span>
+                <span class="fw-semibold">{{ schedule.location }}</span>
+            </div>
+            {% if schedule.location_lat and schedule.location_lng %}
+            <a href="https://www.google.com/maps/dir/?api=1&destination={{ schedule.location_lat }},{{ schedule.location_lng }}" target="_blank" class="btn-dash-outline btn-sm">
+                <i class="bi bi-signpost me-1"></i> Open in Maps
+            </a>
+            {% endif %}
+        </div>
+        {% if schedule.location_lat and schedule.location_lng %}
+        <div id="locationMap" class="location-map"></div>
+        {% else %}
+        <div class="alert alert-light mt-3 mb-0" style="font-size: 0.85rem;">
+            <i class="bi bi-info-circle text-muted me-2"></i>
+            <span class="text-muted">Map location not available for this schedule.</span>
+        </div>
+        {% endif %}
+    </div>
 </div>
 
 <div class="dash-panel mt-4">
@@ -436,8 +479,24 @@
 {% endblock %}
 
 {% block js %}
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<!-- Leaflet Common -->
+<script src="{% static 'js/leaflet_common.js' %}"></script>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // Initialize read-only location map if coordinates are available
+        {% if schedule.location_lat and schedule.location_lng %}
+        const locationLat = {{ schedule.location_lat }};
+        const locationLng = {{ schedule.location_lng }};
+        const locationMapElement = document.getElementById('locationMap');
+        
+        if (locationMapElement && locationLat && locationLng) {
+            initReadOnlyMap('locationMap', locationLat, locationLng, 16);
+        }
+        {% endif %}
+
         const searchInput = document.getElementById('liveSearchInput');
         if (searchInput) {
             const resultsContainer = document.getElementById('searchResults');

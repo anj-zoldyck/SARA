@@ -24,4 +24,11 @@ urlpatterns = [
     path('staff/walkin/rfid/', views.staff_walkin_rfid_lookup, name='staff_walkin_rfid'),
     path('staff/walkin/claim/', views.staff_walkin_claim, name='staff_walkin_claim'),
     path('staff/walkin/member/<int:member_id>/modal/', views.staff_walkin_member_modal, name='staff_walkin_member_modal'),
+
+    # Distribution Venue Management
+    path('mswdo/venues/', views.venue_list, name='venue_list'),
+    path('mswdo/venues/add/', views.venue_add, name='venue_add'),
+    path('mswdo/venues/<int:venue_id>/edit/', views.venue_edit, name='venue_edit'),
+    path('mswdo/venues/<int:venue_id>/deactivate/', views.venue_deactivate, name='venue_deactivate'),
+    path('mswdo/venues/<int:venue_id>/activate/', views.venue_activate, name='venue_activate'),
 ]

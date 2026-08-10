@@ -14,7 +14,7 @@ from accounts.decorators import session_protected, mswdo_or_staff_required
 from accounts.models import User, Barangay
 from households.models import Household, Zone, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
-from distribution.models import AidSchedule, AidClaim, GeneratedBeneficiaryList, GeneratedBeneficiary
+from distribution.models import AidSchedule, AidClaim, GeneratedBeneficiaryList, GeneratedBeneficiary, DistributionVenue
 
 from accounts.forms import CreateUserForm
 from households.forms import HouseholdForm, FamilyForm, FamilyMemberForm
@@ -64,8 +64,26 @@ def schedule_distribution(request):
             return redirect('schedule_distribution')
 
         location = request.POST.get('location')
+        location_lat = request.POST.get('location_lat')
+        location_lng = request.POST.get('location_lng')
         barangay_id = request.POST.get('barangay')
         barangay = Barangay.objects.filter(id=barangay_id).first() if barangay_id else None
+        
+        # Handle coordinates - allow saving with just text location for legacy compatibility
+        # but prefer having coordinates when available from the map picker
+        from decimal import Decimal, InvalidOperation
+        schedule_location_lat = None
+        schedule_location_lng = None
+        
+        if location_lat and location_lng:
+            try:
+                schedule_location_lat = Decimal(location_lat)
+                schedule_location_lng = Decimal(location_lng)
+            except InvalidOperation:
+                # If coordinates are invalid, we'll still save the text location
+                messages.warning(request, "Invalid coordinates provided. Location saved with text only.")
+                schedule_location_lat = None
+                schedule_location_lng = None
         
         enable_selection = request.POST.get('enable_selection') == 'on'
         
@@ -101,6 +119,8 @@ def schedule_distribution(request):
             assistance=assistance,
             schedule_datetime=start,
             location=location,
+            location_lat=schedule_location_lat,
+            location_lng=schedule_location_lng,
             barangay=barangay,
             budget=budget if enable_selection else Decimal('0'),
             per_beneficiary_amount=per_beneficiary_amount if enable_selection else Decimal('0'),
@@ -120,12 +140,14 @@ def schedule_distribution(request):
         'program', 'aid_category'
     ).filter(is_active=True).order_by('program__name', 'aid_category__name')
     barangays = Barangay.objects.all()
+    venues = DistributionVenue.objects.filter(is_active=True).select_related('barangay')
 
     schedule_just_created = request.session.pop('schedule_just_created', False)
 
     return render(request, 'distribution/schedule_distribution.html', {
         'assistances': assistances,
         'barangays': barangays,
+        'venues': venues,
         'schedule_just_created': schedule_just_created,
     })
 
@@ -164,10 +186,28 @@ def edit_schedule(request, schedule_id):
             return redirect('edit_schedule', schedule_id=schedule.id)
 
         location = request.POST.get('location')
+        location_lat = request.POST.get('location_lat')
+        location_lng = request.POST.get('location_lng')
+        
+        # Handle coordinates for edit
+        from decimal import Decimal, InvalidOperation
+        schedule_location_lat = None
+        schedule_location_lng = None
+        
+        if location_lat and location_lng:
+            try:
+                schedule_location_lat = Decimal(location_lat)
+                schedule_location_lng = Decimal(location_lng)
+            except InvalidOperation:
+                messages.warning(request, "Invalid coordinates provided. Location saved with text only.")
+                schedule_location_lat = None
+                schedule_location_lng = None
 
         # Update allowed fields
         schedule.schedule_datetime = start
         schedule.location = location
+        schedule.location_lat = schedule_location_lat
+        schedule.location_lng = schedule_location_lng
 
         if not has_beneficiary_list:
             # Full edit allowed
@@ -215,7 +255,6 @@ def edit_schedule(request, schedule_id):
             # (they are disabled in HTML but we validate here to be safe)
             pass
 
-        schedule.last_edited_by = request.user
         schedule.save()
         log_action(request.user, 'SCHEDULE_EDITED', target=schedule, description=f"Edited schedule {schedule.id}")
         messages.success(request, "Schedule updated successfully.")
@@ -231,6 +270,7 @@ def edit_schedule(request, schedule_id):
         'program', 'aid_category'
     ).filter(is_active=True).order_by('program__name', 'aid_category__name')
     barangays = Barangay.objects.all()
+    venues = DistributionVenue.objects.filter(is_active=True).select_related('barangay')
 
     return render(request, 'distribution/edit_schedule.html', {
         'schedule': schedule,
@@ -238,6 +278,7 @@ def edit_schedule(request, schedule_id):
         'has_claims': has_claims,
         'assistances': assistances,
         'barangays': barangays,
+        'venues': venues,
     })
 
 
@@ -1231,3 +1272,153 @@ def beneficiary_detail_modal(request, entry_id):
     return render(request, 'distribution/partials/beneficiary_detail_modal.html', {
         'entry': entry,
     })
+
+
+# ----------------- Distribution Venue Management Views -----------------
+
+@login_required
+@session_protected
+def venue_list(request):
+    """List all distribution venues for MSWDO staff to manage."""
+    if request.user.role not in ('MSWDO', 'MSWDO_STAFF'):
+        return HttpResponseForbidden("Access Denied")
+    
+    venues = DistributionVenue.objects.select_related('barangay').all()
+    
+    return render(request, 'distribution/venue_list.html', {
+        'venues': venues,
+    })
+
+
+@login_required
+@session_protected
+def venue_add(request):
+    """Add a new distribution venue."""
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+    
+    if request.method == 'POST':
+        from decimal import Decimal, InvalidOperation
+        
+        name = request.POST.get('name')
+        latitude = request.POST.get('latitude')
+        longitude = request.POST.get('longitude')
+        barangay_id = request.POST.get('barangay')
+        
+        if not name or not latitude or not longitude:
+            messages.error(request, "Name, latitude, and longitude are required.")
+            return redirect('venue_add')
+        
+        try:
+            lat_decimal = Decimal(latitude)
+            lng_decimal = Decimal(longitude)
+        except InvalidOperation:
+            messages.error(request, "Invalid coordinates. Please enter valid decimal values.")
+            return redirect('venue_add')
+        
+        barangay = Barangay.objects.filter(id=barangay_id).first() if barangay_id else None
+        
+        venue = DistributionVenue.objects.create(
+            name=name,
+            latitude=lat_decimal,
+            longitude=lng_decimal,
+            barangay=barangay
+        )
+        
+        log_action(request.user, 'VENUE_CREATED', target=venue, description=f"Created venue {name}")
+        messages.success(request, f"Venue '{name}' has been added successfully.")
+        return redirect('venue_list')
+    
+    barangays = Barangay.objects.all()
+    return render(request, 'distribution/venue_form.html', {
+        'barangays': barangays,
+        'is_edit': False,
+    })
+
+
+@login_required
+@session_protected
+def venue_edit(request, venue_id):
+    """Edit an existing distribution venue."""
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+    
+    venue = get_object_or_404(DistributionVenue, id=venue_id)
+    
+    if request.method == 'POST':
+        from decimal import Decimal, InvalidOperation
+        
+        name = request.POST.get('name')
+        latitude = request.POST.get('latitude')
+        longitude = request.POST.get('longitude')
+        barangay_id = request.POST.get('barangay')
+        
+        if not name or not latitude or not longitude:
+            messages.error(request, "Name, latitude, and longitude are required.")
+            return redirect('venue_edit', venue_id=venue_id)
+        
+        try:
+            lat_decimal = Decimal(latitude)
+            lng_decimal = Decimal(longitude)
+        except InvalidOperation:
+            messages.error(request, "Invalid coordinates. Please enter valid decimal values.")
+            return redirect('venue_edit', venue_id=venue_id)
+        
+        barangay = Barangay.objects.filter(id=barangay_id).first() if barangay_id else None
+        
+        venue.name = name
+        venue.latitude = lat_decimal
+        venue.longitude = lng_decimal
+        venue.barangay = barangay
+        venue.save()
+        
+        log_action(request.user, 'VENUE_EDITED', target=venue, description=f"Edited venue {name}")
+        messages.success(request, f"Venue '{name}' has been updated successfully.")
+        return redirect('venue_list')
+    
+    barangays = Barangay.objects.all()
+    return render(request, 'distribution/venue_form.html', {
+        'venue': venue,
+        'barangays': barangays,
+        'is_edit': True,
+    })
+
+
+@login_required
+@session_protected
+def venue_deactivate(request, venue_id):
+    """Deactivate a distribution venue (soft delete)."""
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+    
+    venue = get_object_or_404(DistributionVenue, id=venue_id)
+    
+    if request.method == 'POST':
+        venue.is_active = False
+        venue.save()
+        
+        log_action(request.user, 'VENUE_DEACTIVATED', target=venue, description=f"Deactivated venue {venue.name}")
+        messages.success(request, f"Venue '{venue.name}' has been deactivated.")
+        return redirect('venue_list')
+    
+    return HttpResponseForbidden("Invalid Method")
+
+
+@login_required
+@session_protected
+def venue_activate(request, venue_id):
+    """Reactivate a deactivated distribution venue."""
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+    
+    venue = get_object_or_404(DistributionVenue, id=venue_id)
+    
+    if request.method == 'POST':
+        venue.is_active = True
+        venue.save()
+        
+        log_action(request.user, 'VENUE_ACTIVATED', target=venue, description=f"Activated venue {venue.name}")
+        messages.success(request, f"Venue '{venue.name}' has been reactivated.")
+        return redirect('venue_list')
+    
+    return HttpResponseForbidden("Invalid Method")
