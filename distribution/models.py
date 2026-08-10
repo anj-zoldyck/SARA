@@ -49,6 +49,12 @@ class AidClaim(models.Model):
 
 # ----------------- AidSchedule Model -----------------
 class AidSchedule(models.Model):
+    PRIORITIZATION_CHOICES = [
+        ('LOWEST_INCOME_FIRST', 'Lowest Income First'),
+        ('TYPHOON_PRIORITY', 'Typhoon/Vulnerability Priority'),
+        ('DAYS_SINCE_LAST_ASSISTANCE', 'Longest Time Since Last Assistance'),
+        ('SPECIAL_CATEGORY', 'Special Category (PWD/Senior/Solo Parent)'),
+    ]
 
     assistance = models.ForeignKey(
         Assistance,
@@ -64,6 +70,13 @@ class AidSchedule(models.Model):
     # Consistent with FamilyMember.monthly_income pattern in this codebase.
     budget = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     per_beneficiary_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    
+    prioritization_strategy = models.CharField(
+        max_length=30,
+        choices=PRIORITIZATION_CHOICES,
+        default='LOWEST_INCOME_FIRST',
+        help_text="Strategy used to rank eligible beneficiaries when generating the beneficiary list."
+    )
     
     schedule_datetime = models.DateTimeField()
 

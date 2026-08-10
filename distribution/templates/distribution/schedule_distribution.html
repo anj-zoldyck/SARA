@@ -111,6 +111,22 @@
                   <p class="acct-form__hint">Value each beneficiary receives.</p>
                 </div>
               </div>
+              <div class="col-12">
+                <div class="acct-form__group">
+                  <label class="acct-form__label" for="prioritizationStrategyInput">
+                    <i class="bi bi-sort-down"></i> Prioritization Strategy <span class="acct-form__required">*</span>
+                  </label>
+                  <div class="acct-form__control-wrap">
+                    <select name="prioritization_strategy" id="prioritizationStrategyInput" class="form-select" required>
+                      <option value="LOWEST_INCOME_FIRST">Lowest Income First</option>
+                      <option value="TYPHOON_PRIORITY">Typhoon/Vulnerability Priority</option>
+                      <option value="DAYS_SINCE_LAST_ASSISTANCE">Longest Time Since Last Assistance</option>
+                      <option value="SPECIAL_CATEGORY">Special Category (PWD/Senior/Solo Parent)</option>
+                    </select>
+                  </div>
+                  <p class="acct-form__hint">How to rank eligible beneficiaries when there are more eligible than available slots.</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -128,7 +144,11 @@
               {% for group in program_list %}
               <optgroup label="{{ group.grouper }}">
                 {% for a in group.list %}
-                <option value="{{ a.id }}">
+                <option value="{{ a.id }}"
+                  data-requires-pwd="{{ a.requires_pwd|yesno:"true,false" }}"
+                  data-requires-solo-parent="{{ a.requires_solo_parent|yesno:"true,false" }}"
+                  data-requires-senior="{{ a.requires_senior_citizen|yesno:"true,false" }}"
+                  data-default-strategy="{{ a.prioritization_strategy }}">
                   {{ a.aid_category.name }} ({{ a.get_beneficiary_type_display }})
                 </option>
                 {% endfor %}
@@ -187,7 +207,9 @@
     const budgetFields = document.getElementById('budgetFieldsContainer');
     const budgetInput = document.getElementById('budgetInput');
     const perAmountInput = document.getElementById('perAmountInput');
+    const prioritizationInput = document.getElementById('prioritizationStrategyInput');
     const submitBtn = document.getElementById('submitBtn');
+    const assistanceSelect = document.querySelector('select[name="assistance"]');
 
     const datetimeInput = document.getElementById('scheduleDatetimeInput');
     if (datetimeInput) {
@@ -195,6 +217,39 @@
       now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
       datetimeInput.min = now.toISOString().slice(0, 16);
     }
+
+    // Pre-select default strategy on initial load if assistance is already selected
+    if (assistanceSelect.value) {
+      const selectedOption = assistanceSelect.options[assistanceSelect.selectedIndex];
+      const defaultStrategy = selectedOption.getAttribute('data-default-strategy');
+      if (defaultStrategy && !prioritizationInput.value) {
+        prioritizationInput.value = defaultStrategy;
+      }
+    }
+
+    // Handle assistance select change to control SPECIAL_CATEGORY visibility
+    assistanceSelect.addEventListener('change', function() {
+      const selectedOption = this.options[this.selectedIndex];
+      const requiresPwd = selectedOption.getAttribute('data-requires-pwd') === 'true';
+      const requiresSoloParent = selectedOption.getAttribute('data-requires-solo-parent') === 'true';
+      const requiresSenior = selectedOption.getAttribute('data-requires-senior') === 'true';
+      
+      // Show/hide SPECIAL_CATEGORY option based on assistance flags
+      const specialCategoryOption = prioritizationInput.querySelector('option[value="SPECIAL_CATEGORY"]');
+      const hasSpecialCategory = requiresPwd || requiresSoloParent || requiresSenior;
+      
+      if (hasSpecialCategory) {
+        specialCategoryOption.disabled = false;
+        specialCategoryOption.style.display = '';
+      } else {
+        specialCategoryOption.disabled = true;
+        specialCategoryOption.style.display = 'none';
+        // Reset selection if SPECIAL_CATEGORY was selected
+        if (prioritizationInput.value === 'SPECIAL_CATEGORY') {
+          prioritizationInput.value = 'LOWEST_INCOME_FIRST';
+        }
+      }
+    });
 
     document.querySelector('.sched-form').addEventListener('submit', function(e) {
       if (toggle.checked) {
@@ -208,11 +263,13 @@
         budgetFields.classList.add('show');
         budgetInput.required = true;
         perAmountInput.required = true;
+        prioritizationInput.required = true;
         submitBtn.innerHTML = '<i class="bi bi-cpu me-1"></i> Create & Generate Beneficiaries';
       } else {
         budgetFields.classList.remove('show');
         budgetInput.required = false;
         perAmountInput.required = false;
+        prioritizationInput.required = false;
         submitBtn.innerHTML = '<i class="bi bi-calendar-plus me-1"></i> Create Schedule';
       }
     });

@@ -73,6 +73,7 @@ def schedule_distribution(request):
         
         budget_raw = request.POST.get('budget', '').strip()
         per_beneficiary_raw = request.POST.get('per_beneficiary_amount', '').strip()
+        prioritization_strategy = request.POST.get('prioritization_strategy', 'LOWEST_INCOME_FIRST')
 
         budget = Decimal('0')
         per_beneficiary_amount = Decimal('0')
@@ -87,6 +88,12 @@ def schedule_distribution(request):
                 # We use Decimal consistent with the rest of this codebase's handling of money values, avoiding floating-point precision issues.
                 messages.error(request, "Invalid numeric input for budget or per-beneficiary amount.")
                 return redirect('schedule_distribution')
+            
+            # Validate SPECIAL_CATEGORY strategy against assistance flags
+            if prioritization_strategy == 'SPECIAL_CATEGORY':
+                if not (assistance.requires_pwd or assistance.requires_solo_parent or assistance.requires_senior_citizen):
+                    messages.error(request, "SPECIAL_CATEGORY prioritization can only be used with assistances that require PWD, Senior Citizen, or Solo Parent status.")
+                    return redirect('schedule_distribution')
 
         # Auto-expire logic removed as completion is now state-based (is_finished)
 
@@ -97,6 +104,7 @@ def schedule_distribution(request):
             barangay=barangay,
             budget=budget if enable_selection else Decimal('0'),
             per_beneficiary_amount=per_beneficiary_amount if enable_selection else Decimal('0'),
+            prioritization_strategy=prioritization_strategy if enable_selection else 'LOWEST_INCOME_FIRST',
             created_by=request.user
         )
         log_action(request.user, 'SCHEDULE_CREATED', target=schedule, description=f"Created schedule for {assistance} at {location}")
@@ -178,6 +186,7 @@ def edit_schedule(request, schedule_id):
             
             budget_raw = request.POST.get('budget', '').strip()
             per_beneficiary_raw = request.POST.get('per_beneficiary_amount', '').strip()
+            prioritization_strategy = request.POST.get('prioritization_strategy', 'LOWEST_INCOME_FIRST')
 
             budget = Decimal('0')
             per_beneficiary_amount = Decimal('0')
@@ -189,11 +198,18 @@ def edit_schedule(request, schedule_id):
                 except InvalidOperation:
                     messages.error(request, "Invalid numeric input for budget or per-beneficiary amount.")
                     return redirect('edit_schedule', schedule_id=schedule.id)
+                
+                # Validate SPECIAL_CATEGORY strategy against assistance flags
+                if prioritization_strategy == 'SPECIAL_CATEGORY':
+                    if not (assistance.requires_pwd or assistance.requires_solo_parent or assistance.requires_senior_citizen):
+                        messages.error(request, "SPECIAL_CATEGORY prioritization can only be used with assistances that require PWD, Senior Citizen, or Solo Parent status.")
+                        return redirect('edit_schedule', schedule_id=schedule.id)
 
             schedule.assistance = assistance
             schedule.barangay = barangay
             schedule.budget = budget if enable_selection else Decimal('0')
             schedule.per_beneficiary_amount = per_beneficiary_amount if enable_selection else Decimal('0')
+            schedule.prioritization_strategy = prioritization_strategy if enable_selection else 'LOWEST_INCOME_FIRST'
         else:
             # If beneficiary list exists but attempts to change locked fields
             # (they are disabled in HTML but we validate here to be safe)
@@ -782,7 +798,7 @@ def generate_beneficiaries(request, schedule_id):
     
     # Run the engine
     pool = get_eligible_pool(schedule.assistance, schedule.barangay, current_schedule=schedule)
-    ranked_pool = rank_eligible_pool(pool, schedule.assistance.prioritization_strategy)
+    ranked_pool = rank_eligible_pool(pool, schedule.prioritization_strategy)
     # Take top N
     selected_beneficiaries = ranked_pool[:slot_count]
     
@@ -790,9 +806,9 @@ def generate_beneficiaries(request, schedule_id):
     ben_list = GeneratedBeneficiaryList.objects.create(
         schedule=schedule,
         generated_by=request.user,
-        prioritization_strategy_used=schedule.assistance.prioritization_strategy
+        prioritization_strategy_used=schedule.prioritization_strategy
     )
-    log_action(request.user, 'BENEFICIARY_LIST_GENERATED', target=ben_list, description=f"Generated beneficiary list for schedule {schedule.id} using {schedule.assistance.prioritization_strategy} strategy")
+    log_action(request.user, 'BENEFICIARY_LIST_GENERATED', target=ben_list, description=f"Generated beneficiary list for schedule {schedule.id} using {schedule.prioritization_strategy} strategy")
     
     # Create individual entries
     entries = []

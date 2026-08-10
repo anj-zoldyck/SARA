@@ -263,6 +263,13 @@ def rank_eligible_pool(pool, strategy):
       This ensures the most vulnerable and marginalized populations are served first in disaster scenarios.
       For FamilyMember objects, includes the member's own category flags plus household-level exposure.
 
+    - DAYS_SINCE_LAST_ASSISTANCE: rank so households/families/members who have NEVER received a claim come first,
+      then among those who have, order by oldest claimed_at first (longest-waiting prioritized).
+
+    - SPECIAL_CATEGORY: returns the pool in a stable, deterministic order (sorted by ID).
+      The eligibility step (check_eligibility) has already filtered to only members matching the required flag,
+      so no additional scoring is needed here.
+
     - RANDOM: shuffle the pool randomly.
       We use Python's random.shuffle because the pool is already evaluated and loaded into memory as a Python list by get_eligible_pool().
       Using Django's .order_by('?') would require sending IDs back to the database and re-evaluating the QuerySet, which is inefficient and slow on large datasets.
@@ -309,6 +316,31 @@ def rank_eligible_pool(pool, strategy):
             return score
 
         return sorted(pool, key=get_vulnerability_score, reverse=True)
+
+    elif strategy == 'DAYS_SINCE_LAST_ASSISTANCE':
+        def get_last_claim_sort_key(item):
+            # Find the most recent claim for this item
+            if isinstance(item, Family):
+                last_claim = AidClaim.objects.filter(family=item).order_by('-claimed_at').first()
+            elif isinstance(item, FamilyMember):
+                # For individual members, check claims for their family
+                last_claim = AidClaim.objects.filter(family=item.family).order_by('-claimed_at').first()
+            else:  # Household
+                last_claim = AidClaim.objects.filter(family__household=item).order_by('-claimed_at').first()
+            
+            # Sort key: (0, None) for never-claimed (comes first), (1, claimed_at) for has-claim
+            # This ensures never-claimed households come first, then sorted by oldest claimed_at
+            if last_claim:
+                return (1, last_claim.claimed_at)
+            else:
+                return (0, timezone.datetime.min.replace(tzinfo=timezone.UTC))
+        
+        return sorted(pool, key=get_last_claim_sort_key)
+
+    elif strategy == 'SPECIAL_CATEGORY':
+        # Return pool in stable, deterministic order (sorted by ID)
+        # The eligibility step has already filtered to only members matching the required flag
+        return sorted(pool, key=lambda item: item.id)
 
     elif strategy == 'RANDOM':
         shuffled_pool = list(pool)

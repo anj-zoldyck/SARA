@@ -1,5 +1,6 @@
 from django.test import TestCase, RequestFactory, Client
 from django.utils import timezone
+from datetime import timedelta
 from accounts.models import User, Barangay
 from households.models import Zone, Household, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
@@ -809,6 +810,314 @@ class CategoryRestrictedAssistanceTestCase(TestCase):
 
         # Non-PWD member should NOT be in pool
         self.assertNotIn(non_pwd_member.id, pool_ids)
+
+
+class PrioritizationStrategyTestCase(TestCase):
+    """
+    Test new prioritization strategies: DAYS_SINCE_LAST_ASSISTANCE and SPECIAL_CATEGORY.
+    """
+
+    def setUp(self):
+        self.barangay = Barangay.objects.create(name='Test Barangay')
+        self.zone = Zone.objects.create(name='Zone 1', barangay=self.barangay)
+
+        self.mswdo = User.objects.create_user(
+            username='mswdo',
+            email='mswdo@test.com',
+            role='MSWDO',
+            password='pwd'
+        )
+
+        self.program = Program.objects.create(name='Test Program')
+        self.category = AidCategory.objects.create(program=self.program, name='Test Category')
+
+        # Family-based assistance for DAYS_SINCE_LAST_ASSISTANCE test
+        self.family_assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='family',
+            aid_type='CASH'
+        )
+
+        # Senior-only assistance for SPECIAL_CATEGORY test
+        self.senior_assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='individual',
+            aid_type='CASH',
+            requires_senior_citizen=True
+        )
+
+        from datetime import date
+
+        # Create households/families with different claim histories
+        # Household A: never claimed
+        self.household_a = Household.objects.create(
+            barangay=self.barangay,
+            zone=self.zone,
+            house_number='101',
+            land_use='RESIDENTIAL',
+            hazard_exposure='NONE'
+        )
+        self.family_a = Family.objects.create(
+            household=self.household_a,
+            family_name='Never Claimed Family',
+            rfid_uid='RFID_A',
+            is_active=True
+        )
+        FamilyMember.objects.create(
+            family=self.family_a,
+            first_name='Member',
+            last_name='A'
+        )
+
+        # Household B: claimed 30 days ago
+        self.household_b = Household.objects.create(
+            barangay=self.barangay,
+            zone=self.zone,
+            house_number='102',
+            land_use='RESIDENTIAL',
+            hazard_exposure='NONE'
+        )
+        self.family_b = Family.objects.create(
+            household=self.household_b,
+            family_name='Old Claim Family',
+            rfid_uid='RFID_B',
+            is_active=True
+        )
+        FamilyMember.objects.create(
+            family=self.family_b,
+            first_name='Member',
+            last_name='B'
+        )
+        # Create old claim
+        old_schedule = AidSchedule.objects.create(
+            assistance=self.family_assistance,
+            schedule_datetime=timezone.now() - timedelta(days=30),
+            location='Old Plaza',
+            is_active=True,
+            is_finished=True
+        )
+        AidClaim.objects.create(
+            family=self.family_b,
+            assistance=self.family_assistance,
+            schedule=old_schedule,
+            claimed_at=timezone.now() - timedelta(days=30)
+        )
+
+        # Household C: claimed 5 days ago
+        self.household_c = Household.objects.create(
+            barangay=self.barangay,
+            zone=self.zone,
+            house_number='103',
+            land_use='RESIDENTIAL',
+            hazard_exposure='NONE'
+        )
+        self.family_c = Family.objects.create(
+            household=self.household_c,
+            family_name='Recent Claim Family',
+            rfid_uid='RFID_C',
+            is_active=True
+        )
+        FamilyMember.objects.create(
+            family=self.family_c,
+            first_name='Member',
+            last_name='C'
+        )
+        # Create recent claim
+        recent_schedule = AidSchedule.objects.create(
+            assistance=self.family_assistance,
+            schedule_datetime=timezone.now() - timedelta(days=5),
+            location='Recent Plaza',
+            is_active=True,
+            is_finished=True
+        )
+        AidClaim.objects.create(
+            family=self.family_c,
+            assistance=self.family_assistance,
+            schedule=recent_schedule,
+            claimed_at=timezone.now() - timedelta(days=5)
+        )
+
+        # Create household with senior member for SPECIAL_CATEGORY test
+        self.household_senior = Household.objects.create(
+            barangay=self.barangay,
+            zone=self.zone,
+            house_number='201',
+            land_use='RESIDENTIAL',
+            hazard_exposure='NONE'
+        )
+        self.family_senior = Family.objects.create(
+            household=self.household_senior,
+            family_name='Senior Family',
+            rfid_uid='RFID_SENIOR',
+            is_active=True
+        )
+        self.senior_member = FamilyMember.objects.create(
+            family=self.family_senior,
+            first_name='Senior',
+            last_name='Person',
+            birthdate=date(1950, 1, 1),
+            is_senior_citizen=True
+        )
+        self.non_senior_member = FamilyMember.objects.create(
+            family=self.family_senior,
+            first_name='Adult',
+            last_name='Person',
+            birthdate=date(1980, 1, 1),
+            is_senior_citizen=False
+        )
+
+        self.factory = RequestFactory()
+
+    def test_days_since_last_assistance_ordering(self):
+        """
+        DAYS_SINCE_LAST_ASSISTANCE should rank never-claimed first, then by oldest claimed_at.
+        """
+        from programs.beneficiary_engine import get_eligible_pool, rank_eligible_pool
+
+        # Get eligible pool (no eligibility rules, so all families are eligible)
+        pool = get_eligible_pool(self.family_assistance, self.barangay)
+
+        # Filter to only include our test families
+        test_family_ids = {self.family_a.id, self.family_b.id, self.family_c.id}
+        pool = [f for f in pool if f.id in test_family_ids]
+
+        # Rank using DAYS_SINCE_LAST_ASSISTANCE
+        ranked_pool = rank_eligible_pool(pool, 'DAYS_SINCE_LAST_ASSISTANCE')
+
+        # Extract family IDs in ranked order
+        ranked_ids = [f.id for f in ranked_pool]
+
+        # Never-claimed family should be first
+        self.assertEqual(ranked_ids[0], self.family_a.id)
+
+        # Old claim (30 days) should come before recent claim (5 days)
+        self.assertEqual(ranked_ids[1], self.family_b.id)
+        self.assertEqual(ranked_ids[2], self.family_c.id)
+
+    def test_special_category_stable_ordering(self):
+        """
+        SPECIAL_CATEGORY should return pool in stable, deterministic order (sorted by ID).
+        """
+        from programs.beneficiary_engine import get_eligible_pool, rank_eligible_pool
+
+        # Get eligible pool for senior-only assistance
+        pool = get_eligible_pool(self.senior_assistance, self.barangay)
+
+        # Pool should only contain senior member
+        pool_ids = [m.id for m in pool]
+        self.assertIn(self.senior_member.id, pool_ids)
+        self.assertNotIn(self.non_senior_member.id, pool_ids)
+
+        # Rank using SPECIAL_CATEGORY
+        ranked_pool = rank_eligible_pool(pool, 'SPECIAL_CATEGORY')
+
+        # Should be sorted by ID (stable order)
+        ranked_ids = [m.id for m in ranked_pool]
+        self.assertEqual(ranked_ids, sorted(ranked_ids))
+
+    def test_schedule_distribution_rejects_special_category_without_flag(self):
+        """
+        schedule_distribution view should reject SPECIAL_CATEGORY when assistance
+        doesn't require any special category flag.
+        """
+        # Create a different category to avoid unique constraint violation
+        regular_category = AidCategory.objects.create(program=self.program, name='Regular Category')
+        
+        # Create assistance without any special category flags
+        regular_assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=regular_category,
+            beneficiary_type='family',
+            aid_type='CASH',
+            requires_pwd=False,
+            requires_solo_parent=False,
+            requires_senior_citizen=False
+        )
+
+        # Try to create schedule with SPECIAL_CATEGORY strategy
+        request = self.factory.post('/schedule/', {
+            'assistance': str(regular_assistance.id),
+            'schedule_datetime': (timezone.now() + timedelta(days=1)).isoformat(),
+            'location': 'Test Location',
+            'enable_selection': 'on',
+            'budget': '10000',
+            'per_beneficiary_amount': '1000',
+            'prioritization_strategy': 'SPECIAL_CATEGORY'
+        })
+        add_messages(request)
+        request.user = self.mswdo
+
+        from distribution.views import schedule_distribution
+        response = schedule_distribution(request)
+
+        # Should redirect back with error message
+        self.assertEqual(response.status_code, 302)
+
+        # Check that no schedule was created
+        self.assertFalse(AidSchedule.objects.filter(
+            assistance=regular_assistance,
+            prioritization_strategy='SPECIAL_CATEGORY'
+        ).exists())
+
+    def test_schedule_distribution_accepts_special_category_with_flag(self):
+        """
+        schedule_distribution view should accept SPECIAL_CATEGORY when assistance
+        requires a special category flag.
+        """
+        # Try to create schedule with SPECIAL_CATEGORY strategy for senior assistance
+        request = self.factory.post('/schedule/', {
+            'assistance': str(self.senior_assistance.id),
+            'schedule_datetime': (timezone.now() + timedelta(days=1)).isoformat(),
+            'location': 'Test Location',
+            'enable_selection': 'on',
+            'budget': '10000',
+            'per_beneficiary_amount': '1000',
+            'prioritization_strategy': 'SPECIAL_CATEGORY'
+        })
+        add_messages(request)
+        request.user = self.mswdo
+
+        from distribution.views import schedule_distribution
+        response = schedule_distribution(request)
+
+        # Should redirect successfully
+        self.assertEqual(response.status_code, 302)
+
+        # Check that schedule was created with SPECIAL_CATEGORY strategy
+        schedule = AidSchedule.objects.filter(
+            assistance=self.senior_assistance,
+            prioritization_strategy='SPECIAL_CATEGORY'
+        ).first()
+        self.assertIsNotNone(schedule)
+
+    def test_aidschedule_prioritization_strategy_field_roundtrip(self):
+        """
+        Test that the prioritization_strategy field on AidSchedule round-trips correctly
+        through the model and form.
+        """
+        # Create schedule with each strategy
+        strategies = ['LOWEST_INCOME_FIRST', 'TYPHOON_PRIORITY', 'DAYS_SINCE_LAST_ASSISTANCE', 'SPECIAL_CATEGORY']
+        
+        for strategy in strategies:
+            schedule = AidSchedule.objects.create(
+                assistance=self.senior_assistance,
+                schedule_datetime=timezone.now() + timedelta(days=1),
+                location='Test Location',
+                budget=Decimal('10000'),
+                per_beneficiary_amount=Decimal('1000'),
+                prioritization_strategy=strategy
+            )
+            
+            # Reload from database
+            schedule.refresh_from_db()
+            
+            # Verify strategy is preserved
+            self.assertEqual(schedule.prioritization_strategy, strategy)
+            
+            # Clean up
+            schedule.delete()
 
 
 class StaffAssignmentAccessControlTestCase(TestCase):
