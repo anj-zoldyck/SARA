@@ -31,6 +31,9 @@ urlpatterns = [
     path('vulnerability-map/', views.household_vulnerability_map, name='household_vulnerability_map'),
     path('vulnerability-map/data/', views.household_vulnerability_data, name='household_vulnerability_data'),
     path('barangay/families/<int:family_id>/edit-name/', views.edit_family_name, name='edit_family_name'),
+    path('barangay/families/<int:family_id>/archive/', views.archive_family, name='archive_family'),
+    path('barangay/families/<int:family_id>/unarchive/', views.unarchive_family, name='unarchive_family'),
+    path('barangay/archived-families/', views.archived_families, name='archived_families'),
     path('barangay/households/<int:household_id>/delete/', views.delete_household, name='delete_household'),
     path('barangay/families/<int:family_id>/delete/', views.delete_family, name='delete_family'),
     # Import/Export

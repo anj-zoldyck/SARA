@@ -88,6 +88,11 @@ class Family(models.Model):
 
     is_active = models.BooleanField(default=True)
 
+    # Archiving fields (soft-delete alternative)
+    is_archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    archived_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+
     def __str__(self):
         return f"{self.family_name} ({self.household})"
 

@@ -22,6 +22,7 @@ urlpatterns = [
     # Walk-in Assistance
     path('staff/walkin/', views.staff_walkin, name='staff_walkin'),
     path('staff/walkin/rfid/', views.staff_walkin_rfid_lookup, name='staff_walkin_rfid'),
+    path('staff/walkin/reactivate-family/', views.staff_walkin_reactivate_family, name='staff_walkin_reactivate_family'),
     path('staff/walkin/claim/', views.staff_walkin_claim, name='staff_walkin_claim'),
     path('staff/walkin/member/<int:member_id>/modal/', views.staff_walkin_member_modal, name='staff_walkin_member_modal'),
 

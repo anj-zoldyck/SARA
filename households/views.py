@@ -37,6 +37,7 @@ import tempfile
 import time
 import logging
 from django.http import HttpResponse
+from core.audit_utils import log_action
 
 User = get_user_model()
 
@@ -449,6 +450,10 @@ def add_family_member(request, family_id):
         household__barangay=request.user.barangay
     )
 
+    if family.is_archived:
+        messages.error(request, "This family is archived. Unarchive it before making changes.")
+        return redirect('family_detail', family_id=family.id)
+
     if request.method == 'POST':
         form = FamilyMemberForm(request.POST, request.FILES)
         senior_form = SeniorCitizenProfileForm(request.POST, prefix='senior')
@@ -534,6 +539,10 @@ def edit_family_member(request, member_id):
         id=member_id,
         family__household__barangay=request.user.barangay
     )
+    
+    if member.family.is_archived:
+        messages.error(request, "This family is archived. Unarchive it before making changes.")
+        return redirect('family_detail', family_id=member.family.id)
     
     senior_instance = getattr(member, 'senior_profile', None)
     solo_instance = getattr(member, 'solo_parent_profile', None)
@@ -890,6 +899,11 @@ def edit_family_name(request, family_id):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
     family = get_object_or_404(Family, id=family_id, household__barangay=request.user.barangay)
+    
+    if family.is_archived:
+        messages.error(request, "This family is archived. Unarchive it before making changes.")
+        return redirect('family_detail', family_id=family.id)
+        
     if request.method == 'POST':
         new_name = request.POST.get('family_name', '').strip()
         if new_name:
@@ -919,6 +933,11 @@ def delete_family(request, family_id):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
     family = get_object_or_404(Family, id=family_id, household__barangay=request.user.barangay)
+    
+    if family.is_archived:
+        messages.error(request, "This family is archived. Unarchive it before making changes.")
+        return redirect('family_detail', family_id=family.id)
+        
     if request.method == 'POST':
         household_id = family.household.id
         family.delete()
@@ -928,10 +947,60 @@ def delete_family(request, family_id):
 
 @login_required(login_url='login')
 @session_protected
+def archive_family(request, family_id):
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+    family = get_object_or_404(Family, id=family_id, household__barangay=request.user.barangay)
+    if request.method == 'POST':
+        family.is_archived = True
+        family.archived_at = timezone.now()
+        family.archived_by = request.user
+        family.save()
+        log_action(request.user, 'FAMILY_ARCHIVED', target=family, description=f"Archived family {family.family_name}")
+        messages.success(request, "Family archived successfully.")
+    return redirect('family_detail', family_id=family.id)
+
+@login_required(login_url='login')
+@session_protected
+def unarchive_family(request, family_id):
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+    family = get_object_or_404(Family, id=family_id, household__barangay=request.user.barangay)
+    if request.method == 'POST':
+        family.is_archived = False
+        family.archived_at = None
+        family.archived_by = None
+        family.save()
+        log_action(request.user, 'FAMILY_UNARCHIVED', target=family, description=f"Unarchived family {family.family_name}")
+        messages.success(request, "Family unarchived successfully.")
+    return redirect('family_detail', family_id=family.id)
+
+@login_required(login_url='login')
+@session_protected
+def archived_families(request):
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+    
+    archived_families = Family.objects.filter(
+        is_archived=True,
+        household__barangay=request.user.barangay
+    ).select_related('household', 'household__zone').order_by('-archived_at')
+    
+    return render(request, 'households/archived_families.html', {
+        'archived_families': archived_families
+    })
+
+@login_required(login_url='login')
+@session_protected
 def delete_family_member(request, member_id):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
     member = get_object_or_404(FamilyMember, id=member_id, family__household__barangay=request.user.barangay)
+    
+    if member.family.is_archived:
+        messages.error(request, "This family is archived. Unarchive it before making changes.")
+        return redirect('family_detail', family_id=member.family.id)
+        
     if request.method == 'POST':
         family_id = member.family.id
         member.delete()

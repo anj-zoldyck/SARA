@@ -381,6 +381,14 @@ def scan_rfid(request, schedule_id):
                 return JsonResponse({'status': 'error', 'message': error})
             return render(request, 'distribution/scan_rfid.html', {'error': error, 'aid_schedule': aid_schedule})
 
+        # -------- ARCHIVED FAMILY CHECK --------
+        # Hard block: archived families cannot use scheduled distribution kiosk
+        if family.is_archived:
+            error = "This RFID card belongs to an archived family and cannot be used for scheduled distribution. Please contact your Barangay Admin to reactivate this family record."
+            if is_ajax:
+                return JsonResponse({'status': 'error', 'message': error})
+            return render(request, 'distribution/scan_rfid.html', {'error': error, 'aid_schedule': aid_schedule})
+
         # -------- Phase B: Beneficiary List Check --------
         # If the schedule has a generated beneficiary list, restrict processing to only those on the list.
         if hasattr(aid_schedule, 'beneficiary_list'):
@@ -653,7 +661,7 @@ def staff_walkin(request):
     members = FamilyMember.objects.none()
     
     if query or barangay_id or zone_id:
-        members = FamilyMember.objects.filter(family__is_active=True).select_related(
+        members = FamilyMember.objects.filter(family__is_active=True, family__is_archived=False).select_related(
             'family', 'family__household', 'family__household__zone', 'family__household__barangay'
         )
         
@@ -703,9 +711,19 @@ def staff_walkin_rfid_lookup(request):
         return JsonResponse({'status': 'error', 'message': 'No RFID provided.'})
         
     try:
+        # Don't filter is_archived - we want to find archived families too
         family = Family.objects.get(rfid_uid=uid, is_active=True)
     except Family.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'No resident registered with this RFID card'})
+        
+    # Check if family is archived - return archived status instead of member list
+    if family.is_archived:
+        return JsonResponse({
+            'status': 'archived',
+            'family_id': family.id,
+            'family_name': family.family_name,
+            'address': family.household.address
+        })
         
     members = family.members.all().order_by('first_name')
     member_data = []
@@ -723,6 +741,41 @@ def staff_walkin_rfid_lookup(request):
         'barangay': family.household.barangay.name if family.household.barangay else '',
         'zone': family.household.zone.name if family.household.zone else '',
         'members': member_data
+    })
+
+@login_required(login_url='login')
+@session_protected
+def staff_walkin_reactivate_family(request):
+    if request.user.role != 'MSWDO_STAFF':
+        return JsonResponse({'status': 'error', 'message': 'Access Denied'}, status=403)
+    
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+    
+    family_id = request.POST.get('family_id')
+    if not family_id:
+        return JsonResponse({'status': 'error', 'message': 'No family ID provided'})
+    
+    try:
+        family = Family.objects.get(id=family_id, is_active=True)
+    except Family.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Family not found'})
+    
+    if not family.is_archived:
+        return JsonResponse({'status': 'error', 'message': 'Family is not archived'})
+    
+    # Reactivate the family
+    family.is_archived = False
+    family.archived_at = None
+    family.archived_by = None
+    family.save()
+    
+    log_action(request.user, 'FAMILY_REACTIVATED_WALKIN', target=family, 
+               description=f"Reactivated family {family.family_name} via walk-in RFID tap by {request.user.username}")
+    
+    return JsonResponse({
+        'status': 'success',
+        'message': 'Family reactivated successfully'
     })
 
 @login_required(login_url='login')

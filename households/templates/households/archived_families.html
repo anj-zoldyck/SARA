@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Archived Families — SARA{% endblock %}
+{% block navbar_title %}Archived Families{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'barangay_dashboard' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Archived Families</span>
+    </div>
+    <h1 class="dash-page-title">Archived Families</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-archive me-1"></i>
+      {{ archived_families|length }} archived family{{ archived_families|length|pluralize }}
+    </p>
+  </div>
+  <div class="dash-header-actions">
+    <a href="{% url 'barangay_dashboard' %}" class="btn-dash-outline">
+      <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+  </div>
+</div>
+
+<!-- Archived Families Table -->
+<div class="dash-panel">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-archive dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Archived Families</h2>
+        <p class="dash-panel__sub">Families archived from {{ request.user.barangay.name }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-panel__body p-0">
+    <div class="table-responsive">
+      <table class="acct-table">
+        <thead>
+          <tr>
+            <th class="acct-th">#</th>
+            <th class="acct-th">Family Name</th>
+            <th class="acct-th">Address</th>
+            <th class="acct-th">Archived Date</th>
+            <th class="acct-th">Archived By</th>
+            <th class="acct-th acct-th--actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for family in archived_families %}
+          <tr class="acct-row">
+            <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
+            <td class="acct-td">
+              <a href="{% url 'family_detail' family.id %}" class="hh-family-link">
+                {{ family.family_name }}
+              </a>
+            </td>
+            <td class="acct-td">{{ family.household.address }}</td>
+            <td class="acct-td">
+              {% if family.archived_at %}
+                {{ family.archived_at|date:"M d, Y" }}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td class="acct-td">
+              {% if family.archived_by %}
+                {{ family.archived_by.get_full_name|default:family.archived_by.username }}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td class="acct-td acct-td--actions">
+              <div class="acct-actions">
+                <button type="button" class="acct-btn acct-btn--edit" data-bs-toggle="modal"
+                  data-bs-target="#unarchiveModal{{ family.id }}">
+                  <i class="bi bi-box-arrow-up"></i><span>Unarchive</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="acct-empty">
+              <div class="acct-empty-state">
+                <i class="bi bi-archive"></i>
+                <p>No archived families found.</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% for family in archived_families %}
+<!-- Unarchive Modal for {{ family.id }} -->
+<div class="modal fade sara-modal" id="unarchiveModal{{ family.id }}" tabindex="-1" 
+  aria-labelledby="unarchiveModalLabel{{ family.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="unarchiveModalLabel{{ family.id }}">
+          <i class="bi bi-box-arrow-up"></i> Unarchive Family
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'unarchive_family' family.id %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <p class="mb-0 text-muted">Are you sure you want to unarchive <strong>{{ family.family_name }}</strong>?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-dash-primary">Yes, Unarchive</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}

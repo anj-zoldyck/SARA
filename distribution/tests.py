@@ -1682,3 +1682,48 @@ class ReviewBeneficiariesLocationMapTestCase(TestCase):
         
         # Check that the Google Maps URL pattern is present
         self.assertContains(response, 'google.com/maps/dir/')
+
+class WalkinReactivateFamilyTestCase(TestCase):
+    """
+    Test functionality for the reactivate-family view.
+    """
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username='staff_test',
+            email='stafftest@test.com',
+            role='MSWDO_STAFF',
+            password='pwd'
+        )
+        self.barangay = Barangay.objects.create(name='Test Barangay')
+        self.zone = Zone.objects.create(name='Zone 1', barangay=self.barangay)
+        self.household = Household.objects.create(
+            barangay=self.barangay,
+            zone=self.zone,
+            house_number='123',
+            land_use='RESIDENTIAL'
+        )
+        self.family = Family.objects.create(
+            household=self.household,
+            family_name='Archived Family',
+            rfid_uid='ARCHIVED_RFID',
+            is_active=True,
+            is_archived=True
+        )
+
+    def test_reactivate_family_success(self):
+        self.client.force_login(self.staff_user)
+        
+        # enforce_csrf_checks is False by default in test Client, ensuring view processing is fine.
+        response = self.client.post(
+            '/staff/walkin/reactivate-family/',
+            {'family_id': self.family.id},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        
+        data = response.json()
+        self.assertEqual(data.get('status'), 'success')
+        
+        self.family.refresh_from_db()
+        self.assertFalse(self.family.is_archived)

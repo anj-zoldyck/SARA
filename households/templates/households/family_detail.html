@@ -28,12 +28,25 @@
       <span class="breadcrumb-current">{{ family.family_name }}</span>
     </div>
     <div class="d-flex align-items-center gap-2">
-      <h1 class="dash-page-title mb-0">{{ family.family_name }} Family</h1>
+      <h1 class="dash-page-title mb-0">
+        {{ family.family_name }} Family
+        {% if family.is_archived %}
+        <span class="badge bg-secondary ms-2" style="font-size: 0.6em; vertical-align: middle;">Archived</span>
+        {% endif %}
+      </h1>
       {% if user.role == 'BARANGAY' %}
-      <button class="btn-dash-outline" data-bs-toggle="modal" data-bs-target="#editFamilyNameModal"
-        title="Edit Family Name" style="padding: 4px 10px;">
-        <i class="bi bi-pencil"></i>
-      </button>
+        {% if family.is_archived %}
+        <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="Unarchive this family to edit name">
+          <button class="btn-dash-outline" style="padding: 4px 10px; opacity: 0.5; cursor: not-allowed;" disabled>
+            <i class="bi bi-pencil"></i>
+          </button>
+        </span>
+        {% else %}
+        <button class="btn-dash-outline" data-bs-toggle="modal" data-bs-target="#editFamilyNameModal"
+          title="Edit Family Name" style="padding: 4px 10px;">
+          <i class="bi bi-pencil"></i>
+        </button>
+        {% endif %}
       {% endif %}
     </div>
     <p class="dash-page-sub">
@@ -44,9 +57,17 @@
   </div>
   <div class="dash-header-actions">
     {% if user.role == 'BARANGAY' %}
-    <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary">
-      <i class="bi bi-plus-lg"></i> Add Member
-    </a>
+      {% if family.is_archived %}
+      <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="Unarchive this family to add members">
+        <button class="btn-dash-primary" style="opacity: 0.5; cursor: not-allowed;" disabled>
+          <i class="bi bi-plus-lg"></i> Add Member
+        </button>
+      </span>
+      {% else %}
+      <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary">
+        <i class="bi bi-plus-lg"></i> Add Member
+      </a>
+      {% endif %}
     {% endif %}
     <a href="{% if user.role == 'BARANGAY' %}{% url 'export_family_excel' family.id %}{% else %}{% url 'export_family_excel_mswdo' family.id %}{% endif %}" class="btn-dash-primary" style="background-color: #10b981; border-color: #10b981;">
       <i class="bi bi-file-earmark-excel"></i> Export to Excel
@@ -55,10 +76,26 @@
       <i class="bi bi-arrow-left"></i> Back to Household
     </a>
     {% if user.role == 'BARANGAY' %}
-    <button class="btn-dash-outline" style="color: #dc3545; border-color: #dc3545;" data-bs-toggle="modal"
-      data-bs-target="#removeFamilyModal">
-      <i class="bi bi-trash"></i> Remove Family
-    </button>
+      {% if family.is_archived %}
+      <button class="btn-dash-outline" style="color: #0d6efd; border-color: #0d6efd;" data-bs-toggle="modal"
+        data-bs-target="#unarchiveFamilyModal">
+        <i class="bi bi-box-arrow-up"></i> Unarchive Family
+      </button>
+      <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="Unarchive this family before removing it">
+        <button class="btn-dash-outline" style="color: #dc3545; border-color: #dc3545; opacity: 0.5; cursor: not-allowed;" disabled>
+          <i class="bi bi-trash"></i> Remove Family
+        </button>
+      </span>
+      {% else %}
+      <button class="btn-dash-outline" style="color: #6c757d; border-color: #6c757d;" data-bs-toggle="modal"
+        data-bs-target="#archiveFamilyModal">
+        <i class="bi bi-archive"></i> Archive Family
+      </button>
+      <button class="btn-dash-outline" style="color: #dc3545; border-color: #dc3545;" data-bs-toggle="modal"
+        data-bs-target="#removeFamilyModal">
+        <i class="bi bi-trash"></i> Remove Family
+      </button>
+      {% endif %}
     {% endif %}
   </div>
 </div>
@@ -74,10 +111,18 @@
       </div>
     </div>
     {% if user.role == 'BARANGAY' %}
-    <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary"
-      style="font-size:13px; padding:7px 14px;">
-      <i class="bi bi-plus-lg"></i> Add Member
-    </a>
+      {% if family.is_archived %}
+      <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="Unarchive this family to add members">
+        <button class="btn-dash-primary" style="font-size:13px; padding:7px 14px; opacity: 0.5; cursor: not-allowed;" disabled>
+          <i class="bi bi-plus-lg"></i> Add Member
+        </button>
+      </span>
+      {% else %}
+      <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary"
+        style="font-size:13px; padding:7px 14px;">
+        <i class="bi bi-plus-lg"></i> Add Member
+      </a>
+      {% endif %}
     {% endif %}
   </div>
 
@@ -121,14 +166,27 @@
             <td class="acct-td acct-td--actions">
               <div class="acct-actions">
                 {% if user.role == 'BARANGAY' %}
-                <a href="{% url 'edit_family_member' member.id %}" class="acct-btn acct-btn--edit">
-                  <i class="bi bi-pencil"></i><span>Edit</span>
-                </a>
-                <button type="button" class="acct-btn acct-btn--delete member-remove-trigger"
-                        data-member-id="{{ member.id }}"
-                        data-member-name="{{ member.first_name }} {{ member.last_name }}">
-                  <i class="bi bi-trash"></i><span>Remove</span>
-                </button>
+                  {% if family.is_archived %}
+                  <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="Unarchive this family to edit members">
+                    <button class="acct-btn acct-btn--edit" style="opacity: 0.5; cursor: not-allowed;" disabled>
+                      <i class="bi bi-pencil"></i><span>Edit</span>
+                    </button>
+                  </span>
+                  <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="Unarchive this family to remove members">
+                    <button type="button" class="acct-btn acct-btn--delete" style="opacity: 0.5; cursor: not-allowed;" disabled>
+                      <i class="bi bi-trash"></i><span>Remove</span>
+                    </button>
+                  </span>
+                  {% else %}
+                  <a href="{% url 'edit_family_member' member.id %}" class="acct-btn acct-btn--edit">
+                    <i class="bi bi-pencil"></i><span>Edit</span>
+                  </a>
+                  <button type="button" class="acct-btn acct-btn--delete member-remove-trigger"
+                          data-member-id="{{ member.id }}"
+                          data-member-name="{{ member.first_name }} {{ member.last_name }}">
+                    <i class="bi bi-trash"></i><span>Remove</span>
+                  </button>
+                  {% endif %}
                 {% else %}
                 <span class="text-muted small">-</span>
                 {% endif %}
@@ -142,9 +200,17 @@
                 <i class="bi bi-person-lines-fill"></i>
                 <p>No members added yet.</p>
                 {% if user.role == 'BARANGAY' %}
-                <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary">
-                  <i class="bi bi-plus-lg"></i> Add First Member
-                </a>
+                  {% if family.is_archived %}
+                  <span class="d-inline-block mt-3" tabindex="0" data-bs-toggle="tooltip" title="Unarchive this family to add members">
+                    <button class="btn-dash-primary" style="opacity: 0.5; cursor: not-allowed;" disabled>
+                      <i class="bi bi-plus-lg"></i> Add First Member
+                    </button>
+                  </span>
+                  {% else %}
+                  <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary mt-3">
+                    <i class="bi bi-plus-lg"></i> Add First Member
+                  </a>
+                  {% endif %}
                 {% endif %}
               </div>
             </td>
@@ -226,6 +292,56 @@
           <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-danger"
             style="font-weight: 500; padding: 10px 16px; border-radius: 6px;">Yes, Remove</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Archive Family Modal -->
+<div class="modal fade sara-modal" id="archiveFamilyModal" tabindex="-1" aria-labelledby="archiveFamilyModalLabel"
+  aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="archiveFamilyModalLabel">
+          <i class="bi bi-archive"></i> Archive Family
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'archive_family' family.id %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <p class="mb-0 text-muted">Are you sure you want to archive this family?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-dash-primary">Yes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Unarchive Family Modal -->
+<div class="modal fade sara-modal" id="unarchiveFamilyModal" tabindex="-1" aria-labelledby="unarchiveFamilyModalLabel"
+  aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="unarchiveFamilyModalLabel">
+          <i class="bi bi-box-arrow-up"></i> Unarchive Family
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'unarchive_family' family.id %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <p class="mb-0 text-muted">Are you sure you want to unarchive this family?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-dash-primary">Yes</button>
         </div>
       </form>
     </div>
