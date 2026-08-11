@@ -437,6 +437,8 @@ def barangay_schedule_status(request):
             'schedule_datetime': fmt(s.schedule_datetime),
             'iso_datetime': s.schedule_datetime.isoformat() if s.schedule_datetime else None,
             'location': s.location,
+            'location_lat': float(s.location_lat) if s.location_lat else None,
+            'location_lng': float(s.location_lng) if s.location_lng else None,
             'barangay': str(s.barangay) if s.barangay else 'All Barangays',
         } for s in qs]
 

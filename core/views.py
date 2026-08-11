@@ -232,6 +232,21 @@ def barangay_dashboard(request):
         'claimed_families': claimed_families,
     })
 
+
+@login_required(login_url='login')
+@session_protected
+def barangay_zones(request):
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+
+    barangay_obj = request.user.barangay
+    zones = Zone.objects.filter(barangay=barangay_obj)
+
+    return render(request, 'core/barangay_zones.html', {
+        'barangay': barangay_obj,
+        'zones': zones,
+    })
+
 @login_required(login_url='login')
 @session_protected
 def staff_dashboard(request):

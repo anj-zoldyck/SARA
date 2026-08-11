@@ -9,6 +9,17 @@
 <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
 <link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
 <link rel="stylesheet" href="{% static 'css/households.css' %}">
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<style>
+    .location-map {
+        height: 250px;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+        margin-top: 12px;
+        z-index: 1;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -149,7 +160,7 @@
       <p class="sched-list-label"><i class="bi bi-broadcast-pin"></i> Active Now</p>
       <div class="notif-list">
         {% for sched in active_schedules %}
-        <div class="notif-card">
+        <div class="notif-card" data-schedule-id="{{ sched.id }}" data-lat="{{ sched.location_lat|default:'' }}" data-lng="{{ sched.location_lng|default:'' }}" data-location="{{ sched.location }}">
           <div class="notif-card__icon notif-card__icon--{% if sched.aid_type == 'RELIEF' %}blue{% else %}amber{% endif %}">
             {% if sched.aid_type == 'RELIEF' %}
               <i class="bi bi-box-seam"></i>
@@ -183,6 +194,9 @@
                 </span>
               {% endif %}
             </div>
+            {% if sched.location_lat and sched.location_lng %}
+            <button type="button" class="btn-dash-outline btn-sm mt-2" onclick="openLocationModal(this)" title="View Location"><i class="bi bi-geo-alt me-1"></i> View Location</button>
+            {% endif %}
           </div>
         </div>
         {% endfor %}
@@ -196,7 +210,7 @@
       <p class="sched-list-label"><i class="bi bi-calendar-event"></i> Upcoming</p>
       <div class="notif-list">
         {% for sched in upcoming_schedules %}
-        <div class="notif-card">
+        <div class="notif-card" data-schedule-id="{{ sched.id }}" data-lat="{{ sched.location_lat|default:'' }}" data-lng="{{ sched.location_lng|default:'' }}" data-location="{{ sched.location }}">
           <div class="notif-card__icon notif-card__icon--{% if sched.aid_type == 'RELIEF' %}blue{% else %}amber{% endif %}">
             {% if sched.aid_type == 'RELIEF' %}
               <i class="bi bi-box-seam"></i>
@@ -230,6 +244,9 @@
                 </span>
               {% endif %}
             </div>
+            {% if sched.location_lat and sched.location_lng %}
+            <button type="button" class="btn-dash-outline btn-sm mt-2" onclick="openLocationModal(this)" title="View Location"><i class="bi bi-geo-alt me-1"></i> View Location</button>
+            {% endif %}
           </div>
         </div>
         {% endfor %}
@@ -264,38 +281,42 @@
       <i class="bi bi-map dash-panel__icon"></i>
       <div>
         <h2 class="dash-panel__title">{{ barangay }} — Zones</h2>
-        <p class="dash-panel__sub">Select a zone to manage its households</p>
+        <p class="dash-panel__sub">Manage zones and households</p>
       </div>
     </div>
+    <a href="{% url 'barangay_zones' %}" class="btn-dash-outline btn-sm">
+      <i class="bi bi-arrow-right"></i> View All Zones
+    </a>
   </div>
   <div class="dash-panel__body">
-    {% if zones %}
-    <div class="zone-grid">
-      {% for zone in zones %}
-      <div class="zone-card">
-        <div class="zone-card__header">
-          <div class="zone-card__icon-wrap"><i class="bi bi-map"></i></div>
-          <span class="zone-card__number">Zone {{ forloop.counter }}</span>
+    <p class="text-muted mb-0">View and manage all zones for {{ barangay }}.</p>
+  </div>
+</div>
+
+<!-- Location Map Modal -->
+<div class="modal fade" id="locationModal" tabindex="-1" aria-labelledby="locationModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title" id="locationModalLabel"><i class="bi bi-geo-alt text-primary me-2"></i>Distribution Location</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p id="locationModalAddress" class="fw-semibold mb-3"></p>
+        <div id="locationMapContainer">
+          <div id="locationMap" class="location-map"></div>
         </div>
-        <div class="zone-card__body">
-          <h3 class="zone-card__name">{{ zone.name }}</h3>
-          <p class="zone-card__barangay"><i class="bi bi-buildings me-1"></i>{{ barangay }}</p>
+        <div id="locationModalFallback" class="alert alert-light mt-3 mb-0 d-none" style="font-size: 0.85rem;">
+          <i class="bi bi-info-circle text-muted me-2"></i>
+          <span class="text-muted">Map location not available for this schedule.</span>
         </div>
-        <div class="zone-card__footer">
-          <a href="{% url 'zone_detail' zone.id %}" class="btn-dash-primary zone-card__btn">
-            <i class="bi bi-house-door"></i> View Households
+        <div id="locationModalActions" class="mt-3 d-none">
+          <a id="locationModalMapsLink" href="#" target="_blank" class="btn-dash-outline btn-sm">
+            <i class="bi bi-signpost me-1"></i> Open in Maps
           </a>
         </div>
       </div>
-      {% endfor %}
     </div>
-    {% else %}
-    <div class="brgy-empty" style="padding: 32px 0 20px;">
-      <i class="bi bi-map"></i>
-      <h3>No Zones Found</h3>
-      <p>No zones have been set up for {{ barangay }} yet.</p>
-    </div>
-    {% endif %}
   </div>
 </div>
 
@@ -307,6 +328,10 @@
 
 {% block js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<!-- Leaflet Common -->
+<script src="{% static 'js/leaflet_common.js' %}"></script>
 <script>
   // ── Live Clock ─────────────────────────────────────────
   function updateClock() {
@@ -365,8 +390,17 @@
       }
     }
 
+    const lat = sched.location_lat || '';
+    const lng = sched.location_lng || '';
+    const location = sched.location || '';
+    const scheduleId = sched.id || '';
+
+    const viewLocationBtn = (lat && lng) 
+      ? `<button type="button" class="btn-dash-outline btn-sm mt-2" onclick="openLocationModal(this)" title="View Location"><i class="bi bi-geo-alt me-1"></i> View Location</button>`
+      : '';
+
     return `
-      <div class="notif-card">
+      <div class="notif-card" data-schedule-id="${scheduleId}" data-lat="${lat}" data-lng="${lng}" data-location="${location}">
         <div class="notif-card__icon notif-card__icon--${iconClass(sched.aid_type)}">
           ${iconTag(sched.aid_type)}
         </div>
@@ -382,6 +416,7 @@
             <span><i class="bi bi-geo-alt"></i> ${sched.location}</span>
             ${brgyHtml}
           </div>
+          ${viewLocationBtn}
         </div>
       </div>`;
   }
@@ -439,6 +474,64 @@
   // Run immediately then every 30 seconds
   refreshSchedules();
   setInterval(refreshSchedules, 30000);
+
+  // ── Location Modal ───────────────────────────────────────
+  let locationMapInstance = null;
+  const locationModal = document.getElementById('locationModal');
+
+  locationModal.addEventListener('shown.bs.modal', function () {
+    const lat = parseFloat(locationModal.dataset.lat);
+    const lng = parseFloat(locationModal.dataset.lng);
+    const location = locationModal.dataset.location;
+
+    document.getElementById('locationModalAddress').textContent = location;
+
+    // Clean up previous map instance
+    if (locationMapInstance) {
+      locationMapInstance.remove();
+      locationMapInstance = null;
+    }
+
+    if (lat && lng) {
+      document.getElementById('locationMapContainer').classList.remove('d-none');
+      document.getElementById('locationModalFallback').classList.add('d-none');
+      document.getElementById('locationModalActions').classList.remove('d-none');
+      
+      const mapsLink = document.getElementById('locationModalMapsLink');
+      mapsLink.href = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+      
+      // Initialize map after modal is shown (container has dimensions)
+      setTimeout(() => {
+        locationMapInstance = initReadOnlyMap('locationMap', lat, lng, 16);
+      }, 100);
+    } else {
+      document.getElementById('locationMapContainer').classList.add('d-none');
+      document.getElementById('locationModalFallback').classList.remove('d-none');
+      document.getElementById('locationModalActions').classList.add('d-none');
+    }
+  });
+
+  locationModal.addEventListener('hidden.bs.modal', function () {
+    // Clean up map instance when modal closes
+    if (locationMapInstance) {
+      locationMapInstance.remove();
+      locationMapInstance = null;
+    }
+  });
+
+  window.openLocationModal = function(button) {
+    const card = button.closest('.notif-card');
+    const lat = card.dataset.lat;
+    const lng = card.dataset.lng;
+    const location = card.dataset.location;
+
+    locationModal.dataset.lat = lat;
+    locationModal.dataset.lng = lng;
+    locationModal.dataset.location = location;
+
+    const modal = new bootstrap.Modal(locationModal);
+    modal.show();
+  };
 
   // ── Analytics Chart ──────────────────────────────────────
   const dashLabels = JSON.parse(document.getElementById('dash-chart-labels').textContent);

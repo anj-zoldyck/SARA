@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ barangay }} Zones — SARA{% endblock %}
+{% block navbar_title %}{{ barangay }} Zones{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/households.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<!-- Page Header -->
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'barangay_dashboard' %}" class="breadcrumb-link">
+          <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Zones</span>
+    </div>
+    <h1 class="dash-page-title">{{ barangay }} — Zones</h1>
+    <p class="dash-page-sub">
+      Select a zone to manage its households
+    </p>
+  </div>
+</div>
+
+<!-- Zones Panel -->
+<div class="dash-panel mt-4">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-map dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">{{ barangay }} — Zones</h2>
+        <p class="dash-panel__sub">Select a zone to manage its households</p>
+      </div>
+    </div>
+  </div>
+  <div class="dash-panel__body">
+    {% if zones %}
+    <div class="zone-grid">
+      {% for zone in zones %}
+      <div class="zone-card">
+        <div class="zone-card__header">
+          <div class="zone-card__icon-wrap"><i class="bi bi-map"></i></div>
+          <span class="zone-card__number">Zone {{ forloop.counter }}</span>
+        </div>
+        <div class="zone-card__body">
+          <h3 class="zone-card__name">{{ zone.name }}</h3>
+          <p class="zone-card__barangay"><i class="bi bi-buildings me-1"></i>{{ barangay }}</p>
+        </div>
+        <div class="zone-card__footer">
+          <a href="{% url 'zone_detail' zone.id %}" class="btn-dash-primary zone-card__btn">
+            <i class="bi bi-house-door"></i> View Households
+          </a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="brgy-empty" style="padding: 32px 0 20px;">
+      <i class="bi bi-map"></i>
+      <h3>No Zones Found</h3>
+      <p>No zones have been set up for {{ barangay }} yet.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
