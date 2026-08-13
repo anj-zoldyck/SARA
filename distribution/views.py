@@ -661,7 +661,7 @@ def staff_walkin(request):
     members = FamilyMember.objects.none()
     
     if query or barangay_id or zone_id:
-        members = FamilyMember.objects.filter(family__is_active=True, family__is_archived=False).select_related(
+        members = FamilyMember.objects.filter(family__is_active=True, family__is_archived=False, date_of_death__isnull=True).select_related(
             'family', 'family__household', 'family__household__zone', 'family__household__barangay'
         )
         
@@ -791,6 +791,11 @@ def staff_walkin_claim(request):
         member = get_object_or_404(FamilyMember, id=member_id)
         assistance = get_object_or_404(Assistance, id=assistance_id, is_active=True)
         
+        if member.date_of_death:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'This resident is deceased and cannot receive assistance.'
+            }, status=400)
 
         today = timezone.now().date()
         existing = AidClaim.objects.filter(

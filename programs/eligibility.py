@@ -42,6 +42,9 @@ def check_eligibility(member, assistance):
     """
     reasons = []
     
+    if member.date_of_death:
+        return False, ["Deceased"]
+    
     # 1. Minimum Age Check
     if assistance.minimum_age:
         if member.age is None or member.age < assistance.minimum_age:

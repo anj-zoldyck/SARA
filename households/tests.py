@@ -466,3 +466,135 @@ class FamilyArchivingTestCase(TestCase):
         self.assertContains(response, 'acct-badge--inactive')
         self.assertNotContains(response, 'Archived')
 
+class DeceasedMemberTestCase(TestCase):
+    def setUp(self):
+        self.barangay = Barangay.objects.create(name='Barangay Deceased')
+        self.zone = Zone.objects.create(barangay=self.barangay, name='Zone Deceased')
+        self.household = Household.objects.create(
+            barangay=self.barangay,
+            zone=self.zone,
+            house_number='789',
+            land_use='RESIDENTIAL',
+            hazard_exposure='NONE'
+        )
+        self.family = Family.objects.create(
+            household=self.household,
+            family_name='Test Family',
+            rfid_uid='RFID_DEC',
+            is_active=True
+        )
+        self.member1 = FamilyMember.objects.create(
+            family=self.family,
+            first_name='Alive',
+            last_name='Member',
+            relationship='HEAD',
+            birthdate=timezone.now().date() - timezone.timedelta(days=365*30)
+        )
+        self.member2 = FamilyMember.objects.create(
+            family=self.family,
+            first_name='SoonToBeDeceased',
+            last_name='Member',
+            relationship='SPOUSE',
+            birthdate=timezone.now().date() - timezone.timedelta(days=365*25)
+        )
+        self.admin = User.objects.create_user(
+            username='b_admin',
+            password='testpass123',
+            email='admin@test.com',
+            role='BARANGAY',
+            barangay=self.barangay
+        )
+        self.other_barangay = Barangay.objects.create(name='Other Barangay')
+        self.other_admin = User.objects.create_user(
+            username='other_admin',
+            password='testpass123',
+            email='other@test.com',
+            role='BARANGAY',
+            barangay=self.other_barangay
+        )
+
+        self.program = Program.objects.create(name='Test Program', is_active=True)
+        self.category = AidCategory.objects.create(program=self.program, name='Aid', is_active=True)
+        self.individual_assistance = Assistance.objects.create(
+            program=self.program, aid_category=self.category, beneficiary_type='individual', is_active=True
+        )
+        self.family_assistance = Assistance.objects.create(
+            program=self.program, aid_category=self.category, beneficiary_type='family', is_active=True
+        )
+
+    def test_mark_member_deceased_success(self):
+        self.client.force_login(self.admin)
+        death_date = (timezone.now().date() - timezone.timedelta(days=1)).strftime("%Y-%m-%d")
+        
+        response = self.client.post(f'/barangay/members/{self.member2.id}/mark-deceased/', {
+            'date_of_death': death_date
+        })
+        
+        self.member2.refresh_from_db()
+        self.assertIsNotNone(self.member2.date_of_death)
+        self.assertTrue(self.member2.is_deceased)
+        self.assertEqual(response.status_code, 302)
+        
+    def test_mark_member_deceased_rejects_wrong_barangay(self):
+        self.client.force_login(self.other_admin)
+        death_date = (timezone.now().date() - timezone.timedelta(days=1)).strftime("%Y-%m-%d")
+        
+        response = self.client.post(f'/barangay/members/{self.member2.id}/mark-deceased/', {
+            'date_of_death': death_date
+        })
+        
+        self.member2.refresh_from_db()
+        self.assertIsNone(self.member2.date_of_death)
+        self.assertEqual(response.status_code, 404)
+        
+    def test_mark_member_deceased_freezes_age(self):
+        self.member2.date_of_death = self.member2.birthdate + timezone.timedelta(days=365*5)
+        self.member2.save()
+        self.assertEqual(self.member2.age, 5)
+        
+    def test_unmark_member_deceased(self):
+        self.member2.date_of_death = timezone.now().date() - timezone.timedelta(days=1)
+        self.member2.save()
+        
+        self.client.force_login(self.admin)
+        response = self.client.post(f'/barangay/members/{self.member2.id}/unmark-deceased/')
+        
+        self.member2.refresh_from_db()
+        self.assertIsNone(self.member2.date_of_death)
+        self.assertFalse(self.member2.is_deceased)
+        
+    def test_eligibility_engine_short_circuits(self):
+        from programs.eligibility import check_eligibility
+        
+        self.member2.date_of_death = timezone.now().date()
+        self.member2.save()
+        
+        is_eligible, reasons = check_eligibility(self.member2, self.individual_assistance)
+        self.assertFalse(is_eligible)
+        self.assertIn("Deceased", reasons)
+        
+    def test_family_based_eligibility_unaffected(self):
+        from programs.beneficiary_engine import evaluate_family_against_rules, get_eligible_pool
+        from programs.models import EligibilityRule
+        
+        EligibilityRule.objects.create(
+            assistance=self.family_assistance,
+            rule_type='FLOOD_PRONE'
+        )
+        
+        # Make the household flood prone
+        from households.models import FloodProneArea
+        fpa = FloodProneArea.objects.create(name='Test FPA')
+        self.household.flood_prone_area = fpa
+        self.household.save()
+        
+        self.member2.date_of_death = timezone.now().date()
+        self.member2.save()
+        
+        is_eligible, reasons = evaluate_family_against_rules(self.family, self.family_assistance)
+        self.assertTrue(is_eligible, "Family should remain eligible even with a deceased member")
+        
+        pool = get_eligible_pool(self.family_assistance)
+        self.assertIn(self.family, pool)
+
+

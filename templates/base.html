@@ -359,6 +359,13 @@
                   <span>Analytics Overview</span>
                 </a>
               </li>
+              <li>
+                <a href="{% url 'aid_reports' %}"
+                  class="sidebar-sublink {% if request.resolver_match.url_name == 'aid_reports' %}active{% endif %}">
+                  <i class="bi bi-file-earmark-bar-graph"></i>
+                  <span>Reports</span>
+                </a>
+              </li>
             </ul>
           </li>
 

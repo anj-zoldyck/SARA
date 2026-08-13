@@ -15,7 +15,7 @@
     {{ member.last_name }} 
     {% if member.suffix %}{{ member.suffix }}{% endif %}
   </h4>
-  <p class="text-muted small mb-0">{{ member.get_relationship_display }} &bull; {{ member.age }} yrs old</p>
+  <p class="text-muted small mb-0">{{ member.get_relationship_display }} &bull; {% if member.is_deceased %}<span class="badge bg-secondary">Deceased on {{ member.date_of_death|date:'M d, Y' }}</span>{% else %}{{ member.age }} yrs old{% endif %}</p>
 </div>
 
 <div class="kiosk-modal-body p-4 pt-3" style="background: #f8fafc; text-align: left; max-height: 40vh; overflow-y: auto;">
@@ -105,9 +105,14 @@
   {% csrf_token %}
   <input type="hidden" name="member_id" value="{{ member.id }}">
   <div class="p-3">
+    {% if member.is_deceased %}
+      <div class="alert alert-warning py-2 px-3 mb-3 small" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i> This resident is deceased and cannot receive further assistance.
+      </div>
+    {% endif %}
     <div class="mb-3">
       <label class="form-label text-muted small fw-bold">Select Assistance</label>
-      <select class="form-select" name="assistance_id" required>
+      <select class="form-select" name="assistance_id" required {% if member.is_deceased %}disabled{% endif %}>
         <option value="">-- Choose Assistance --</option>
         {% for assistance in assistances %}
           <option value="{{ assistance.id }}">{{ assistance.program.name }} › {{ assistance.aid_category.name }}</option>
@@ -117,7 +122,7 @@
     
     <div class="d-flex justify-content-end gap-2">
       <a href="{% url 'family_detail' member.family.id %}" class="btn-dash-outline">View Full Info</a>
-      <button type="submit" class="btn btn-primary px-4" style="background-color: #134ed5; border-color: #134ed5;">
+      <button type="submit" class="btn btn-primary px-4" style="background-color: #134ed5; border-color: #134ed5;" {% if member.is_deceased %}disabled{% endif %}>
         <i class="bi bi-check2-circle"></i> Save Claim
       </button>
     </div>

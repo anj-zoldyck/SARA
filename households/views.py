@@ -1455,3 +1455,70 @@ def export_zone_households_excel(request, zone_id):
     finally:
         if os.path.exists(temp_path):
             os.unlink(temp_path)
+
+@login_required
+@session_protected
+def mark_member_deceased(request, member_id):
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+        
+    if request.method == 'POST':
+        member = get_object_or_404(
+            FamilyMember,
+            id=member_id,
+            family__household__barangay=request.user.barangay
+        )
+        
+        date_of_death_str = request.POST.get('date_of_death')
+        if not date_of_death_str:
+            messages.error(request, "Date of death is required.")
+            return redirect('family_detail', family_id=member.family.id)
+            
+        try:
+            from datetime import datetime as dt
+            date_of_death = dt.strptime(date_of_death_str, "%Y-%m-%d").date()
+        except ValueError:
+            messages.error(request, "Invalid date format.")
+            return redirect('family_detail', family_id=member.family.id)
+            
+        if date_of_death > date.today():
+            messages.error(request, "Date of death cannot be in the future.")
+            return redirect('family_detail', family_id=member.family.id)
+            
+        if member.birthdate and date_of_death < member.birthdate:
+            messages.error(request, "Date of death cannot be before birthdate.")
+            return redirect('family_detail', family_id=member.family.id)
+            
+        member.date_of_death = date_of_death
+        member.save()
+        
+        log_action(request.user, 'MEMBER_MARKED_DECEASED', target=member, description=f"Marked {member.first_name} {member.last_name} as deceased on {date_of_death}")
+        messages.success(request, f"{member.first_name} {member.last_name} has been marked as deceased.")
+        
+        return redirect('family_detail', family_id=member.family.id)
+        
+    return HttpResponseForbidden("Invalid Method")
+
+@login_required
+@session_protected
+def unmark_member_deceased(request, member_id):
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+        
+    if request.method == 'POST':
+        member = get_object_or_404(
+            FamilyMember,
+            id=member_id,
+            family__household__barangay=request.user.barangay
+        )
+        
+        member.date_of_death = None
+        member.save()
+        
+        log_action(request.user, 'MEMBER_DECEASED_RESTORED', target=member, description=f"Restored {member.first_name} {member.last_name} from deceased status")
+        messages.success(request, f"{member.first_name} {member.last_name}'s deceased status has been removed.")
+        
+        return redirect('family_detail', family_id=member.family.id)
+        
+    return HttpResponseForbidden("Invalid Method")
+

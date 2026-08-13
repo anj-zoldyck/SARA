@@ -170,6 +170,7 @@ class FamilyMember(models.Model):
     suffix = models.CharField(max_length=20, blank=True, null=True)
     relationship = models.CharField(max_length=20, choices=RELATIONSHIP_CHOICES)
     birthdate = models.DateField(null=True, blank=True)
+    date_of_death = models.DateField(null=True, blank=True)
     birthplace = models.CharField(max_length=150, blank=True, null=True)
     sex = models.CharField(max_length=1, choices=SEX_CHOICES, blank=True, null=True)
     civil_status = models.CharField(max_length=50, choices=CIVIL_STATUS_CHOICES, blank=True, null=True)
@@ -208,9 +209,13 @@ class FamilyMember(models.Model):
     @property
     def age(self):
         if self.birthdate:
-            today = datetime.date.today()
-            return today.year - self.birthdate.year - ((today.month, today.day) < (self.birthdate.month, self.birthdate.day))
+            end_date = self.date_of_death if self.date_of_death else datetime.date.today()
+            return end_date.year - self.birthdate.year - ((end_date.month, end_date.day) < (self.birthdate.month, self.birthdate.day))
         return None
+
+    @property
+    def is_deceased(self):
+        return self.date_of_death is not None
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"

@@ -217,8 +217,8 @@ def distribution_claims(request):
 
 @login_required
 def generate_summary_report(request):
-    if request.user.role != 'MSWDO':
-        return HttpResponseForbidden("Only MSWDO Admin can generate this report.")
+    if request.user.role != 'MSWDO_STAFF':
+        return HttpResponseForbidden("Only MSWDO Staff can generate this report.")
         
     start_date_str = request.GET.get('start_date')
     end_date_str = request.GET.get('end_date')
@@ -297,8 +297,8 @@ def generate_summary_report(request):
 
 @login_required
 def generate_beneficiary_list_report(request):
-    if request.user.role != 'MSWDO':
-        return HttpResponseForbidden("Only MSWDO Admin can generate this report.")
+    if request.user.role != 'MSWDO_STAFF':
+        return HttpResponseForbidden("Only MSWDO Staff can generate this report.")
         
     start_date_str = request.GET.get('start_date')
     end_date_str = request.GET.get('end_date')

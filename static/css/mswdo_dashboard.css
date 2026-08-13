@@ -132,6 +132,68 @@
 }
 
 /* =============================================================
+   ACTION BUTTON COLORS
+============================================================= */
+.btn-dash-action-archive {
+  background-color: #E2E7EB !important;
+  color: #3E4850 !important;
+  border-color: #E2E7EB !important;
+}
+.btn-dash-action-archive:hover:not(:disabled) {
+  background-color: #D2D9DE !important;
+  border-color: #D2D9DE !important;
+}
+
+.btn-dash-action-unarchive {
+  background-color: #e4efe8 !important;
+  color: #35634a !important;
+  border-color: #e4efe8 !important;
+}
+/* hover left empty pending user input */
+
+.btn-dash-action-remove {
+  background-color: #FDE8E7 !important;
+  color: #B42318 !important;
+  border-color: #FDE8E7 !important;
+}
+.btn-dash-action-remove:hover:not(:disabled) {
+  background-color: #FAD2D0 !important;
+  border-color: #FAD2D0 !important;
+}
+
+.btn-dash-action-deceased {
+  background-color: #fff1f2 !important;
+  border-color: #fecdd3 !important;
+  color: #be123c !important;
+}
+.btn-dash-action-deceased:hover:not(:disabled) {
+  background-color: #ffe4e6 !important;
+  border-color: #fda4af !important;
+  color: #9f1239 !important;
+  box-shadow: 0 2px 6px rgba(190, 18, 60, 0.15) !important;
+}
+
+.btn-dash-action-import {
+  background-color: #E2F0E5 !important;
+  color: #217346 !important;
+  border-color: #E2F0E5 !important;
+}
+.btn-dash-action-import:hover:not(:disabled) {
+  background-color: #D0E7D5 !important;
+  border-color: #D0E7D5 !important;
+}
+
+.btn-dash-action-export {
+  background-color: #E8ECE9 !important;
+  color: #3F5147 !important;
+  border-color: #E8ECE9 !important;
+}
+.btn-dash-action-export:hover:not(:disabled) {
+  background-color: #DCE2DE !important;
+  border-color: #DCE2DE !important;
+}
+
+/* =============================================================
    GRID LAYOUTS
 ============================================================= */
 

@@ -35,18 +35,18 @@
     <a href="{% url 'add_family' household.id %}" class="btn-dash-primary">
       <i class="bi bi-plus-lg"></i> Add Family
     </a>
-    <a href="{% url 'export_household_excel' household.id %}" class="btn-dash-primary" style="background-color: #10b981; border-color: #10b981;">
+    <a href="{% url 'export_household_excel' household.id %}" class="btn-dash-primary btn-dash-action-export">
       <i class="bi bi-file-earmark-excel"></i> Export to Excel
     </a>
     <a href="{% url 'edit_household' household.id %}" class="btn-dash-primary" style="background-color: #134ed5; border-color: #6366f1;">
       <i class="bi bi-pencil-square"></i> Edit Household
     </a>
-    <a href="{% url 'zone_detail' household.zone.id %}" class="btn-dash-outline">
-      <i class="bi bi-arrow-left"></i> Back to Zone
-    </a>
-    <button class="btn-dash-outline" style="color: #dc3545; border-color: #dc3545;" data-bs-toggle="modal" data-bs-target="#removeHouseholdModal">
+    <button class="btn-dash-outline btn-dash-action-remove" data-bs-toggle="modal" data-bs-target="#removeHouseholdModal">
       <i class="bi bi-trash"></i> Remove Household
     </button>
+    <a href="{% url 'zone_detail' household.zone.id %}" class="btn-dash-outline ms-2">
+      <i class="bi bi-arrow-left"></i> Back to Zone
+    </a>
   </div>
 </div>
 

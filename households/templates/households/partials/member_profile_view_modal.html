@@ -15,7 +15,7 @@
     {{ member.last_name }} 
     {% if member.suffix %}{{ member.suffix }}{% endif %}
   </h4>
-  <p class="text-muted small mb-0">{{ member.get_relationship_display }} &bull; {{ member.age }} yrs old</p>
+  <p class="text-muted small mb-0">{{ member.get_relationship_display }} &bull; {% if member.is_deceased %}<span class="badge bg-secondary">Deceased on {{ member.date_of_death|date:'M d, Y' }}</span>{% else %}{{ member.age }} yrs old{% endif %}</p>
 </div>
 
 <div class="kiosk-modal-body p-4 pt-3" style="background: #f8fafc; text-align: left; max-height: 40vh; overflow-y: auto;">

@@ -69,34 +69,36 @@
       </a>
       {% endif %}
     {% endif %}
-    <a href="{% if user.role == 'BARANGAY' %}{% url 'export_family_excel' family.id %}{% else %}{% url 'export_family_excel_mswdo' family.id %}{% endif %}" class="btn-dash-primary" style="background-color: #10b981; border-color: #10b981;">
+    <a href="{% if user.role == 'BARANGAY' %}{% url 'export_family_excel' family.id %}{% else %}{% url 'export_family_excel_mswdo' family.id %}{% endif %}" class="btn-dash-primary btn-dash-action-export">
       <i class="bi bi-file-earmark-excel"></i> Export to Excel
     </a>
-    <a href="{% if user.role == 'BARANGAY' %}{% url 'household_detail' family.household.id %}{% else %}{% url 'household_info' family.household.id %}{% endif %}" class="btn-dash-outline">
-      <i class="bi bi-arrow-left"></i> Back to Household
-    </a>
+    
     {% if user.role == 'BARANGAY' %}
       {% if family.is_archived %}
-      <button class="btn-dash-outline" style="color: #0d6efd; border-color: #0d6efd;" data-bs-toggle="modal"
+      <button class="btn-dash-outline btn-dash-action-unarchive" data-bs-toggle="modal"
         data-bs-target="#unarchiveFamilyModal">
         <i class="bi bi-box-arrow-up"></i> Unarchive Family
       </button>
       <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="Unarchive this family before removing it">
-        <button class="btn-dash-outline" style="color: #dc3545; border-color: #dc3545; opacity: 0.5; cursor: not-allowed;" disabled>
+        <button class="btn-dash-outline btn-dash-action-remove" style="opacity: 0.5; cursor: not-allowed;" disabled>
           <i class="bi bi-trash"></i> Remove Family
         </button>
       </span>
       {% else %}
-      <button class="btn-dash-outline" style="color: #6c757d; border-color: #6c757d;" data-bs-toggle="modal"
+      <button class="btn-dash-outline btn-dash-action-archive" data-bs-toggle="modal"
         data-bs-target="#archiveFamilyModal">
         <i class="bi bi-archive"></i> Archive Family
       </button>
-      <button class="btn-dash-outline" style="color: #dc3545; border-color: #dc3545;" data-bs-toggle="modal"
+      <button class="btn-dash-outline btn-dash-action-remove" data-bs-toggle="modal"
         data-bs-target="#removeFamilyModal">
         <i class="bi bi-trash"></i> Remove Family
       </button>
       {% endif %}
     {% endif %}
+
+    <a href="{% if user.role == 'BARANGAY' %}{% url 'household_detail' family.household.id %}{% else %}{% url 'household_info' family.household.id %}{% endif %}" class="btn-dash-outline ms-2">
+      <i class="bi bi-arrow-left"></i> Back to Household
+    </a>
   </div>
 </div>
 
@@ -161,7 +163,11 @@
               <span class="hh-relationship">{{ member.relationship }}</span>
             </td>
             <td class="acct-td">
+              {% if member.is_deceased %}
+              <span class="badge bg-secondary" style="font-size: 0.8em;">{{ member.age }} yrs &middot; Deceased</span>
+              {% else %}
               <span class="hh-age-badge">{{ member.age }} yrs</span>
+              {% endif %}
             </td>
             <td class="acct-td acct-td--actions">
               <div class="acct-actions">
@@ -230,7 +236,7 @@
 
 
 <div class="modal-overlay" id="residentDetailModalOverlay">
-  <div class="kiosk-modal" style="max-width: 500px;">
+  <div class="kiosk-modal" style="max-width: 700px;">
     <div id="residentDetailModalContent">
       <div class="p-5 text-center">
         <div class="spinner-border text-primary" role="status">
@@ -377,6 +383,63 @@
   </div>
 </div>
 
+<!-- Mark Deceased Modal -->
+<div class="modal fade sara-modal" id="markDeceasedModal" tabindex="-1" aria-labelledby="markDeceasedModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-secondary" id="markDeceasedModalLabel">
+          <i class="bi bi-person-x"></i> Mark as Deceased
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" id="markDeceasedForm" action="">
+        {% csrf_token %}
+        <div class="modal-body">
+          <p class="mb-3 text-muted">
+            Are you sure you want to mark <strong id="markDeceasedName"></strong> as deceased? 
+            This will freeze their age and permanently block them from future individual aid eligibility.
+          </p>
+          <div class="modal-form__group">
+            <label class="modal-form__label" for="date_of_death">Date of Death <span class="modal-form__required">*</span></label>
+            <input type="date" id="date_of_death" name="date_of_death" class="modal-form__control" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-dash-action-deceased" style="font-weight: 500; padding: 10px 16px; border-radius: 6px;">Mark as Deceased</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Restore Deceased Modal -->
+<div class="modal fade sara-modal" id="restoreDeceasedModal" tabindex="-1" aria-labelledby="restoreDeceasedModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="restoreDeceasedModalLabel">
+          <i class="bi bi-arrow-counterclockwise"></i> Restore Member
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" id="restoreDeceasedForm" action="">
+        {% csrf_token %}
+        <div class="modal-body">
+          <p class="mb-0 text-muted">
+            Restore <strong id="restoreDeceasedName"></strong>? This will remove their deceased status and re-enable individual aid eligibility.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-dash-primary">Restore Member</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block js %}
@@ -410,6 +473,35 @@
                 modalOverlay.classList.remove('active');
               });
             }
+            
+            // Bind Mark as Deceased button
+            const markBtn = modalContent.querySelector('.member-mark-deceased-trigger');
+            if (markBtn) {
+              markBtn.addEventListener('click', function() {
+                modalOverlay.classList.remove('active'); // hide the detail modal
+                const memberId = this.getAttribute('data-member-id');
+                const memberName = this.getAttribute('data-member-name');
+                document.getElementById('markDeceasedName').textContent = memberName;
+                document.getElementById('markDeceasedForm').action = `/barangay/members/${memberId}/mark-deceased/`;
+                const markModal = new bootstrap.Modal(document.getElementById('markDeceasedModal'));
+                markModal.show();
+              });
+            }
+
+            // Bind Restore button
+            const restoreBtn = modalContent.querySelector('.member-restore-deceased-trigger');
+            if (restoreBtn) {
+              restoreBtn.addEventListener('click', function() {
+                modalOverlay.classList.remove('active'); // hide the detail modal
+                const memberId = this.getAttribute('data-member-id');
+                const memberName = this.getAttribute('data-member-name');
+                document.getElementById('restoreDeceasedName').textContent = memberName;
+                document.getElementById('restoreDeceasedForm').action = `/barangay/members/${memberId}/unmark-deceased/`;
+                const restoreModal = new bootstrap.Modal(document.getElementById('restoreDeceasedModal'));
+                restoreModal.show();
+              });
+            }
+
           })
           .catch(error => {
             modalContent.innerHTML = '<div class="p-4 text-center text-danger"><i class="bi bi-exclamation-triangle fs-1"></i><p class="mt-2">Failed to load member details.</p></div>';
