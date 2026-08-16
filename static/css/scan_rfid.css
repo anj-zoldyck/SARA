@@ -55,6 +55,11 @@
   transition: all 0.3s ease;
 }
 
+/* SweetAlert2 z-index fix - ensure dialogs render above modal overlay */
+.swal2-container {
+  z-index: 2000 !important;
+}
+
 .modal-overlay.active {
   opacity: 1;
   visibility: visible;
@@ -80,7 +85,7 @@
 }
 
 .kiosk-modal-header {
-  padding: 20px;
+  padding: 15px;
   border-bottom: 1px solid var(--border-color);
   background: #ffffff;
   flex-shrink: 0;
@@ -100,7 +105,7 @@
 }
 
 .kiosk-modal-body {
-  padding: 20px;
+  padding: 15px;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -108,7 +113,7 @@
 }
 
 .kiosk-modal-footer {
-  padding: 15px 20px;
+  padding: 12px 15px;
   background: #ffffff;
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;
@@ -118,7 +123,7 @@
 }
 
 .kiosk-modal form {
-  padding: 15px 20px;
+  padding: 12px 15px;
   background: #ffffff;
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;

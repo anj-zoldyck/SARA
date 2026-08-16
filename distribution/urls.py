@@ -26,6 +26,7 @@ urlpatterns = [
     path('staff/walkin/reactivate-family/', views.staff_walkin_reactivate_family, name='staff_walkin_reactivate_family'),
     path('staff/walkin/claim/', views.staff_walkin_claim, name='staff_walkin_claim'),
     path('staff/walkin/member/<int:member_id>/modal/', views.staff_walkin_member_modal, name='staff_walkin_member_modal'),
+    path('staff/search-assistance/', views.search_assistance, name='search_assistance'),
 
     # Distribution Venue Management
     path('mswdo/venues/', views.venue_list, name='venue_list'),

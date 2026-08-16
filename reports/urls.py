@@ -3,7 +3,10 @@ from . import views
 
 urlpatterns = [
     path('mswdo/reports/', views.aid_reports, name='aid_reports'),
+    path('mswdo/reports/walkin/', views.walkin_reports, name='walkin_reports'),
     path('mswdo/reports/distribution-claims/', views.distribution_claims, name='distribution_claims'),
     path('mswdo/reports/generate-summary/', views.generate_summary_report, name='generate_summary_report'),
     path('mswdo/reports/generate-list/', views.generate_beneficiary_list_report, name='generate_beneficiary_list_report'),
+    path('mswdo/reports/generate-walkin-summary/', views.generate_walkin_summary_report, name='generate_walkin_summary_report'),
+    path('mswdo/reports/generate-walkin-list/', views.generate_walkin_beneficiary_list_report, name='generate_walkin_beneficiary_list_report'),
 ]

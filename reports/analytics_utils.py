@@ -82,7 +82,7 @@ def get_unique_beneficiaries_count(start_date, end_date):
     return len(beneficiaries_set)
 
 
-def get_quarterly_report_data(start_date, end_date):
+def get_quarterly_report_data(start_date, end_date, claim_type=None):
     """
     Returns aggregate counts for the Summary Report.
     Note: "total beneficiaries" represents unique families/individuals served within a month.
@@ -91,7 +91,13 @@ def get_quarterly_report_data(start_date, end_date):
     claims = AidClaim.objects.filter(
         claimed_at__date__gte=start_date,
         claimed_at__date__lte=end_date
-    ).select_related('assistance', 'assistance__aid_category')
+    )
+    
+    # Add claim_type filter if provided
+    if claim_type:
+        claims = claims.filter(claim_type=claim_type)
+    
+    claims = claims.select_related('assistance', 'assistance__aid_category')
     
     # Group by month
     months_data = defaultdict(lambda: {
@@ -170,14 +176,20 @@ def get_quarterly_report_data(start_date, end_date):
         }
     }
 
-def get_beneficiary_list_data(start_date, end_date):
+def get_beneficiary_list_data(start_date, end_date, claim_type=None):
     """
     Returns a flat list of individual claim records for the Beneficiary List Report.
     """
     claims = AidClaim.objects.filter(
         claimed_at__date__gte=start_date,
         claimed_at__date__lte=end_date
-    ).select_related(
+    )
+    
+    # Add claim_type filter if provided
+    if claim_type:
+        claims = claims.filter(claim_type=claim_type)
+    
+    claims = claims.select_related(
         'family', 
         'family__household', 
         'family__household__barangay',

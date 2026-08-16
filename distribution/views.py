@@ -870,6 +870,7 @@ def beneficiary_selection_landing(request):
 
 @login_required
 @session_protected
+@mswdo_or_staff_required
 def staff_walkin_member_modal(request, member_id):
     if request.user.role != 'MSWDO_STAFF':
         return HttpResponseForbidden('Access Denied')
@@ -883,12 +884,9 @@ def staff_walkin_member_modal(request, member_id):
         Q(family_member=member) | Q(family=member.family, family_member__isnull=True)
     ).select_related('assistance__program', 'assistance__aid_category').order_by('-claimed_at')[:5]
     
-    assistances = Assistance.objects.filter(is_active=True).select_related('program', 'aid_category')
-    
     return render(request, 'households/partials/walkin_profile_modal.html', {
         'member': member,
-        'claims': claims,
-        'assistances': assistances
+        'claims': claims
     })
 
 @login_required
@@ -1228,6 +1226,37 @@ def search_staff(request):
         staff_queryset = staff_queryset.filter(q_objects)
     
     results = [{'id': s.id, 'name': f"{s.first_name} {s.last_name}"} for s in staff_queryset[:20]]
+    return JsonResponse({'status': 'success', 'results': results})
+
+
+@login_required
+@session_protected
+def search_assistance(request):
+    """AJAX endpoint for searching Assistance by program name or category name."""
+    if request.user.role != 'MSWDO_STAFF':
+        return JsonResponse({'status': 'error', 'message': 'Access Denied'}, status=403)
+    
+    q = request.GET.get('q', '').strip()
+    assistance_queryset = Assistance.objects.filter(is_active=True).select_related('program', 'aid_category')
+    
+    if q:
+        # Split query into words and require ALL words to match program.name or aid_category.name
+        words = q.split()
+        q_objects = Q()
+        for word in words:
+            q_objects &= (
+                Q(program__name__icontains=word) |
+                Q(aid_category__name__icontains=word)
+            )
+        assistance_queryset = assistance_queryset.filter(q_objects)
+    
+    results = [
+        {
+            'id': a.id,
+            'label': f"{a.program.name} › {a.aid_category.name}"
+        }
+        for a in assistance_queryset[:20]
+    ]
     return JsonResponse({'status': 'success', 'results': results})
 
 

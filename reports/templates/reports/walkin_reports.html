@@ -1,0 +1,346 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Walk-in Assistance Log — SARA{% endblock %}
+{% block navbar_title %}Walk-in Assistance Log{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/aid_reports.css' %}">
+<link rel="stylesheet" href="{% static 'css/register_rfid.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Page Header ─────────────────────────────────────────── -->
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <a href="{% url 'aid_reports' %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> Aid Reports
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Walk-in Assistance Log</span>
+    </div>
+    <h1 class="dash-page-title">Walk-in Assistance Log</h1>
+    <p class="dash-page-sub">
+      <i class="bi bi-person-walking me-1"></i>
+      Walk-in assistance claims and beneficiary records
+    </p>
+  </div>
+  <div class="dash-header-actions">
+    <a href="{% url 'aid_reports' %}" class="btn-dash-outline">
+      <i class="bi bi-arrow-left"></i> Back to Reports
+    </a>
+  </div>
+</div>
+
+<!-- ── Filter Panel ───────────────────────────────────────── -->
+<div class="dash-panel rfid-filter-panel">
+  <div class="dash-panel__body">
+    <div class="rfid-filter-row">
+      <div class="rfid-filter-group">
+        <label class="rfid-filter-label" for="filter-barangay">
+          <i class="bi bi-geo-alt"></i> Barangay
+        </label>
+        <select class="rfid-filter-select" id="filter-barangay">
+          <option value="">All Barangays</option>
+          {% for b in barangays %}
+            <option value="{{ b.id }}" {% if selected_barangay == b.id|stringformat:"s" %}selected{% endif %}>
+              {{ b.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="rfid-filter-group">
+        <label class="rfid-filter-label" for="filter-zone">
+          <i class="bi bi-map"></i> Zone
+        </label>
+        <select class="rfid-filter-select" id="filter-zone" {% if not selected_barangay %}disabled{% endif %}>
+          <option value="">Select a Barangay first</option>
+          {% for z in all_zones %}
+            <option value="{{ z.id }}" data-barangay="{{ z.barangay_id }}" {% if selected_zone == z.id|stringformat:"s" %}selected{% endif %}>
+              {{ z.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="rfid-filter-group">
+        <label class="rfid-filter-label" for="filter-date-from">
+          <i class="bi bi-calendar-event"></i> Date From
+        </label>
+        <input type="date" class="rfid-filter-select" id="filter-date-from" value="{{ date_from }}">
+      </div>
+
+      <div class="rfid-filter-group">
+        <label class="rfid-filter-label" for="filter-date-to">
+          <i class="bi bi-calendar-event"></i> Date To
+        </label>
+        <input type="date" class="rfid-filter-select" id="filter-date-to" value="{{ date_to }}">
+      </div>
+
+      <div class="rfid-filter-group">
+        <label class="rfid-filter-label" for="search-input">
+          <i class="bi bi-search"></i> Search
+        </label>
+        <input type="text" class="form-control" id="search-input" placeholder="Search resident name..." value="{{ search_query }}">
+      </div>
+
+      <div class="rfid-filter-actions">
+        <button class="btn-dash-primary" id="btn-apply-filter">
+          <i class="bi bi-funnel"></i> Apply Filter
+        </button>
+        <a href="{% url 'walkin_reports' %}" class="btn-dash-outline">
+          <i class="bi bi-x-circle"></i> Clear
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Report Generation Panel ───────────────────────────── -->
+{% if request.user.role == 'MSWDO_STAFF' %}
+<div class="dash-panel rpt-gen-panel">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-file-earmark-pdf dash-panel__icon" style="background-color: var(--sara-blue-light); color: var(--sara-blue); padding: 8px; border-radius: 6px;"></i>
+      <div>
+        <h2 class="dash-panel__title">Generate Walk-in Reports</h2>
+        <p class="dash-panel__sub">Export walk-in assistance summaries and beneficiary lists</p>
+      </div>
+    </div>
+  </div>
+  <div class="dash-panel__body">
+    <form id="walkin-report-generation-form" method="get" class="rpt-filter-form">
+      <div class="rpt-filter-form__fields">
+        <div class="rpt-filter-form__group">
+          <label class="rpt-filter-form__label">
+            <i class="bi bi-calendar-event"></i> Period Start
+          </label>
+          <input type="date" name="start_date" id="start_date" class="form-control form-control-sm" required>
+        </div>
+        <div class="rpt-filter-form__group">
+          <label class="rpt-filter-form__label">
+            <i class="bi bi-calendar-event"></i> Period End
+          </label>
+          <input type="date" name="end_date" id="end_date" class="form-control form-control-sm" required>
+        </div>
+      </div>
+      <div style="margin-top: 15px; display: flex; gap: 10px;">
+        <button type="submit" class="btn-dash-primary" onclick="document.getElementById('walkin-report-generation-form').action='{% url 'generate_walkin_summary_report' %}';">
+          <i class="bi bi-file-pdf"></i> Generate Summary Report (PDF)
+        </button>
+        <button type="submit" class="btn-dash-primary" onclick="document.getElementById('walkin-report-generation-form').action='{% url 'generate_walkin_beneficiary_list_report' %}';">
+          <i class="bi bi-file-earmark-excel"></i> Generate Beneficiary List (Excel)
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Walk-in Claims Table ──────────────────────────────────── -->
+<div class="dash-panel">
+  <div class="dash-panel__body">
+    {% if claims %}
+      <div class="table-responsive">
+        <table class="rpt-table">
+          <thead>
+            <tr>
+              <th class="rpt-th">#</th>
+              <th class="rpt-th">Resident Name</th>
+              <th class="rpt-th">Barangay</th>
+              <th class="rpt-th">Zone</th>
+              <th class="rpt-th">Assistance</th>
+              <th class="rpt-th">Amount</th>
+              <th class="rpt-th">Date Claimed</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for claim in claims %}
+            <tr class="rpt-row">
+              <td class="rpt-td rpt-td--num">{{ claims.start_index|add:forloop.counter0 }}</td>
+              <td class="rpt-td">
+                {% if claim.family_member %}
+                  {{ claim.family_member.first_name }} {{ claim.family_member.last_name }}
+                {% else %}
+                  {{ claim.family.family_name }} Family
+                {% endif %}
+              </td>
+              <td class="rpt-td">
+                {{ claim.family.household.barangay.name|default:"N/A" }}
+              </td>
+              <td class="rpt-td">
+                {{ claim.family.household.zone.name|default:"N/A" }}
+              </td>
+              <td class="rpt-td">
+                {{ claim.assistance.program.name }} › {{ claim.assistance.aid_category.name }}
+              </td>
+              <td class="rpt-td">
+                ₱{{ claim.amount|floatformat:2 }}
+              </td>
+              <td class="rpt-td">
+                {{ claim.claimed_at }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      {% if paginator.num_pages > 1 %}
+      <nav aria-label="Page navigation" class="mt-3">
+        <ul class="pagination justify-content-center" style="gap: 8px;">
+          {% if claims.has_previous %}
+          <li class="page-item">
+            <a class="page-link pagination-btn"
+               href="?page=1{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_zone %}&zone={{ selected_zone }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&laquo;&laquo;</a>
+          </li>
+          <li class="page-item">
+            <a class="page-link pagination-btn"
+               href="?page={{ claims.previous_page_number }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_zone %}&zone={{ selected_zone }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&laquo;</a>
+          </li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">&laquo;&laquo;</span></li>
+          <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+          {% endif %}
+
+          <li class="page-item">
+            <span class="page-link" style="background: none; border: 1px solid #dee2e6; color: #212529;">{{ claims.number }} of {{ paginator.num_pages }}</span>
+          </li>
+
+          {% if claims.has_next %}
+          <li class="page-item">
+            <a class="page-link pagination-btn"
+               href="?page={{ claims.next_page_number }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_zone %}&zone={{ selected_zone }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&raquo;</a>
+          </li>
+          <li class="page-item">
+            <a class="page-link pagination-btn"
+               href="?page={{ paginator.num_pages }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_zone %}&zone={{ selected_zone }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&raquo;&raquo;</a>
+          </li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+          <li class="page-item disabled"><span class="page-link">&raquo;&raquo;</span></li>
+          {% endif %}
+        </ul>
+      </nav>
+      {% endif %}
+
+    {% else %}
+      <div class="rpt-no-claims">
+        <i class="bi bi-inbox"></i>
+        <p>No walk-in claims found.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── Back Link ──────────────────────────────────────────── -->
+<div class="page-back-row">
+  <a href="{% url 'aid_reports' %}" class="btn-dash-outline">
+    <i class="bi bi-arrow-left"></i> Back to Reports
+  </a>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+  // ── Zone Cascade (client-side filtering) ─────────────────────
+  const zoneSelect = document.getElementById('filter-zone');
+  const allZoneOpts = Array.from(zoneSelect.options).slice(1); // captured ONCE, before any wiping
+
+  function cascadeZones() {
+    const barangaySelect = document.getElementById('filter-barangay');
+    const brgyId = barangaySelect.value;
+    zoneSelect.value = '';
+    while (zoneSelect.options.length > 1) zoneSelect.remove(1);
+    allZoneOpts.forEach(opt => {
+      if (!brgyId || opt.dataset.barangay === brgyId) {
+        zoneSelect.add(opt.cloneNode(true));
+      }
+    });
+    zoneSelect.disabled = !brgyId;
+  }
+
+  const barangaySelect = document.getElementById('filter-barangay');
+  barangaySelect.addEventListener('change', cascadeZones);
+  
+  // Initial load: if barangay already selected, populate zones
+  if (barangaySelect.value) cascadeZones();
+  else zoneSelect.disabled = true;
+
+  // ── Apply Filter → submit as GET params ─────────────────────
+  document.getElementById('btn-apply-filter').addEventListener('click', () => {
+    const params = new URLSearchParams();
+    
+    const barangaySelect = document.getElementById('filter-barangay');
+    if (barangaySelect.value) params.set('barangay', barangaySelect.value);
+    
+    const zoneSelect = document.getElementById('filter-zone');
+    if (zoneSelect.value) params.set('zone', zoneSelect.value);
+    
+    const dateFromInput = document.getElementById('filter-date-from');
+    if (dateFromInput.value) params.set('date_from', dateFromInput.value);
+    
+    const dateToInput = document.getElementById('filter-date-to');
+    if (dateToInput.value) params.set('date_to', dateToInput.value);
+    
+    const searchInput = document.getElementById('search-input');
+    if (searchInput.value.trim()) params.set('search', searchInput.value.trim());
+    
+    window.location.href = '{% url "walkin_reports" %}?' + params.toString();
+  });
+
+  // ── AJAX Pagination ────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', function() {
+    const paginationBtns = document.querySelectorAll('.pagination-btn');
+    paginationBtns.forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const url = this.getAttribute('href');
+        loadPage(url);
+      });
+    });
+  });
+
+  function loadPage(url) {
+    fetch(url)
+      .then(response => response.text())
+      .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        // Update table body
+        const newTableBody = doc.querySelector('.rpt-table tbody');
+        const currentTableBody = document.querySelector('.rpt-table tbody');
+        if (newTableBody && currentTableBody) {
+          currentTableBody.innerHTML = newTableBody.innerHTML;
+        }
+        
+        // Update pagination
+        const newPagination = doc.querySelector('.pagination');
+        const currentPagination = document.querySelector('.pagination');
+        if (newPagination && currentPagination) {
+          currentPagination.innerHTML = newPagination.innerHTML;
+          // Re-attach event listeners to new pagination buttons
+          const newPaginationBtns = currentPagination.querySelectorAll('.pagination-btn');
+          newPaginationBtns.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+              e.preventDefault();
+              const newUrl = this.getAttribute('href');
+              loadPage(newUrl);
+            });
+          });
+        }
+      })
+      .catch(err => {
+        console.error('Error loading page:', err);
+      });
+  }
+</script>
+{% endblock %}

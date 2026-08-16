@@ -37,9 +37,44 @@
   </div>
 </div>
 
+<!-- ── Summary Stats Strip ─────────────────────────────────── -->
+<div class="acct-summary-strip">
+  <div class="acct-summary-item">
+    <i class="bi bi-gift acct-summary-icon acct-summary-icon--blue"></i>
+    <div>
+      <span class="acct-summary-val">{{ total_programs }}</span>
+      <span class="acct-summary-label">Total Programs</span>
+    </div>
+  </div>
+  <div class="acct-summary-divider"></div>
+  <div class="acct-summary-item">
+    <i class="bi bi-tag acct-summary-icon acct-summary-icon--green"></i>
+    <div>
+      <span class="acct-summary-val">{{ total_assistance_entries }}</span>
+      <span class="acct-summary-label">Assistance Entries</span>
+    </div>
+  </div>
+  <div class="acct-summary-divider"></div>
+  <div class="acct-summary-item">
+    <i class="bi bi-person-walking acct-summary-icon acct-summary-icon--navy"></i>
+    <div>
+      <span class="acct-summary-val">{{ total_walkin_claims }}</span>
+      <span class="acct-summary-label">Walk-in Claims</span>
+    </div>
+  </div>
+  <div class="acct-summary-divider"></div>
+  <div class="acct-summary-item">
+    <i class="bi bi-check-circle acct-summary-icon acct-summary-icon--blue"></i>
+    <div>
+      <span class="acct-summary-val">{{ total_claims }}</span>
+      <span class="acct-summary-label">Total Claims</span>
+    </div>
+  </div>
+</div>
+
 <!-- ── Report Generation Panel ───────────────────────────── -->
 {% if request.user.role == 'MSWDO_STAFF' %}
-<div class="dash-panel rpt-gen-panel">
+<div class="dash-panel rpt-gen-panel" style="margin-bottom: 20px;">
   <div class="dash-panel__header">
     <div class="dash-panel__header-left">
       <i class="bi bi-file-earmark-pdf dash-panel__icon" style="background-color: var(--sara-blue-light); color: var(--sara-blue); padding: 8px; border-radius: 6px;"></i>
@@ -65,7 +100,7 @@
           <input type="date" name="end_date" id="end_date" class="form-control form-control-sm" required>
         </div>
       </div>
-      <div style="margin-top: 15px; display: flex; gap: 10px;">
+      <div style="margin-top: 16px; display: flex; gap: 16px;">
         <button type="submit" class="btn-dash-primary" onclick="document.getElementById('report-generation-form').action='{% url 'generate_summary_report' %}';">
           <i class="bi bi-file-pdf"></i> Generate Summary Report (PDF)
         </button>
@@ -78,6 +113,35 @@
 </div>
 {% endif %}
 
+<!-- ── Walk-in Assistance Log ───────────────────────────────── -->
+<div class="d-flex align-items-center gap-3 mb-3" style="margin-bottom: 20px;">
+  <i class="bi bi-person-walking" style="font-size: 20px; color: var(--sara-blue);"></i>
+  <div>
+    <h3 class="dash-section-title" style="font-size: 1.1rem; color: var(--text-main); font-weight: 600; margin: 0;">Walk-in Assistance Log</h3>
+    <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0;">View and generate reports for walk-in assistance claims</p>
+  </div>
+</div>
+<div class="row g-4" style="margin-bottom: 20px;">
+  <div class="col-md-6 col-lg-4">
+    <div class="dash-panel prog-card" style="cursor: pointer;" onclick="window.location.href='{% url 'walkin_reports' %}'">
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <div class="dash-panel__icon" style="background-color: var(--sara-blue-light); color: var(--sara-blue);">
+            <i class="bi bi-person-walking"></i>
+          </div>
+          <div>
+            <h2 class="dash-panel__title">Walk-in Claims</h2>
+            <p class="dash-panel__sub">
+              View all walk-in assistance records
+            </p>
+          </div>
+        </div>
+        <i class="bi bi-chevron-right prog-card__arrow"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Program Cards ──────────────────────────────────────── -->
 {% if programs_data %}
   <div class="d-flex align-items-center gap-3 mb-3" style="margin-bottom: 20px;">
@@ -87,7 +151,7 @@
       <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0;">Select a program to view distribution claims and reports</p>
     </div>
   </div>
-  <div class="row g-4">
+  <div class="row g-4" style="margin-bottom: 20px;">
     {% for program_data in programs_data %}
     <div class="col-md-6 col-lg-4">
       <div class="dash-panel prog-card" style="cursor: pointer;" onclick="showAssistancesModal('{{ program_data.program.id }}', '{{ program_data.program.name|escapejs }}')">

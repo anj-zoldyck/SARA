@@ -192,12 +192,14 @@
 
 <!-- Main Walk-in Modal for Individual Member -->
 <div class="modal-overlay" id="walkinProfileModalOverlay">
-  <div class="kiosk-modal" style="max-width: 750px;">
+  <div class="kiosk-modal" style="max-width: 700px;">
     <div id="walkinProfileModalContent">
       <div class="p-5 text-center">
         <div class="spinner-border text-primary" role="status"></div>
       </div>
     </div>
+    <!-- Dropdown container at modal level to escape modal body overflow -->
+    <div id="assistanceDropdownContainer" style="position: absolute; z-index: 1000; display: none; max-height: 200px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);"></div>
   </div>
 </div>
 
@@ -421,6 +423,9 @@
           const baseUrl = viewFullInfoLink.href.split('?')[0];
           viewFullInfoLink.href = `${baseUrl}?${currentParams.toString()}`;
         }
+
+        // Attach assistance search functionality
+        attachAssistanceSearchListener();
       })
       .catch(err => {
         content.innerHTML = '<div class="p-4 text-center text-danger"><i class="bi bi-exclamation-triangle fs-1"></i><p class="mt-2">Failed to load member details.</p></div>';
@@ -469,6 +474,154 @@
         btn.innerHTML = originalText;
         btn.disabled = false;
       });
+    });
+  }
+
+  // Declared at top-level script scope to persist across multiple calls
+  let handleAssistanceOutsideClick = null;
+
+  function attachAssistanceSearchListener() {
+    const assistanceSearchInput = document.getElementById('assistanceSearch');
+    const assistanceResultsContainer = document.getElementById('assistanceSearchResults');
+    const assistanceSelectedId = document.getElementById('assistanceSelectedId');
+    const clearAssistanceBtn = document.getElementById('clearAssistanceBtn');
+    const walkinClaimForm = document.getElementById('walkinClaimForm');
+    const dropdownContainer = document.getElementById('assistanceDropdownContainer');
+    
+    if (!assistanceSearchInput || !assistanceResultsContainer || !assistanceSelectedId || !clearAssistanceBtn) return;
+    
+    let assistanceDebounceTimer;
+
+    assistanceSearchInput.addEventListener('input', function() {
+      clearTimeout(assistanceDebounceTimer);
+      const query = this.value.trim();
+      
+      if (query.length === 0) {
+        dropdownContainer.style.display = 'none';
+        return;
+      }
+      
+      assistanceDebounceTimer = setTimeout(() => fetchAssistanceResults(query), 300);
+    });
+
+    // Re-show results when focusing on input if it has a value
+    assistanceSearchInput.addEventListener('focus', function() {
+      const query = this.value.trim();
+      if (query.length > 0 && !this.readOnly) {
+        fetchAssistanceResults(query);
+      }
+    });
+
+    // Close dropdown on modal body scroll to prevent visual detachment
+    const modalBody = document.querySelector('.kiosk-modal-body');
+    if (modalBody) {
+      modalBody.addEventListener('scroll', function() {
+        dropdownContainer.style.display = 'none';
+      });
+    }
+
+    // Remove previous listener using the exact function reference from the outer variable
+    if (handleAssistanceOutsideClick) {
+      document.removeEventListener('click', handleAssistanceOutsideClick);
+    }
+
+    // Assign new function to the outer variable, then add it as listener
+    handleAssistanceOutsideClick = function(e) {
+      if (!assistanceSearchInput.contains(e.target) && !dropdownContainer.contains(e.target) && !clearAssistanceBtn.contains(e.target)) {
+        dropdownContainer.style.display = 'none';
+      }
+    };
+
+    document.addEventListener('click', handleAssistanceOutsideClick);
+
+    function fetchAssistanceResults(query) {
+      fetch(`/staff/search-assistance/?q=${encodeURIComponent(query)}`)
+        .then(res => res.json())
+        .then(data => {
+          dropdownContainer.innerHTML = '';
+          
+          if (data.status === 'success' && data.results.length > 0) {
+            data.results.forEach(assistance => {
+              const div = document.createElement('div');
+              div.className = 'search-result-item';
+              div.textContent = assistance.label;
+              div.addEventListener('click', () => {
+                assistanceSelectedId.value = assistance.id;
+                assistanceSearchInput.value = assistance.label;
+                assistanceSearchInput.readOnly = true;
+                dropdownContainer.style.display = 'none';
+                clearAssistanceBtn.classList.remove('d-none');
+              });
+              dropdownContainer.appendChild(div);
+            });
+            
+            // Position the dropdown container at modal level
+            const inputRect = assistanceSearchInput.getBoundingClientRect();
+            const modalRect = document.querySelector('.kiosk-modal').getBoundingClientRect();
+            const spaceBelow = modalRect.bottom - inputRect.bottom;
+            const spaceAbove = inputRect.top - modalRect.top;
+            
+            // Show below if more space, otherwise show above
+            if (spaceBelow >= 200 || spaceBelow >= spaceAbove) {
+              dropdownContainer.style.top = `${inputRect.bottom - modalRect.top}px`;
+              dropdownContainer.style.maxHeight = `${Math.min(200, spaceBelow - 10)}px`;
+            } else {
+              dropdownContainer.style.top = `${inputRect.top - modalRect.top - 200}px`;
+              dropdownContainer.style.maxHeight = `${Math.min(200, spaceAbove - 10)}px`;
+            }
+            
+            dropdownContainer.style.left = `${inputRect.left - modalRect.left}px`;
+            dropdownContainer.style.width = `${inputRect.width}px`;
+            dropdownContainer.style.display = 'block';
+          } else {
+            dropdownContainer.innerHTML = '<div class="p-3 text-muted small text-center">No matching assistance found.</div>';
+            
+            // Position the dropdown container at modal level
+            const inputRect = assistanceSearchInput.getBoundingClientRect();
+            const modalRect = document.querySelector('.kiosk-modal').getBoundingClientRect();
+            const spaceBelow = modalRect.bottom - inputRect.bottom;
+            const spaceAbove = inputRect.top - modalRect.top;
+            
+            // Show below if more space, otherwise show above
+            if (spaceBelow >= 200 || spaceBelow >= spaceAbove) {
+              dropdownContainer.style.top = `${inputRect.bottom - modalRect.top}px`;
+              dropdownContainer.style.maxHeight = `${Math.min(200, spaceBelow - 10)}px`;
+            } else {
+              dropdownContainer.style.top = `${inputRect.top - modalRect.top - 200}px`;
+              dropdownContainer.style.maxHeight = `${Math.min(200, spaceAbove - 10)}px`;
+            }
+            
+            dropdownContainer.style.left = `${inputRect.left - modalRect.left}px`;
+            dropdownContainer.style.width = `${inputRect.width}px`;
+            dropdownContainer.style.display = 'block';
+          }
+        })
+        .catch(err => console.error(err));
+    }
+
+    clearAssistanceBtn.addEventListener('click', function() {
+      assistanceSelectedId.value = '';
+      assistanceSearchInput.value = '';
+      assistanceSearchInput.readOnly = false;
+      assistanceSearchInput.focus();
+      dropdownContainer.style.display = 'none';
+      this.classList.add('d-none');
+    });
+
+    // Form validation - ensure assistance is selected
+    if (walkinClaimForm) {
+      walkinClaimForm.addEventListener('submit', function(e) {
+        if (!assistanceSelectedId.value) {
+          e.preventDefault();
+          Swal.fire('Missing Assistance', 'Please select an assistance type before submitting.', 'warning');
+          assistanceSearchInput.focus();
+        }
+      });
+    }
+    
+    // Hide dropdown when modal is closed
+    window.addEventListener('hideWalkinModal', function() {
+      dropdownContainer.style.display = 'none';
     });
   }
 

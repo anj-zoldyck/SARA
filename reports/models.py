@@ -5,6 +5,8 @@ class ReportGenerationLog(models.Model):
     REPORT_TYPE_CHOICES = (
         ('SUMMARY', 'Statistical Summary Report'),
         ('BENEFICIARY_LIST', 'Beneficiary List Report'),
+        ('WALKIN_SUMMARY', 'Walk-in Summary Report'),
+        ('WALKIN_BENEFICIARY_LIST', 'Walk-in Beneficiary List Report'),
     )
     report_type = models.CharField(max_length=30, choices=REPORT_TYPE_CHOICES)
     period_label = models.CharField(max_length=100)  # e.g. "April 2026" or "2nd Quarter 2026"

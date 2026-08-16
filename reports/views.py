@@ -57,8 +57,18 @@ def aid_reports(request):
                 'assistances': assistances
             })
 
+    # Calculate summary stats
+    total_programs = len(programs_data)
+    total_assistance_entries = sum(len(pd['assistances']) for pd in programs_data)
+    total_walkin_claims = AidClaim.objects.filter(claim_type='WALK_IN').count()
+    total_claims = AidClaim.objects.count()
+
     return render(request, 'reports/aid_reports.html', {
         'programs_data': programs_data,
+        'total_programs': total_programs,
+        'total_assistance_entries': total_assistance_entries,
+        'total_walkin_claims': total_walkin_claims,
+        'total_claims': total_claims,
         'now': timezone.now(),
     })
 
@@ -216,6 +226,98 @@ def distribution_claims(request):
 
 
 @login_required
+@session_protected
+@mswdo_or_staff_required
+def walkin_reports(request):
+    selected_barangay = request.GET.get('barangay')
+    selected_zone = request.GET.get('zone')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    search_query = request.GET.get('search', '')
+    
+    # Base queryset for walk-in claims only
+    claims_queryset = AidClaim.objects.filter(
+        claim_type='WALK_IN'
+    ).select_related(
+        'family',
+        'family_member',
+        'family__household',
+        'family__household__barangay',
+        'family__household__zone',
+        'assistance',
+        'assistance__program',
+        'assistance__aid_category'
+    )
+    
+    # Filter by barangay
+    if selected_barangay:
+        claims_queryset = claims_queryset.filter(
+            family__household__barangay_id=selected_barangay
+        )
+    
+    # Filter by zone
+    if selected_zone:
+        claims_queryset = claims_queryset.filter(
+            family__household__zone_id=selected_zone
+        )
+    
+    # Filter by date range
+    if date_from:
+        try:
+            date_from_dt = datetime.strptime(date_from, '%Y-%m-%d')
+            claims_queryset = claims_queryset.filter(claimed_at__gte=date_from_dt)
+        except ValueError:
+            pass
+    
+    if date_to:
+        try:
+            date_to_dt = datetime.strptime(date_to, '%Y-%m-%d')
+            from datetime import timedelta
+            date_to_dt += timedelta(days=1)
+            claims_queryset = claims_queryset.filter(claimed_at__lt=date_to_dt)
+        except ValueError:
+            pass
+    
+    # Search by name (family name or member name)
+    if search_query:
+        claims_queryset = claims_queryset.filter(
+            Q(family__family_name__icontains=search_query) |
+            Q(family_member__first_name__icontains=search_query) |
+            Q(family_member__last_name__icontains=search_query)
+        )
+    
+    # Deterministic ordering to avoid pagination bug
+    claims_queryset = claims_queryset.order_by('-claimed_at', 'id')
+    
+    # Paginate claims (20 per page)
+    page = request.GET.get('page', 1)
+    paginator = Paginator(claims_queryset, 20)
+    
+    try:
+        claims_page = paginator.page(page)
+    except PageNotAnInteger:
+        claims_page = paginator.page(1)
+    except EmptyPage:
+        claims_page = paginator.page(paginator.num_pages)
+    
+    barangays = Barangay.objects.all()
+    all_zones = Zone.objects.all()
+    
+    return render(request, 'reports/walkin_reports.html', {
+        'claims': claims_page,
+        'paginator': paginator,
+        'barangays': barangays,
+        'all_zones': all_zones,
+        'selected_barangay': selected_barangay,
+        'selected_zone': selected_zone,
+        'date_from': date_from,
+        'date_to': date_to,
+        'search_query': search_query,
+        'now': timezone.now(),
+    })
+
+
+@login_required
 def generate_summary_report(request):
     if request.user.role != 'MSWDO_STAFF':
         return HttpResponseForbidden("Only MSWDO Staff can generate this report.")
@@ -354,5 +456,148 @@ def generate_beneficiary_list_report(request):
         generated_by=request.user
     )
     log_action(request.user, 'REPORT_GENERATED', target=report_log, description=f"Generated BENEFICIARY_LIST report for {period_label}")
+    
+    return response
+
+
+@login_required
+def generate_walkin_summary_report(request):
+    if request.user.role != 'MSWDO_STAFF':
+        return HttpResponseForbidden("Only MSWDO Staff can generate this report.")
+        
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    
+    if not start_date_str or not end_date_str:
+        return HttpResponse("Missing date range.", status=400)
+        
+    from django.utils.dateparse import parse_datetime
+    start_date = parse_datetime(start_date_str + "T00:00:00").date()
+    end_date = parse_datetime(end_date_str + "T23:59:59").date()
+    
+    data = get_quarterly_report_data(start_date, end_date, claim_type='WALK_IN')
+    
+    chart_image = None
+    if len(data['months']) > 1:
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        import io, base64
+        
+        fig, ax = plt.subplots(figsize=(8, 4))
+        
+        months = [m['month_label'] for m in data['months']]
+        categories = set()
+        for m in data['months']:
+            for c in m['categories']:
+                categories.add(c['name'])
+        categories = list(categories)
+        categories.sort()
+        
+        x = range(len(months))
+        width = 0.8 / max(1, len(categories))
+        
+        for i, cat in enumerate(categories):
+            counts = []
+            for m in data['months']:
+                count = next((c['count'] for c in m['categories'] if c['name'] == cat), 0)
+                counts.append(count)
+            ax.bar([pos + i*width for pos in x], counts, width, label=cat)
+            
+        ax.set_xticks([pos + width*(len(categories)-1)/2 for pos in x])
+        ax.set_xticklabels(months)
+        ax.legend()
+        
+        plt.tight_layout()
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        plt.close(fig)
+        chart_image = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode('utf-8')
+        
+    context = {
+        'data': data,
+        'generated_at': timezone.now(),
+        'chart_image': chart_image
+    }
+    
+    template = get_template('reports/summary_report_pdf.html')
+    html = template.render(context)
+    
+    from django.http import HttpResponse
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="Walkin_Summary_Report.pdf"'
+    
+    pisa_status = pisa.CreatePDF(html, dest=response)
+    
+    if not pisa_status.err:
+        report_log = ReportGenerationLog.objects.create(
+            report_type='WALKIN_SUMMARY',
+            period_label=data['period_label'],
+            generated_by=request.user
+        )
+        log_action(request.user, 'REPORT_GENERATED', target=report_log, description=f"Generated WALKIN_SUMMARY report for {data['period_label']}")
+        return response
+    return HttpResponse("Error generating PDF", status=500)
+
+
+@login_required
+def generate_walkin_beneficiary_list_report(request):
+    if request.user.role != 'MSWDO_STAFF':
+        return HttpResponseForbidden("Only MSWDO Staff can generate this report.")
+        
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    
+    if not start_date_str or not end_date_str:
+        return HttpResponse("Missing date range.", status=400)
+        
+    from django.utils.dateparse import parse_datetime
+    start_date = parse_datetime(start_date_str + "T00:00:00").date()
+    end_date = parse_datetime(end_date_str + "T23:59:59").date()
+    
+    data = get_beneficiary_list_data(start_date, end_date, claim_type='WALK_IN')
+    
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Walk-in Beneficiary List"
+    
+    headers = ["Name", "Barangay", "Zone", "Assistance/Category", "Date Claimed"]
+    
+    for col_idx, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.fill = PatternFill(start_color='D3D3D3', end_color='D3D3D3', fill_type='solid')
+        
+    column_widths = [30, 25, 20, 35, 20]
+    for col_idx, width in enumerate(column_widths, start=1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = width
+        
+    for row_idx, row_data in enumerate(data, start=2):
+        ws.cell(row=row_idx, column=1, value=row_data['name'])
+        ws.cell(row=row_idx, column=2, value=row_data['barangay'])
+        ws.cell(row=row_idx, column=3, value=row_data['zone'])
+        ws.cell(row=row_idx, column=4, value=row_data['assistance'])
+        claimed_date_str = timezone.localtime(row_data['claimed_at']).strftime('%Y-%m-%d %H:%M')
+        ws.cell(row=row_idx, column=5, value=claimed_date_str)
+        
+    from django.http import HttpResponse
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="Walkin_Beneficiary_List_Report.xlsx"'
+    
+    wb.save(response)
+    wb.close()
+    
+    from django.utils.dateformat import DateFormat
+    period_label = f"{DateFormat(start_date).format('F Y')} to {DateFormat(end_date).format('F Y')}"
+    report_log = ReportGenerationLog.objects.create(
+        report_type='WALKIN_BENEFICIARY_LIST',
+        period_label=period_label,
+        generated_by=request.user
+    )
+    log_action(request.user, 'REPORT_GENERATED', target=report_log, description=f"Generated WALKIN_BENEFICIARY_LIST report for {period_label}")
     
     return response

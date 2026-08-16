@@ -124,3 +124,37 @@ class ReportingFeatureTests(TestCase):
         
         self.assertEqual(month_data['total_claims'], 2)
         self.assertEqual(month_data['total_beneficiaries'], 1)
+
+    def test_aid_reports_summary_stats(self):
+        """
+        Test that aid_reports view returns correct summary stats context variables.
+        """
+        self.client.force_login(self.mswdo_staff)
+        response = self.client.get(reverse('aid_reports'))
+        self.assertEqual(response.status_code, 200)
+        
+        # Verify context variables exist
+        self.assertIn('total_programs', response.context)
+        self.assertIn('total_assistance_entries', response.context)
+        self.assertIn('total_walkin_claims', response.context)
+        self.assertIn('total_claims', response.context)
+        
+        # Verify counts match known test data
+        # 1 program with 2 assistances = 1 total program, 2 assistance entries
+        self.assertEqual(response.context['total_programs'], 1)
+        self.assertEqual(response.context['total_assistance_entries'], 2)
+        
+        # 2 scheduled claims from setUp, 0 walk-in claims
+        self.assertEqual(response.context['total_claims'], 2)
+        self.assertEqual(response.context['total_walkin_claims'], 0)
+        
+        # Add a walk-in claim and verify counts update
+        walkin_claim = AidClaim.objects.create(
+            family=self.family,
+            assistance=self.assistance_family,
+            claim_type='WALK_IN'
+        )
+        
+        response = self.client.get(reverse('aid_reports'))
+        self.assertEqual(response.context['total_claims'], 3)
+        self.assertEqual(response.context['total_walkin_claims'], 1)
