@@ -27,7 +27,7 @@
     </div>
     <div class="text-muted small">
       House {{ member.family.household.house_number }}, {{ member.family.household.zone.name }}, {{ member.family.household.barangay.name }}<br>
-      <a href="{% url 'family_detail' member.family.id %}" class="text-decoration-none mt-1 d-inline-block">
+      <a href="{% url 'family_detail' member.family.id %}" class="text-decoration-none mt-1 d-inline-block" id="modalFamilyLink">
         {{ member.family.family_name }} Family <i class="bi bi-arrow-right-short"></i>
       </a>
     </div>
@@ -104,7 +104,7 @@
 <div class="border-top" style="background: #fff; border-bottom-left-radius: 0.5rem; border-bottom-right-radius: 0.5rem;">
   <div class="p-3">
     <div class="d-flex justify-content-end gap-2">
-      <a href="{% url 'family_detail' member.family.id %}" class="btn-dash-outline">View Full Info</a>
+      <a href="{% url 'family_detail' member.family.id %}" class="btn-dash-outline" id="modalViewFullInfoLink">View Full Info</a>
     </div>
   </div>
 </div>

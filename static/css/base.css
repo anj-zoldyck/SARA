@@ -124,29 +124,23 @@ ul {
   font-size: 15px;
   font-weight: 700;
   color: var(--primary);
-  white-space: nowrap;
+  white-space: normal;
   letter-spacing: 0.4px;
   line-height: 1.2;
-  overflow: hidden;
-  /* NEW */
-  text-overflow: ellipsis;
-  /* NEW: safety net for very long titles */
+  overflow: visible;
+  text-overflow: clip;
   max-width: 100%;
-  /* NEW */
 }
 
 .topbar-subtitle {
   font-size: 11px;
   color: var(--text-muted);
-  white-space: nowrap;
+  white-space: normal;
   font-weight: 400;
   letter-spacing: 0.2px;
-  overflow: hidden;
-  /* NEW */
-  text-overflow: ellipsis;
-  /* NEW */
+  overflow: visible;
+  text-overflow: clip;
   max-width: 100%;
-  /* NEW */
 }
 
 /* ── Sidebar Toggle (Burger) ────────────────────────────────── */

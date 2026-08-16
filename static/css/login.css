@@ -75,48 +75,65 @@ body {
   margin-bottom: 5px;
 }
 
-.custom-input-group .input-group-text {
-  background: #f8fafd;
+.custom-input-group {
+  position: relative;
   border: 1.5px solid #dde6f5;
-  border-right: none;
-  color: #64748b;
-  font-size: 15px;
-}
-
-.custom-input-group .form-control {
-  border: 1.5px solid #dde6f5;
-  border-left: none;
-  font-size: 14px;
-  color: #1a2340;
-  background: #ffffff;
+  border-radius: 7px;
+  overflow: hidden;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.custom-input-group .form-control:focus {
-  border-color: #134ed5;
-  box-shadow: 0 0 0 3px rgba(19, 78, 213, 0.1);
-  outline: none;
-  z-index: 1;
+.custom-input-group .input-group-text {
+  background: #f8fafd;
+  border: none;
+  border-right: 1px solid #dde6f5;
+  color: #64748b;
+  font-size: 15px;
+  transition: background-color 0.2s ease;
 }
 
-.custom-input-group .form-control:focus ~ .input-group-text,
-.custom-input-group:focus-within .input-group-text {
+.custom-input-group .form-control {
+  border: none;
+  font-size: 14px;
+  color: #1a2340;
+  background: #ffffff;
+  transition: none;
+}
+
+.custom-input-group .form-control:focus {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+
+.custom-input-group:focus-within {
   border-color: #134ed5;
+  box-shadow: 0 0 0 3px rgba(19, 78, 213, 0.1);
+}
+
+.custom-input-group:focus-within .input-group-text {
+  background: #ffffff;
+  border-right-color: transparent;
 }
 
 /* Password toggle button */
 .password-toggle {
   background: #f8fafd;
-  border: 1.5px solid #dde6f5;
-  border-left: none;
+  border: none;
+  border-left: 1px solid #dde6f5;
   color: #94a3b8;
   font-size: 15px;
-  transition: color 0.2s ease;
+  transition: color 0.2s ease, background-color 0.2s ease;
 }
 
 .password-toggle:hover {
   color: #134ed5;
   background: #f8fafd;
+}
+
+.custom-input-group:focus-within .password-toggle {
+  background: #ffffff;
+  border-left-color: transparent;
 }
 
 /* ── Login Button ────────────────────────────────────────── */

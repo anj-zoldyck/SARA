@@ -1,0 +1,258 @@
+/* =============================================================
+   SARA — SHARED RESPONSIVE BREAKPOINTS
+   Centralized breakpoint system for consistent mobile behavior
+   across all templates and pages.
+   
+   BREAKPOINTS:
+   - Desktop: > 992px
+   - Tablet: 768px - 991.98px
+   - Mobile Landscape: 576px - 767.98px
+   - Mobile Portrait: < 576px
+   - Small Mobile: < 480px
+============================================================= */
+
+/* =============================================================
+   GLOBAL MOBILE OVERRIDES
+   Apply to all pages to prevent horizontal overflow
+============================================================= */
+
+/* Prevent horizontal scroll on body */
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* Ensure main containers respect viewport */
+.page-wrapper,
+.main-content,
+.logform,
+.form-container {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* =============================================================
+   BUTTON GROUPS — Wrap on mobile
+   Prevents buttons from overlapping text
+============================================================= */
+@media (max-width: 767.98px) {
+  .btn-group,
+  .dash-header-actions,
+  .dash-action-row,
+  .acct-actions,
+  .acct-form__actions,
+  .rpt-filter-btn,
+  .sched-item__meta,
+  .dash-page-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  /* Stack buttons vertically on very small screens */
+  @media (max-width: 479.98px) {
+    .dash-header-actions,
+    .dash-action-row,
+    .acct-form__actions {
+      flex-direction: column;
+      width: 100%;
+    }
+    
+    .dash-header-actions button,
+    .dash-header-actions a,
+    .dash-action-row button,
+    .dash-action-row a,
+    .acct-form__actions button,
+    .acct-form__actions a {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
+
+/* =============================================================
+   FILTER FORMS — Stack vertically on mobile
+   Prevents filter dropdowns from overflowing viewport
+============================================================= */
+@media (max-width: 767.98px) {
+  .rpt-filter-form,
+  .rfid-filter-row,
+  .filter-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .rpt-filter-form__fields,
+  .rfid-filter-group {
+    width: 100%;
+  }
+  
+  .rpt-filter-btn,
+  .rfid-filter-actions {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* =============================================================
+   CARD GRIDS — Single column on mobile
+   Prevents cards from being partially off-screen
+============================================================= */
+@media (max-width: 767.98px) {
+  /* Dashboard stat cards */
+  .dash-grid--cards {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  /* Demographics grid */
+  .dash-grid--demographics {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Barangay/zone/household grids */
+  .brgy-grid,
+  .zone-grid,
+  .hh-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 479.98px) {
+  /* Force single column on very small screens */
+  .dash-grid--cards,
+  .brgy-grid,
+  .zone-grid,
+  .hh-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* =============================================================
+   TABLES — Responsive wrapper
+   Ensures tables scroll internally, not the whole page
+============================================================= */
+@media (max-width: 767.98px) {
+  /* Add table-responsive class to all tables if not already present */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Hide non-essential columns on mobile */
+  .acct-td--num,
+  .rpt-td--num,
+  .acct-th:first-child,
+  .rpt-th:first-child {
+    display: none;
+  }
+}
+
+/* =============================================================
+   MODALS — Constrain to viewport on mobile
+   Ensures modals are fully usable on small screens
+============================================================= */
+@media (max-width: 767.98px) {
+  .modal-dialog {
+    max-width: 95vw;
+    margin: 10px auto;
+  }
+  
+  .modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  .kiosk-modal {
+    width: 95vw;
+    max-width: 95vw;
+    max-height: 90vh;
+  }
+  
+  .kiosk-modal-body {
+    max-height: 60vh;
+  }
+}
+
+/* =============================================================
+   CHARTS — Responsive containers
+   Ensures Chart.js instances resize properly
+============================================================= */
+@media (max-width: 767.98px) {
+  .analytics-chart__container,
+  .chart-wrap,
+  .rfid-chart-body {
+    height: 180px !important;
+    min-height: 180px;
+  }
+  
+  .rfid-chart-panel--wide canvas {
+    min-height: 180px !important;
+  }
+}
+
+/* =============================================================
+   TEXT & HEADERS — Prevent truncation
+   Ensures text wraps instead of being cut off
+============================================================= */
+@media (max-width: 767.98px) {
+  .topbar-title,
+  .topbar-subtitle,
+  .dash-page-title,
+  .dash-panel__title,
+  .rpt-card__aid-type {
+    white-space: normal !important;
+    word-wrap: break-word;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  
+  /* Allow topbar to shrink properly */
+  .topbar-left,
+  .topbar-brand {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+  }
+}
+
+/* =============================================================
+   FORM INPUTS — Full width on mobile
+   Ensures form fields are usable on small screens
+============================================================= */
+@media (max-width: 767.98px) {
+  /* Exclude login/auth forms from global input rules */
+  .form-control:not(.custom-input-group .form-control),
+  .form-select,
+  .modal-form__control,
+  .modal-form__select,
+  .acct-form__control-wrap input,
+  .acct-form__control-wrap select,
+  .rpt-filter-select,
+  .rfid-filter-input {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  
+  .sched-form__grid,
+  .hh-form-row,
+  .form-page-layout {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* =============================================================
+   TWO-PANEL LAYOUTS — Stack on mobile
+   Ensures side-by-side panels stack vertically
+============================================================= */
+@media (max-width: 767.98px) {
+  .dash-grid--main,
+  .form-page-layout,
+  .settings-layout,
+  .dash-side {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .dash-side {
+    display: flex;
+    flex-direction: column;
+  }
+}

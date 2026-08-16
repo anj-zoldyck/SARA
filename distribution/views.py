@@ -435,6 +435,7 @@ def scan_rfid(request, schedule_id):
                     schedule=aid_schedule,
                     created_by=request.user,
                     claim_type='DISTRIBUTION',
+                    amount=aid_schedule.per_beneficiary_amount,
                 )
                 log_action(request.user, 'CLAIM_RFID', target=claim, description=f"RFID claim processed for {family.family_name} via schedule {aid_schedule.id}")
                 success = f"{family.family_name} successfully claimed {assistance.aid_category.name}."
@@ -487,6 +488,7 @@ def scan_rfid(request, schedule_id):
                         schedule=aid_schedule,
                         created_by=request.user,
                         claim_type='DISTRIBUTION',
+                        amount=aid_schedule.per_beneficiary_amount,
                     )
                     log_action(request.user, 'CLAIM_RFID', target=claim, description=f"RFID claim processed for {member.first_name} {member.last_name} via schedule {aid_schedule.id}")
                     success = f"{member.first_name} {member.last_name} successfully claimed {assistance.aid_category.name}."
@@ -787,6 +789,7 @@ def staff_walkin_claim(request):
     if request.method == 'POST':
         member_id = request.POST.get('member_id')
         assistance_id = request.POST.get('assistance_id')
+        amount = request.POST.get('amount')
         
         member = get_object_or_404(FamilyMember, id=member_id)
         assistance = get_object_or_404(Assistance, id=assistance_id, is_active=True)
@@ -809,6 +812,23 @@ def staff_walkin_claim(request):
                 'status': 'error',
                 'message': 'This resident has already received this assistance today.'
             }, status=400)
+        
+        # Validate amount for walk-in claims
+        if not amount:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Amount is required for walk-in claims.'
+            }, status=400)
+        
+        try:
+            amount_decimal = float(amount)
+            if amount_decimal < 0:
+                raise ValueError("Amount cannot be negative")
+        except (ValueError, TypeError):
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Invalid amount format.'
+            }, status=400)
             
         claim = AidClaim.objects.create(
             family=member.family,
@@ -817,6 +837,7 @@ def staff_walkin_claim(request):
             schedule=None,
             claim_type='WALK_IN',
             created_by=request.user,
+            amount=amount_decimal,
         )
         log_action(request.user, 'CLAIM_WALKIN', target=claim, description=f"Walk-in claim processed for {member.first_name} {member.last_name}")
         return JsonResponse({'status': 'success', 'message': f'Walk-in claim recorded for {member.first_name} {member.last_name}.'})
@@ -1183,6 +1204,31 @@ def search_eligible_candidates(request, schedule_id):
                     })
                 
     return JsonResponse({'status': 'success', 'results': results[:20]})
+
+
+@login_required
+@session_protected
+def search_staff(request):
+    """AJAX endpoint for searching MSWDO_STAFF by name."""
+    if request.user.role != 'MSWDO':
+        return JsonResponse({'status': 'error', 'message': 'Access Denied'}, status=403)
+    
+    q = request.GET.get('q', '').strip().lower()
+    staff_queryset = User.objects.filter(role='MSWDO_STAFF', is_active=True)
+    
+    if q:
+        # Split query into words and require ALL words to match (matching existing pattern)
+        words = q.split()
+        q_objects = Q()
+        for word in words:
+            q_objects &= (
+                Q(first_name__icontains=word) |
+                Q(last_name__icontains=word)
+            )
+        staff_queryset = staff_queryset.filter(q_objects)
+    
+    results = [{'id': s.id, 'name': f"{s.first_name} {s.last_name}"} for s in staff_queryset[:20]]
+    return JsonResponse({'status': 'success', 'results': results})
 
 
 @login_required

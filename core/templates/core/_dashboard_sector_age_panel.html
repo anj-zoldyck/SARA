@@ -1,0 +1,239 @@
+{% load static %}
+
+<!-- ======================================================
+     POPULATION BY SECTOR & AGE
+====================================================== -->
+<h3 class="dash-section-title mt-4 mb-3" style="font-size: 1.1rem; color: var(--clr-gray-700); font-weight: 600;">
+  Population by Sector & Age
+</h3>
+
+<!-- Barangay Filter (MSWDO/MSWDO_STAFF only) -->
+{% if show_barangay_filter %}
+<div class="dash-panel mb-3">
+  <div class="dash-panel__body py-2 px-3">
+    <div class="d-flex align-items-center gap-3">
+      <label class="form-label mb-0 fw-medium" style="font-size: 0.9rem;">
+        <i class="bi bi-geo-alt me-1"></i> Filter by Barangay:
+      </label>
+      <select class="form-select form-select-sm" id="sectorAgeBarangayFilter" style="width: auto; max-width: 250px;">
+        <option value="">All Barangays</option>
+        {% for barangay in barangays %}
+          <option value="{{ barangay.id }}">{{ barangay.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Sector Cards (Male/Female only) - matching demographics section sizing -->
+<div class="dash-grid dash-grid--demographics mb-3">
+  <div class="dash-grid--demographics__cards">
+    <!-- Total Male -->
+    <div class="stat-card stat-card--blue" style="--card-color: #0d47a1;">
+      <div class="stat-card__icon">
+        <i class="bi bi-gender-male"></i>
+      </div>
+      <div class="stat-card__body">
+        <span class="stat-card__label">Total Male</span>
+        <span class="stat-card__value" id="totalMaleCount">-</span>
+      </div>
+    </div>
+
+    <!-- Total Female -->
+    <div class="stat-card stat-card--pink" style="--card-color: #ec4899;">
+      <div class="stat-card__icon">
+        <i class="bi bi-gender-female"></i>
+      </div>
+      <div class="stat-card__body">
+        <span class="stat-card__label">Total Female</span>
+        <span class="stat-card__value" id="totalFemaleCount">-</span>
+      </div>
+    </div>
+
+    <!-- Total Population -->
+    <div class="stat-card stat-card--green" style="--card-color: #2db89e;">
+      <div class="stat-card__icon">
+        <i class="bi bi-people"></i>
+      </div>
+      <div class="stat-card__body">
+        <span class="stat-card__label">Total Population</span>
+        <span class="stat-card__value" id="totalPopulationCount">-</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Gender Sector Donut Chart -->
+  <div class="dash-panel">
+    <div class="dash-panel__header">
+      <div class="dash-panel__header-left">
+        <i class="bi bi-pie-chart dash-panel__icon"></i>
+        <div>
+          <h2 class="dash-panel__title">Gender Sector</h2>
+          <p class="dash-panel__sub">Male vs Female</p>
+        </div>
+      </div>
+    </div>
+    <div class="dash-panel__body">
+      <div style="height: 200px; position: relative;">
+        <canvas id="sexDistributionChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sector Breakdown Table -->
+<div class="dash-panel mb-4">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-table dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Life-Stage Breakdown</h2>
+        <p class="dash-panel__sub">10-sector distribution by sex</p>
+      </div>
+    </div>
+  </div>
+  <div class="dash-panel__body">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+        <thead class="table-light">
+          <tr>
+            <th>Sector</th>
+            <th>Age Range</th>
+            <th class="text-center" style="color: #0d47a1;">Male</th>
+            <th class="text-center" style="color: #ec4899;">Female</th>
+            <th class="text-center">Total</th>
+          </tr>
+        </thead>
+        <tbody id="sectorTableBody">
+          <!-- Populated by JavaScript -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Sector & Age Panel JavaScript ─────────────────────────────
+  document.addEventListener('DOMContentLoaded', function() {
+    const barangayFilter = document.getElementById('sectorAgeBarangayFilter');
+    let sexDistributionChart = null;
+    
+    // Fetch and render sector/age data
+    function fetchSectorAgeData(barangayId = '') {
+      const url = new URL('{% url "api_sector_age_data" %}', window.location.origin);
+      if (barangayId) {
+        url.searchParams.append('barangay', barangayId);
+      }
+      
+      fetch(url)
+        .then(res => {
+          if (!res.ok) throw new Error('Network error');
+          return res.json();
+        })
+        .then(data => {
+          // Update sex counts
+          document.getElementById('totalMaleCount').textContent = data.sex_counts.male;
+          document.getElementById('totalFemaleCount').textContent = data.sex_counts.female;
+          
+          // Calculate and update total population
+          const totalPopulation = data.sex_counts.male + data.sex_counts.female;
+          document.getElementById('totalPopulationCount').textContent = totalPopulation;
+          
+          // Update donut chart
+          renderSexDistributionChart(data.sex_counts);
+          
+          // Update sector table
+          renderSectorTable(data.sectors);
+        })
+        .catch(err => {
+          console.error('Failed to fetch sector/age data:', err);
+        });
+    }
+    
+    // Render sex distribution donut chart
+    function renderSexDistributionChart(sexCounts) {
+      const ctx = document.getElementById('sexDistributionChart');
+      if (!ctx) return;
+      
+      const maleColor = '#0d47a1';  // Blue
+      const femaleColor = '#ec4899'; // Pink
+      
+      if (sexDistributionChart) {
+        sexDistributionChart.destroy();
+      }
+      
+      sexDistributionChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Male', 'Female'],
+          datasets: [{
+            data: [sexCounts.male, sexCounts.female],
+            backgroundColor: [maleColor, femaleColor],
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'bottom',
+              labels: {
+                usePointStyle: true,
+                padding: 15
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: ctx => {
+                  const label = ctx.label || '';
+                  const value = ctx.parsed;
+                  const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                  return ` ${label}: ${value} (${percentage}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    // Render sector breakdown table
+    function renderSectorTable(sectors) {
+      const tbody = document.getElementById('sectorTableBody');
+      if (!tbody) return;
+      
+      const maleColor = '#0d47a1';
+      const femaleColor = '#ec4899';
+      
+      let html = '';
+      sectors.forEach(sector => {
+        html += `
+          <tr>
+            <td class="fw-medium">${sector.label}</td>
+            <td class="text-muted">${sector.range}</td>
+            <td class="text-center fw-medium" style="color: ${maleColor};">${sector.male}</td>
+            <td class="text-center fw-medium" style="color: ${femaleColor};">${sector.female}</td>
+            <td class="text-center fw-bold">${sector.total}</td>
+          </tr>
+        `;
+      });
+      
+      tbody.innerHTML = html;
+    }
+    
+    // Handle barangay filter change (MSWDO/MSWDO_STAFF only)
+    if (barangayFilter) {
+      barangayFilter.addEventListener('change', function() {
+        fetchSectorAgeData(this.value);
+      });
+    }
+    
+    // Initial data fetch
+    fetchSectorAgeData(barangayFilter ? barangayFilter.value : '');
+  });
+</script>

@@ -13,6 +13,7 @@ urlpatterns = [
     # Beneficiary Selection Landing & AJAX
     path('mswdo/beneficiary-selection/', views.beneficiary_selection_landing, name='beneficiary_selection_landing'),
     path('mswdo/schedule/<int:schedule_id>/assign-staff/', views.assign_staff, name='assign_staff'),
+    path('mswdo/search-staff/', views.search_staff, name='search_staff'),
     path('mswdo/schedule/<int:schedule_id>/beneficiaries/search/', views.search_eligible_candidates, name='search_eligible_candidates'),
     
     path('mswdo/schedule/<int:schedule_id>/rfid/scan/', views.scan_rfid, name='scan_rfid'),

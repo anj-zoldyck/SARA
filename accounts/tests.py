@@ -4,6 +4,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
 import io
 from accounts.utils import validate_image_file
+from accounts.models import User, Barangay
 
 
 class ImageValidationTests(TestCase):
@@ -118,3 +119,268 @@ class ImageValidationTests(TestCase):
         # After validation, the file pointer should be at 0
         self.assertEqual(image.tell(), 0)
 
+
+class UserAccountsSearchTestCase(TestCase):
+    """
+    Test suite for the search functionality in user_accounts view.
+    Tests cover partial name matches, email matches, username matches,
+    combined filtering with role/barangay, pagination with search,
+    and empty/whitespace-only search behavior.
+    """
+
+    def setUp(self):
+        """Create test users with various names, usernames, and emails."""
+        self.mswdo_user = User.objects.create_user(
+            username='mswdo_admin',
+            email='mswdo@example.com',
+            password='testpass123',
+            first_name='Admin',
+            last_name='User',
+            role='MSWDO'
+        )
+        
+        self.staff1 = User.objects.create_user(
+            username='staff_juan',
+            email='juan.cruz@example.com',
+            password='testpass123',
+            first_name='Juan',
+            last_name='Cruz',
+            role='MSWDO_STAFF'
+        )
+        
+        self.staff2 = User.objects.create_user(
+            username='staff_maria',
+            email='maria.santos@example.com',
+            password='testpass123',
+            first_name='Maria',
+            last_name='Santos',
+            role='MSWDO_STAFF'
+        )
+        
+        self.barangay = Barangay.objects.create(name='San Jose')
+        
+        self.brgy_admin1 = User.objects.create_user(
+            username='brgy_pedro',
+            email='pedro.reyes@example.com',
+            password='testpass123',
+            first_name='Pedro',
+            last_name='Reyes',
+            role='BARANGAY',
+            barangay=self.barangay
+        )
+        
+        self.brgy_admin2 = User.objects.create_user(
+            username='brgy_ana',
+            email='ana.garcia@example.com',
+            password='testpass123',
+            first_name='Ana',
+            last_name='Garcia',
+            middle_name='Maria',
+            role='BARANGAY',
+            barangay=self.barangay
+        )
+
+    def test_search_by_first_name(self):
+        """Search should match partial first name."""
+        from django.test import RequestFactory
+        from accounts.views import user_accounts
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.contrib.sessions.middleware import SessionMiddleware
+        
+        factory = RequestFactory()
+        request = factory.get('/mswdo/user-accounts/', {'search': 'Juan'})
+        request.user = self.mswdo_user
+        
+        # Add session and messages middleware
+        middleware = SessionMiddleware(lambda x: None)
+        middleware.process_request(request)
+        request.session.save()
+        
+        messages = FallbackStorage(request)
+        setattr(request, '_messages', messages)
+        
+        response = user_accounts(request)
+        
+        self.assertEqual(response.status_code, 200)
+        # Check that Juan Cruz is in the context
+        self.assertIn('Juan', str(response.content))
+        # Should not contain Maria
+        self.assertNotIn('Maria Santos', str(response.content))
+
+    def test_search_by_last_name(self):
+        """Search should match partial last name."""
+        from django.test import RequestFactory
+        from accounts.views import user_accounts
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.contrib.sessions.middleware import SessionMiddleware
+        
+        factory = RequestFactory()
+        request = factory.get('/mswdo/user-accounts/', {'search': 'Cruz'})
+        request.user = self.mswdo_user
+        
+        middleware = SessionMiddleware(lambda x: None)
+        middleware.process_request(request)
+        request.session.save()
+        
+        messages = FallbackStorage(request)
+        setattr(request, '_messages', messages)
+        
+        response = user_accounts(request)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Cruz', str(response.content))
+        self.assertNotIn('Santos', str(response.content))
+
+    def test_search_by_email(self):
+        """Search should match partial email."""
+        from django.test import RequestFactory
+        from accounts.views import user_accounts
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.contrib.sessions.middleware import SessionMiddleware
+        
+        factory = RequestFactory()
+        request = factory.get('/mswdo/user-accounts/', {'search': 'maria.santos'})
+        request.user = self.mswdo_user
+        
+        middleware = SessionMiddleware(lambda x: None)
+        middleware.process_request(request)
+        request.session.save()
+        
+        messages = FallbackStorage(request)
+        setattr(request, '_messages', messages)
+        
+        response = user_accounts(request)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Maria Santos', str(response.content))
+        self.assertNotIn('Juan Cruz', str(response.content))
+
+    def test_search_by_username(self):
+        """Search should match partial username."""
+        from django.test import RequestFactory
+        from accounts.views import user_accounts
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.contrib.sessions.middleware import SessionMiddleware
+        
+        factory = RequestFactory()
+        request = factory.get('/mswdo/user-accounts/', {'search': 'staff_juan'})
+        request.user = self.mswdo_user
+        
+        middleware = SessionMiddleware(lambda x: None)
+        middleware.process_request(request)
+        request.session.save()
+        
+        messages = FallbackStorage(request)
+        setattr(request, '_messages', messages)
+        
+        response = user_accounts(request)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Juan Cruz', str(response.content))
+
+    def test_search_combined_with_role_filter(self):
+        """Search combined with role filter should use AND logic."""
+        from django.test import RequestFactory
+        from accounts.views import user_accounts
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.contrib.sessions.middleware import SessionMiddleware
+        
+        factory = RequestFactory()
+        # Search for "Maria" but filter by BARANGAY role
+        # Maria Santos is MSWDO_STAFF, Ana Garcia is BARANGAY with middle name Maria
+        request = factory.get('/mswdo/user-accounts/', {'search': 'Maria', 'role': 'BARANGAY'})
+        request.user = self.mswdo_user
+        
+        middleware = SessionMiddleware(lambda x: None)
+        middleware.process_request(request)
+        request.session.save()
+        
+        messages = FallbackStorage(request)
+        setattr(request, '_messages', messages)
+        
+        response = user_accounts(request)
+        
+        self.assertEqual(response.status_code, 200)
+        # Should find Ana Garcia (BARANGAY, middle name Maria)
+        self.assertIn('Ana Garcia', str(response.content))
+        # Should NOT find Maria Santos (MSWDO_STAFF)
+        self.assertNotIn('Maria Santos', str(response.content))
+
+    def test_search_combined_with_barangay_filter(self):
+        """Search combined with barangay filter should use AND logic."""
+        from django.test import RequestFactory
+        from accounts.views import user_accounts
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.contrib.sessions.middleware import SessionMiddleware
+        
+        factory = RequestFactory()
+        # Search for "Reyes" and filter by barangay
+        request = factory.get('/mswdo/user-accounts/', {'search': 'Reyes', 'role': 'BARANGAY', 'barangay': str(self.barangay.id)})
+        request.user = self.mswdo_user
+        
+        middleware = SessionMiddleware(lambda x: None)
+        middleware.process_request(request)
+        request.session.save()
+        
+        messages = FallbackStorage(request)
+        setattr(request, '_messages', messages)
+        
+        response = user_accounts(request)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Pedro Reyes', str(response.content))
+        self.assertNotIn('Juan Cruz', str(response.content))
+
+    def test_empty_search_returns_all(self):
+        """Empty or whitespace-only search should return unfiltered results."""
+        from django.test import RequestFactory
+        from accounts.views import user_accounts
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.contrib.sessions.middleware import SessionMiddleware
+        
+        factory = RequestFactory()
+        request = factory.get('/mswdo/user-accounts/', {'search': '   '})
+        request.user = self.mswdo_user
+        
+        middleware = SessionMiddleware(lambda x: None)
+        middleware.process_request(request)
+        request.session.save()
+        
+        messages = FallbackStorage(request)
+        setattr(request, '_messages', messages)
+        
+        response = user_accounts(request)
+        
+        self.assertEqual(response.status_code, 200)
+        # Should return all non-MSWDO users
+        self.assertIn('Juan Cruz', str(response.content))
+        self.assertIn('Maria Santos', str(response.content))
+        self.assertIn('Pedro Reyes', str(response.content))
+        self.assertIn('Ana Garcia', str(response.content))
+
+    def test_no_search_param_returns_all(self):
+        """No search parameter should return unfiltered results."""
+        from django.test import RequestFactory
+        from accounts.views import user_accounts
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.contrib.sessions.middleware import SessionMiddleware
+        
+        factory = RequestFactory()
+        request = factory.get('/mswdo/user-accounts/')
+        request.user = self.mswdo_user
+        
+        middleware = SessionMiddleware(lambda x: None)
+        middleware.process_request(request)
+        request.session.save()
+        
+        messages = FallbackStorage(request)
+        setattr(request, '_messages', messages)
+        
+        response = user_accounts(request)
+        
+        self.assertEqual(response.status_code, 200)
+        # Should return all non-MSWDO users
+        self.assertIn('Juan Cruz', str(response.content))
+        self.assertIn('Maria Santos', str(response.content))
+        self.assertIn('Pedro Reyes', str(response.content))
+        self.assertIn('Ana Garcia', str(response.content))

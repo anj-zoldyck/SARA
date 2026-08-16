@@ -240,11 +240,22 @@ def user_accounts(request):
     # Filtering logic
     role_filter = request.GET.get('role', '')
     barangay_filter = request.GET.get('barangay', '')
+    search_query = request.GET.get('search', '').strip()
 
     if role_filter in ['MSWDO_STAFF', 'BARANGAY']:
         users = users.filter(role=role_filter)
         if role_filter == 'BARANGAY' and barangay_filter:
             users = users.filter(barangay_id=barangay_filter)
+
+    # Search filter - OR across name, username, and email fields
+    if search_query:
+        users = users.filter(
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query) |
+            Q(middle_name__icontains=search_query) |
+            Q(username__icontains=search_query) |
+            Q(email__icontains=search_query)
+        )
 
     users = users.order_by('-date_joined')
     active_count = users.filter(is_active=True).count()
@@ -264,6 +275,7 @@ def user_accounts(request):
         'barangays': barangays,
         'selected_role': role_filter,
         'selected_barangay': barangay_filter,
+        'search_query': search_query,
     })
 
 

@@ -40,6 +40,57 @@
 
 {% if labels %}
 
+<!-- ── Demographics Panel ────────────────────────────────────────── -->
+<h3 class="dash-section-title mt-4 mb-3" style="font-size: 1.1rem; color: var(--clr-gray-700); font-weight: 600;">Resident Demographics & Stats</h3>
+<div class="dash-grid dash-grid--cards mb-4">
+  <!-- PWDs -->
+  <div class="stat-card stat-card--purple" style="--card-color: #8b5cf6;">
+    <div class="stat-card__icon">
+      <i class="bi bi-person-wheelchair"></i>
+    </div>
+    <div class="stat-card__body">
+      <span class="stat-card__label">Total PWDs</span>
+      <span class="stat-card__value">{{ pwd_count }}</span>
+    </div>
+  </div>
+
+  <!-- Solo Parents -->
+  <div class="stat-card stat-card--pink" style="--card-color: #ec4899;">
+    <div class="stat-card__icon">
+      <i class="bi bi-person-heart"></i>
+    </div>
+    <div class="stat-card__body">
+      <span class="stat-card__label">Solo Parents</span>
+      <span class="stat-card__value">{{ solo_parent_count }}</span>
+    </div>
+  </div>
+
+  <!-- Senior Citizens -->
+  <div class="stat-card stat-card--orange" style="--card-color: #f97316;">
+    <div class="stat-card__icon">
+      <i class="bi bi-person-walking"></i>
+    </div>
+    <div class="stat-card__body">
+      <span class="stat-card__label">Senior Citizens</span>
+      <span class="stat-card__value">{{ senior_count }}</span>
+    </div>
+  </div>
+
+  <!-- RFID Rate -->
+  <div class="stat-card stat-card--green" style="--card-color: #10b981;">
+    <div class="stat-card__icon">
+      <i class="bi bi-upc-scan"></i>
+    </div>
+    <div class="stat-card__body">
+      <span class="stat-card__label">RFID Registration</span>
+      <div class="d-flex align-items-baseline gap-2">
+        <span class="stat-card__value">{{ rfid_completion_percent }}%</span>
+        <span style="font-size: 0.8rem; opacity: 0.8;">({{ total_families_rfid }}/{{ total_families }})</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Single Row: Bar Chart & Summary ────────────────────────────────────────── -->
 <div class="analytics-grid">
   <!-- Bar Chart -->
@@ -75,6 +126,23 @@
         </div>
       </div>
     </div>
+    
+    <div class="stat-row mt-3">
+      <div class="stat-pill stat-pill--blue">
+        <span class="stat-pill__dot stat-pill__dot--blue"></span>
+        <div>
+          <span class="stat-pill__label">Coverage Rate</span>
+          <span class="stat-pill__value">{{ coverage_rate }}%</span>
+        </div>
+      </div>
+      <div class="stat-pill stat-pill--amber">
+        <span class="stat-pill__dot stat-pill__dot--amber"></span>
+        <div>
+          <span class="stat-pill__label">Unserved Families</span>
+          <span class="stat-pill__value">{{ unserved_families }}</span>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -89,13 +157,6 @@
 </div>
 
 {% endif %}
-
-<!-- Back Link -->
-<div class="page-back-row">
-  <a href="{% url 'barangay_dashboard' %}" class="btn-dash-outline">
-    <i class="bi bi-arrow-left"></i> Back to Dashboard
-  </a>
-</div>
 
 <!-- Safe data injection -->
 {{ labels|json_script:"chart-labels" }}

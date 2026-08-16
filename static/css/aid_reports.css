@@ -28,7 +28,7 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
-  min-width: 220px;
+  min-width: 0;
   flex: 1;
 }
 
@@ -397,6 +397,15 @@
   .rpt-filter-form {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .rpt-filter-form__fields {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .rpt-filter-form__group {
+    width: 100%;
   }
 
   .rpt-filter-btn {

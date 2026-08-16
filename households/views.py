@@ -110,8 +110,8 @@ def residents_overview(request):
     if filter_solo_parent:
         members_qs = members_qs.filter(is_solo_parent=True)
 
-    # Order by last name, then first name
-    members_qs = members_qs.order_by('last_name', 'first_name')
+    # Order by last name, then first name, then id for deterministic pagination
+    members_qs = members_qs.order_by('last_name', 'first_name', 'id')
 
     # Calculate stats
     total_members = members_qs.count()

@@ -273,8 +273,8 @@ def barangay_rfid_detail(request, barangay_id):
             Q(members__last_name__icontains=search_query)
         ).distinct()
     
-    # Order by family name
-    families_qs = families_qs.order_by('family_name')
+    # Order by family name, then id for deterministic pagination
+    families_qs = families_qs.order_by('family_name', 'id')
 
     # Calculate stats for this barangay
     total = families_qs.count()

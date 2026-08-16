@@ -141,7 +141,7 @@
         <tbody>
           {% for family in families %}
           <tr class="acct-row">
-            <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
+            <td class="acct-td acct-td--num">{{ page_obj.start_index|add:forloop.counter0 }}</td>
             <td class="acct-td">
               <div class="acct-barangay-cell" style="cursor: pointer;" onclick="openFamilyModal('{{ family.id }}')">
                 <div class="acct-avatar">{{ family.family_name|first|upper }}</div>
@@ -198,7 +198,7 @@
   <!-- Pagination -->
   {% if page_obj.has_other_pages %}
   <div class="dash-panel__body">
-    <nav aria-label="Page navigation">
+    <nav aria-label="Page navigation" data-pagination-id="barangay-rfid-detail">
       <ul class="pagination justify-content-center" style="gap: 8px;">
         {% if page_obj.has_previous %}
         <li class="page-item">
@@ -281,26 +281,27 @@
       btn.addEventListener('click', function(e) {
         e.preventDefault();
         const url = this.getAttribute('href');
-        loadPage(url);
+        const paginationId = this.closest('nav').getAttribute('data-pagination-id');
+        loadPage(url, paginationId);
       });
     });
   });
 
-  function loadPage(url) {
+  function loadPage(url, paginationId) {
     fetch(url)
       .then(response => response.text())
       .then(html => {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         
-        // Update table body
+        // Update table body using direct selector
         const newTableBody = doc.querySelector('.acct-table tbody');
         const currentTableBody = document.querySelector('.acct-table tbody');
         if (newTableBody && currentTableBody) {
           currentTableBody.innerHTML = newTableBody.innerHTML;
         }
         
-        // Update pagination
+        // Update pagination using direct selector
         const newPagination = doc.querySelector('.pagination');
         const currentPagination = document.querySelector('.pagination');
         if (newPagination && currentPagination) {
@@ -310,8 +311,9 @@
           newPaginationBtns.forEach(btn => {
             btn.addEventListener('click', function(e) {
               e.preventDefault();
-              const url = this.getAttribute('href');
-              loadPage(url);
+              const newUrl = this.getAttribute('href');
+              const newPaginationId = this.closest('nav').getAttribute('data-pagination-id');
+              loadPage(newUrl, newPaginationId);
             });
           });
         }

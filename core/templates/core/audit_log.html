@@ -8,8 +8,6 @@
 {% block css %}
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
-<link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
-<link rel="stylesheet" href="{% static 'css/register_rfid.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -32,6 +30,7 @@
       System security event tracking
     </p>
   </div>
+</div>
 
 <!-- ── Django Messages ────────────────────────────────────── -->
 {% if messages %}
@@ -46,17 +45,22 @@
 {% endfor %}
 {% endif %}
 
+<div class="dash-action-row mb-4">
+  <a href="{% url 'mswdo_dashboard' %}" class="btn-dash-outline">
+    <i class="bi bi-arrow-left"></i> Back to Dashboard
+  </a>
+</div>
 
 <!-- ── Filter Panel ───────────────────────────────────────── -->
-<div class="dash-panel rfid-filter-panel">
+<div class="dash-panel mb-4">
   <div class="dash-panel__body">
-    <form method="get">
-      <div class="rfid-filter-row">
-        <div class="rfid-filter-group">
-          <label class="rfid-filter-label" for="filter-actor">
-            <i class="bi bi-person"></i> Actor
-          </label>
-          <select class="rfid-filter-select" id="filter-actor" name="actor">
+    <form method="get" class="d-flex align-items-end gap-3 flex-wrap">
+      <div class="acct-form__group mb-0" style="min-width: 200px;">
+        <label class="acct-form__label" for="filter-actor">
+          <i class="bi bi-person"></i> Actor
+        </label>
+        <div class="acct-form__control-wrap">
+          <select class="form-control" id="filter-actor" name="actor">
             <option value="">All Users</option>
             {% for user in users %}
             <option value="{{ user.id }}" {% if selected_actor == user.id|stringformat:"s" %}selected{% endif %}>
@@ -65,12 +69,14 @@
             {% endfor %}
           </select>
         </div>
+      </div>
 
-        <div class="rfid-filter-group">
-          <label class="rfid-filter-label" for="filter-action-type">
-            <i class="bi bi-lightning"></i> Action Type
-          </label>
-          <select class="rfid-filter-select" id="filter-action-type" name="action_type">
+      <div class="acct-form__group mb-0" style="min-width: 200px;">
+        <label class="acct-form__label" for="filter-action-type">
+          <i class="bi bi-lightning"></i> Action Type
+        </label>
+        <div class="acct-form__control-wrap">
+          <select class="form-control" id="filter-action-type" name="action_type">
             <option value="">All Actions</option>
             {% for value, label in action_types %}
             <option value="{{ value }}" {% if selected_action_type == value %}selected{% endif %}>
@@ -79,26 +85,32 @@
             {% endfor %}
           </select>
         </div>
+      </div>
 
-        <div class="rfid-filter-group">
-          <label class="rfid-filter-label" for="filter-date-from">
-            <i class="bi bi-calendar-event"></i> Date From
-          </label>
-          <input type="datetime-local" class="rfid-filter-select" id="filter-date-from" name="date_from" value="{{ selected_date_from }}">
+      <div class="acct-form__group mb-0" style="min-width: 200px;">
+        <label class="acct-form__label" for="filter-date-from">
+          <i class="bi bi-calendar-event"></i> Date From
+        </label>
+        <div class="acct-form__control-wrap">
+          <input type="datetime-local" class="form-control" id="filter-date-from" name="date_from" value="{{ selected_date_from }}">
         </div>
+      </div>
 
-        <div class="rfid-filter-group">
-          <label class="rfid-filter-label" for="filter-date-to">
-            <i class="bi bi-calendar-event"></i> Date To
-          </label>
-          <input type="datetime-local" class="rfid-filter-select" id="filter-date-to" name="date_to" value="{{ selected_date_to }}">
+      <div class="acct-form__group mb-0" style="min-width: 200px;">
+        <label class="acct-form__label" for="filter-date-to">
+          <i class="bi bi-calendar-event"></i> Date To
+        </label>
+        <div class="acct-form__control-wrap">
+          <input type="datetime-local" class="form-control" id="filter-date-to" name="date_to" value="{{ selected_date_to }}">
         </div>
+      </div>
 
-        <div class="rfid-filter-group">
-          <label class="rfid-filter-label" for="filter-barangay">
-            <i class="bi bi-geo-alt"></i> Barangay
-          </label>
-          <select class="rfid-filter-select" id="filter-barangay" name="barangay">
+      <div class="acct-form__group mb-0" style="min-width: 200px;">
+        <label class="acct-form__label" for="filter-barangay">
+          <i class="bi bi-geo-alt"></i> Barangay
+        </label>
+        <div class="acct-form__control-wrap">
+          <select class="form-control" id="filter-barangay" name="barangay">
             <option value="">All Barangays</option>
             {% for barangay in barangays %}
             <option value="{{ barangay.id }}" {% if selected_barangay == barangay.id|stringformat:"s" %}selected{% endif %}>
@@ -107,16 +119,16 @@
             {% endfor %}
           </select>
         </div>
+      </div>
 
-        <div class="rfid-filter-actions">
-          <button type="submit" class="btn-dash-primary">
-            <i class="bi bi-funnel"></i> Apply Filter
-          </button>
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn-dash-primary">
+          <i class="bi bi-funnel"></i> Apply Filter
+        </button>
           <a href="{% url 'audit_log' %}" class="btn-dash-outline">
             <i class="bi bi-x-circle"></i> Clear
           </a>
         </div>
-      </div>
     </form>
   </div>
 </div>
@@ -128,23 +140,23 @@
   <div class="card-body">
     {% if page_obj %}
     <div class="table-responsive">
-      <table class="table table-striped table-hover">
+      <table class="acct-table">
         <thead>
           <tr>
-            <th>Timestamp</th>
-            <th>Actor</th>
-            <th>Action</th>
-            <th>Description</th>
-            <th>IP Address</th>
+            <th class="acct-th">Timestamp</th>
+            <th class="acct-th">Actor</th>
+            <th class="acct-th">Action</th>
+            <th class="acct-th">Description</th>
+            <th class="acct-th">IP Address</th>
           </tr>
         </thead>
         <tbody>
           {% for log in page_obj %}
-          <tr>
-            <td>
-              <small>{{ log.created_at|date:"Y-m-d H:i:s" }}</small>
+          <tr class="acct-row">
+            <td class="acct-td">
+              <div style="white-space: nowrap;">{{ log.created_at|date:"Y-m-d H:i:s" }}</div>
             </td>
-            <td>
+            <td class="acct-td">
               {% if log.actor %}
                 <strong>{{ log.actor.username }}</strong>
                 <br>
@@ -153,11 +165,11 @@
                 <span class="text-muted">Anonymous/System</span>
               {% endif %}
             </td>
-            <td>
+            <td class="acct-td">
               <span class="badge bg-info">{{ log.get_action_type_display }}</span>
             </td>
-            <td>{{ log.description }}</td>
-            <td>
+            <td class="acct-td">{{ log.description }}</td>
+            <td class="acct-td">
               {% if log.ip_address %}
                 <code>{{ log.ip_address }}</code>
               {% else %}
@@ -236,8 +248,8 @@
         const doc = parser.parseFromString(html, 'text/html');
         
         // Update table body
-        const newTableBody = doc.querySelector('.table tbody');
-        const currentTableBody = document.querySelector('.table tbody');
+        const newTableBody = doc.querySelector('.acct-table tbody');
+        const currentTableBody = document.querySelector('.acct-table tbody');
         if (newTableBody && currentTableBody) {
           currentTableBody.innerHTML = newTableBody.innerHTML;
         }

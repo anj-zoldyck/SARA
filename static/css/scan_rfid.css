@@ -61,10 +61,13 @@
 }
 
 .kiosk-modal {
-  background: #ffffff; /* Solid opaque white */
+  background: #ffffff;
   border-radius: 12px;
   width: 90%;
   max-width: 500px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 10px 30px rgba(0,0,0,0.2);
   transform: translateY(20px);
   transition: all 0.3s ease;
@@ -80,6 +83,7 @@
   padding: 20px;
   border-bottom: 1px solid var(--border-color);
   background: #ffffff;
+  flex-shrink: 0;
 }
 
 .kiosk-modal-title {
@@ -97,7 +101,8 @@
 
 .kiosk-modal-body {
   padding: 20px;
-  max-height: 60vh;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   background: #ffffff;
 }
@@ -106,9 +111,17 @@
   padding: 15px 20px;
   background: #ffffff;
   border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
   text-align: center;
   font-size: 0.85rem;
   color: var(--text-muted);
+}
+
+.kiosk-modal form {
+  padding: 15px 20px;
+  background: #ffffff;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 /* Error Modal Specifics */
@@ -294,4 +307,95 @@
 @keyframes pulse-icon {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.55; transform: scale(1.15); }
+}
+
+/* =============================================================
+   RESPONSIVE
+============================================================= */
+@media (max-width: 991.98px) {
+  .kiosk-modal {
+    width: 95vw;
+    max-width: 95vw;
+  }
+  
+  .kiosk-modal-body {
+    max-height: 70vh;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .kiosk-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .kiosk-status-pill {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .table-scroll-container {
+    max-height: 400px;
+  }
+  
+  .member-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .member-info {
+    width: 100%;
+  }
+  
+  .kiosk-modal-header,
+  .kiosk-modal-body,
+  .kiosk-modal-footer {
+    padding: 16px;
+  }
+  
+  .kiosk-modal-title {
+    font-size: 1.1rem;
+  }
+  
+  .success-avatar-container {
+    width: 64px;
+    height: 64px;
+  }
+  
+  .success-title {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .kiosk-modal {
+    width: 95vw;
+    max-width: 95vw;
+    margin: 10px;
+  }
+  
+  .kiosk-modal-body {
+    max-height: 60vh;
+    padding: 14px;
+  }
+  
+  .member-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+  
+  .member-name {
+    font-size: 0.9rem;
+  }
+  
+  .error-modal-icon {
+    font-size: 2.5rem;
+  }
+  
+  .error-modal-message {
+    font-size: 1rem;
+  }
 }

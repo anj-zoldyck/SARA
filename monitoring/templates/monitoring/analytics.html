@@ -14,12 +14,52 @@
     margin-bottom: 1.25rem;
   }
 
+  /* =============================================================
+     BREADCRUMB
+  ============================================================ */
+  .page-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .breadcrumb-link {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: color var(--transition);
+  }
+
+  .breadcrumb-link:hover {
+    color: var(--secondary);
+  }
+
+  .breadcrumb-sep {
+    font-size: 10px;
+    color: var(--border);
+  }
+
+  .breadcrumb-current {
+    font-size: 12.5px;
+    color: var(--secondary);
+    font-weight: 600;
+  }
+
   .analytics-grid--full {
     grid-template-columns: 1fr;
   }
 
+  .analytics-grid--3col {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
   @media (max-width: 768px) {
-    .analytics-grid {
+    .analytics-grid,
+    .analytics-grid--3col {
       grid-template-columns: 1fr;
     }
   }
@@ -75,6 +115,8 @@
   .stat-pill--blue  { background: #e8f0fe; }
   .stat-pill--amber { background: #fff3cd; }
   .stat-pill--teal  { background: #d1f2eb; }
+  .stat-pill--green { background: #dcfce7; }
+  .stat-pill--purple { background: #f3e8ff; }
 
   .stat-pill__dot {
     width: 10px;
@@ -86,6 +128,8 @@
   .stat-pill__dot--blue  { background: #0d2d6b; }
   .stat-pill__dot--amber { background: #fd7e14; }
   .stat-pill__dot--teal  { background: #0e9f6e; }
+  .stat-pill__dot--green { background: #166534; }
+  .stat-pill__dot--purple { background: #7c3aed; }
 
   .stat-pill__label {
     font-size: .78rem;
@@ -117,6 +161,68 @@
     font-size: .9rem;
     margin: 0;
   }
+
+  .filter-bar {
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid rgba(0,0,0,.08);
+    border-radius: .75rem;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .filter-bar__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+  }
+
+  .filter-group {
+    flex: 1;
+    min-width: 150px;
+  }
+
+  .filter-group label {
+    font-size: .8rem;
+    font-weight: 600;
+    color: #6c757d;
+    display: block;
+    margin-bottom: .4rem;
+  }
+
+  .filter-group select,
+  .filter-group input {
+    width: 100%;
+    padding: .5rem .75rem;
+    border: 1px solid rgba(0,0,0,.15);
+    border-radius: .375rem;
+    font-size: .9rem;
+  }
+
+  .filter-group select:focus,
+  .filter-group input:focus {
+    outline: none;
+    border-color: #0d2d6b;
+    box-shadow: 0 0 0 2px rgba(13, 45, 107, .1);
+  }
+
+
+  .aid-note {
+    font-size: .75rem;
+    color: #6c757d;
+    margin-top: .25rem;
+  }
+
+  .table {
+    font-size: .9rem;
+  }
+
+  .table th {
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #6c757d;
+  }
 </style>
 {% endblock %}
 
@@ -135,7 +241,7 @@
     <h1 class="dash-page-title">Aid Analytics</h1>
     <p class="dash-page-sub">
       <i class="bi bi-bar-chart-line me-1"></i>
-      Visual summary of aid claims across all programs
+      Comprehensive aid claims analysis with filtering
     </p>
   </div>
   <div class="dash-header-actions">
@@ -145,89 +251,199 @@
   </div>
 </div>
 
-{% if labels %}
+<!-- ── Filter Bar ─────────────────────────────────────────── -->
+<div class="filter-bar">
+  <div class="filter-bar__row">
+    <div class="filter-group">
+      <label for="filter-aid-category">Aid Type</label>
+      <select id="filter-aid-category">
+        <option value="">All Categories</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="filter-program">Aid Program</label>
+      <select id="filter-program">
+        <option value="">All Programs</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="filter-barangay">Barangay</label>
+      <select id="filter-barangay">
+        <option value="">All Barangays</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="filter-gender">Gender</label>
+      <select id="filter-gender">
+        <option value="">All Genders</option>
+        <option value="M">Male</option>
+        <option value="F">Female</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="filter-age-bracket">Age Bracket</label>
+      <select id="filter-age-bracket">
+        <option value="">All Ages</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="filter-date-from">Date From</label>
+      <input type="date" id="filter-date-from">
+    </div>
+    <div class="filter-group">
+      <label for="filter-date-to">Date To</label>
+      <input type="date" id="filter-date-to">
+    </div>
+    <button class="btn-dash-primary" id="apply-filters">
+      <i class="bi bi-funnel"></i> Apply Filters
+    </button>
+    <button class="btn-dash-outline" id="clear-filters">
+      <i class="bi bi-x-circle"></i> Clear
+    </button>
+  </div>
+</div>
 
-<!-- ── Row 1: Pie + Bar ────────────────────────────────────── -->
+<!-- ── Loading State ───────────────────────────────────────── -->
+<div id="loading-state" class="chart-panel">
+  <div class="empty-state">
+    <i class="bi bi-hourglass-split"></i>
+    <p>Loading analytics data...</p>
+  </div>
+</div>
+
+<!-- ── Analytics Content (Hidden until loaded) ─────────────── -->
+<div id="analytics-content" style="display: none;">
+
+<!-- ── KPI Cards Row ───────────────────────────────────────── -->
+<div class="stat-row" style="margin-bottom: 1.25rem;">
+  <div class="stat-pill stat-pill--blue">
+    <span class="stat-pill__dot stat-pill__dot--blue"></span>
+    <div>
+      <span class="stat-pill__label">Total Claims</span>
+      <span class="stat-pill__value" id="kpi-total-claims">—</span>
+    </div>
+  </div>
+  <div class="stat-pill stat-pill--amber">
+    <span class="stat-pill__dot stat-pill__dot--amber"></span>
+    <div>
+      <span class="stat-pill__label">Unique Beneficiaries</span>
+      <span class="stat-pill__value" id="kpi-unique-beneficiaries">—</span>
+    </div>
+  </div>
+  <div class="stat-pill stat-pill--teal">
+    <span class="stat-pill__dot stat-pill__dot--teal"></span>
+    <div>
+      <span class="stat-pill__label">Total Aid Released (Scheduled)</span>
+      <span class="stat-pill__value" id="kpi-total-aid">—</span>
+      <span class="aid-note" id="walkin-note"></span>
+    </div>
+  </div>
+  <div class="stat-pill stat-pill--green">
+    <span class="stat-pill__dot stat-pill__dot--green"></span>
+    <div>
+      <span class="stat-pill__label">Aid Programs</span>
+      <span class="stat-pill__value" id="kpi-programs">—</span>
+    </div>
+  </div>
+  <div class="stat-pill stat-pill--purple">
+    <span class="stat-pill__dot stat-pill__dot--purple"></span>
+    <div>
+      <span class="stat-pill__label">Barangays Covered</span>
+      <span class="stat-pill__value" id="kpi-barangays">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Row 1: Claims by Aid Type (Donut) + Trend (Line) ───── -->
 <div class="analytics-grid">
-
-  <!-- Pie Chart -->
   <div class="chart-panel">
     <p class="chart-panel__title">Distribution</p>
     <p class="chart-panel__sub">Claims by Aid Type</p>
     <div class="chart-wrap chart-wrap--pie">
-      <canvas id="aidPieChart"></canvas>
+      <canvas id="aidTypeDonut"></canvas>
     </div>
-    <div class="stat-row">
-      <div class="stat-pill stat-pill--blue">
-        <span class="stat-pill__dot stat-pill__dot--blue"></span>
-        <div>
-          <span class="stat-pill__label">Relief</span>
-          <span class="stat-pill__value" id="relief-count">—</span>
-        </div>
-      </div>
-      <div class="stat-pill stat-pill--amber">
-        <span class="stat-pill__dot stat-pill__dot--amber"></span>
-        <div>
-          <span class="stat-pill__label">Senior</span>
-          <span class="stat-pill__value" id="senior-count">—</span>
-        </div>
-      </div>
-    </div>
+    <div id="aid-type-legend" style="margin-top: 1rem; font-size: .85rem;"></div>
   </div>
-
-  <!-- Bar Chart -->
   <div class="chart-panel">
-    <p class="chart-panel__title">Comparison</p>
-    <p class="chart-panel__sub">Claims Count per Aid Type</p>
+    <p class="chart-panel__title">Trend</p>
+    <p class="chart-panel__sub">Claims Over Time (Monthly)</p>
     <div class="chart-wrap">
-      <canvas id="aidBarChart"></canvas>
+      <canvas id="claimsTrend"></canvas>
     </div>
   </div>
-
 </div>
 
-<!-- ── Row 2: Total Summary ────────────────────────────────── -->
+<!-- ── Row 2: Age, Gender, Top Barangays ───────────────────── -->
+<div class="analytics-grid analytics-grid--3col">
+  <div class="chart-panel">
+    <p class="chart-panel__title">Demographics</p>
+    <p class="chart-panel__sub">Beneficiaries by Age Bracket</p>
+    <div class="chart-wrap">
+      <canvas id="ageBarChart"></canvas>
+    </div>
+  </div>
+  <div class="chart-panel">
+    <p class="chart-panel__title">Gender</p>
+    <p class="chart-panel__sub">Beneficiaries by Gender</p>
+    <div class="chart-wrap chart-wrap--pie">
+      <canvas id="genderDonut"></canvas>
+    </div>
+  </div>
+  <div class="chart-panel">
+    <p class="chart-panel__title">Top Locations</p>
+    <p class="chart-panel__sub">Top 5 Barangays by Claims</p>
+    <div class="chart-wrap">
+      <canvas id="topBarangaysChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ── Row 3: Recent Claims Table ──────────────────────────── -->
 <div class="analytics-grid analytics-grid--full">
   <div class="chart-panel">
-    <p class="chart-panel__title">Overview</p>
-    <p class="chart-panel__sub">Total Claims Summary</p>
-    <div class="stat-row">
-      <div class="stat-pill stat-pill--blue">
-        <span class="stat-pill__dot stat-pill__dot--blue"></span>
-        <div>
-          <span class="stat-pill__label">Relief Claims</span>
-          <span class="stat-pill__value" id="relief-count-2">—</span>
-        </div>
-      </div>
-      <div class="stat-pill stat-pill--amber">
-        <span class="stat-pill__dot stat-pill__dot--amber"></span>
-        <div>
-          <span class="stat-pill__label">Senior Claims</span>
-          <span class="stat-pill__value" id="senior-count-2">—</span>
-        </div>
-      </div>
-      <div class="stat-pill stat-pill--teal">
-        <span class="stat-pill__dot stat-pill__dot--teal"></span>
-        <div>
-          <span class="stat-pill__label">Total Claims</span>
-          <span class="stat-pill__value" id="total-count">—</span>
-        </div>
-      </div>
+    <p class="chart-panel__title">Recent Activity</p>
+    <p class="chart-panel__sub">Most Recent Aid Claims</p>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Beneficiary</th>
+            <th>Aid Type</th>
+            <th>Barangay</th>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Type</th>
+          </tr>
+        </thead>
+        <tbody id="recent-claims-body">
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
 
-{% else %}
-
-<!-- Empty State -->
-<div class="chart-panel">
-  <div class="empty-state">
-    <i class="bi bi-bar-chart-line"></i>
-    <p>No claims data available yet. Claims will appear here once aid distributions begin.</p>
+<!-- ── Row 4: Summary by Program ───────────────────────────── -->
+<div class="analytics-grid analytics-grid--full">
+  <div class="chart-panel">
+    <p class="chart-panel__title">Program Breakdown</p>
+    <p class="chart-panel__sub">Summary by Aid Program</p>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Program</th>
+            <th>Claims</th>
+            <th>Percentage</th>
+          </tr>
+        </thead>
+        <tbody id="program-summary-body">
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
-{% endif %}
+</div>
 
 <!-- Back Link -->
 <div class="page-back-row">
@@ -236,113 +452,414 @@
   </a>
 </div>
 
-<!-- Safe data injection using |json_script — no XSS risk -->
-{{ labels|json_script:"chart-labels" }}
-{{ data|json_script:"chart-data" }}
-
 {% endblock %}
 
 {% block js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  // Read data safely — no mark_safe, no inline JSON
-  const labels = JSON.parse(document.getElementById('chart-labels').textContent);
-  const data   = JSON.parse(document.getElementById('chart-data').textContent);
+  document.addEventListener('DOMContentLoaded', function() {
+    // Set default date range (current year to date)
+    const today = new Date();
+    const yearStart = new Date(today.getFullYear(), 0, 1);
+    document.getElementById('filter-date-from').value = yearStart.toISOString().split('T')[0];
+    document.getElementById('filter-date-to').value = today.toISOString().split('T')[0];
 
-  const COLORS = {
-    RELIEF: '#0d2d6b',
-    SENIOR: '#fd7e14',
-  };
+    // Chart instances
+    let aidTypeDonut = null;
+    let claimsTrend = null;
+    let ageBarChart = null;
+    let genderDonut = null;
+    let topBarangaysChart = null;
 
-  const bgColors = labels.map(l => COLORS[l] || '#6c757d');
+    // Color palette for dynamic categories
+    const colorPalette = [
+      '#0d2d6b', '#fd7e14', '#0e9f6e', '#7c3aed', '#dc2626',
+      '#0891b2', '#ca8a04', '#be185d', '#4d7c0f', '#9333ea'
+    ];
 
-  // ── Pie Chart ──────────────────────────────────────────
-  const pieCtx = document.getElementById('aidPieChart');
-  if (pieCtx) {
-    new Chart(pieCtx, {
-      type: 'pie',
-      data: {
-        labels: labels,
-        datasets: [{
-          data: data,
-          backgroundColor: bgColors,
-          borderWidth: 2,
-          borderColor: '#fff',
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { position: 'bottom' },
-          tooltip: {
-            callbacks: {
-              label: ctx => ` ${ctx.label}: ${ctx.parsed} claims`
-            }
-          }
-        }
+    // Gender colors (consistent with dashboard)
+    const maleColor = '#0d47a1';
+    const femaleColor = '#ec4899';
+
+    // Fetch analytics data
+    function fetchAnalytics() {
+      const params = new URLSearchParams();
+      
+      const aidCategory = document.getElementById('filter-aid-category').value;
+      const program = document.getElementById('filter-program').value;
+      const barangay = document.getElementById('filter-barangay').value;
+      const gender = document.getElementById('filter-gender').value;
+      const ageBracket = document.getElementById('filter-age-bracket').value;
+      const dateFrom = document.getElementById('filter-date-from').value;
+      const dateTo = document.getElementById('filter-date-to').value;
+
+      if (aidCategory) params.append('aid_category', aidCategory);
+      if (program) params.append('program', program);
+      if (barangay) params.append('barangay', barangay);
+      if (gender) params.append('gender', gender);
+      if (ageBracket) params.append('age_bracket', ageBracket);
+      if (dateFrom) params.append('date_from', dateFrom);
+      if (dateTo) params.append('date_to', dateTo);
+
+      const url = `{% url 'analytics_api' %}?${params.toString()}`;
+
+      fetch(url)
+        .then(res => {
+          if (!res.ok) throw new Error('Network error');
+          return res.json();
+        })
+        .then(data => {
+          populateFilterOptions(data.filter_options);
+          updateKPIs(data.kpis);
+          renderAidTypeDonut(data.claims_by_aid_type);
+          renderClaimsTrend(data.claims_trend);
+          renderAgeBarChart(data.beneficiaries_by_age);
+          renderGenderDonut(data.beneficiaries_by_gender);
+          renderTopBarangays(data.top_barangays);
+          renderRecentClaims(data.recent_claims);
+          renderProgramSummary(data.summary_by_program);
+
+          document.getElementById('loading-state').style.display = 'none';
+          document.getElementById('analytics-content').style.display = 'block';
+        })
+        .catch(err => {
+          console.error('Failed to fetch analytics:', err);
+          document.getElementById('loading-state').innerHTML = `
+            <div class="empty-state">
+              <i class="bi bi-exclamation-triangle"></i>
+              <p>Failed to load analytics data. Please try again.</p>
+            </div>
+          `;
+        });
+    }
+
+    // Populate filter options
+    function populateFilterOptions(options) {
+      // Aid Categories
+      const catSelect = document.getElementById('filter-aid-category');
+      if (catSelect.options.length <= 1) {
+        options.aid_categories.forEach(cat => {
+          const opt = document.createElement('option');
+          opt.value = cat.id;
+          opt.textContent = cat.name;
+          catSelect.appendChild(opt);
+        });
       }
-    });
-  }
 
-  // ── Bar Chart ──────────────────────────────────────────
-  const barCtx = document.getElementById('aidBarChart');
-  if (barCtx) {
-    new Chart(barCtx, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Claims',
-          data: data,
-          backgroundColor: bgColors,
-          borderRadius: 6,
-          borderSkipped: false,
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: ctx => ` ${ctx.parsed.y} claims`
-            }
-          }
+      // Programs
+      const progSelect = document.getElementById('filter-program');
+      if (progSelect.options.length <= 1) {
+        options.programs.forEach(prog => {
+          const opt = document.createElement('option');
+          opt.value = prog.id;
+          opt.textContent = prog.name;
+          progSelect.appendChild(opt);
+        });
+      }
+
+      // Barangays
+      const brgySelect = document.getElementById('filter-barangay');
+      if (brgySelect.options.length <= 1) {
+        options.barangays.forEach(brgy => {
+          const opt = document.createElement('option');
+          opt.value = brgy.id;
+          opt.textContent = brgy.name;
+          brgySelect.appendChild(opt);
+        });
+      }
+
+      // Age Brackets
+      const ageSelect = document.getElementById('filter-age-bracket');
+      if (ageSelect.options.length <= 1) {
+        options.age_brackets.forEach((bracket, idx) => {
+          const opt = document.createElement('option');
+          opt.value = idx;
+          opt.textContent = bracket.label;
+          ageSelect.appendChild(opt);
+        });
+      }
+    }
+
+    // Update KPIs
+    function updateKPIs(kpis) {
+      document.getElementById('kpi-total-claims').textContent = kpis.total_claims.toLocaleString();
+      document.getElementById('kpi-unique-beneficiaries').textContent = kpis.unique_beneficiaries.toLocaleString();
+      document.getElementById('kpi-total-aid').textContent = '₱' + kpis.total_aid_released.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      document.getElementById('kpi-programs').textContent = kpis.programs_with_claims;
+      document.getElementById('kpi-barangays').textContent = `${kpis.barangays_covered} / ${kpis.total_barangays}`;
+      
+      if (kpis.walkin_count > 0) {
+        document.getElementById('walkin-note').textContent = `${kpis.walkin_count} walk-in claims not included — amount not tracked`;
+      } else {
+        document.getElementById('walkin-note').textContent = '';
+      }
+    }
+
+    // Render Aid Type Donut
+    function renderAidTypeDonut(data) {
+      const ctx = document.getElementById('aidTypeDonut');
+      if (!ctx) return;
+
+      const labels = data.map(d => d.name);
+      const values = data.map(d => d.count);
+      const colors = data.map((_, i) => colorPalette[i % colorPalette.length]);
+
+      if (aidTypeDonut) aidTypeDonut.destroy();
+
+      aidTypeDonut = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: values,
+            backgroundColor: colors,
+            borderWidth: 2,
+            borderColor: '#fff'
+          }]
         },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { stepSize: 1 },
-            grid: { color: 'rgba(0,0,0,.05)' }
-          },
-          x: {
-            grid: { display: false }
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => {
+                  const label = ctx.label || '';
+                  const value = ctx.parsed;
+                  const percentage = data[ctx.dataIndex].percentage;
+                  return ` ${label}: ${value} (${percentage}%)`;
+                }
+              }
+            }
           }
         }
+      });
+
+      // Custom legend
+      const legendContainer = document.getElementById('aid-type-legend');
+      legendContainer.innerHTML = data.map((d, i) => `
+        <div style="display: inline-flex; align-items: center; margin-right: 1rem; margin-bottom: 0.5rem;">
+          <span style="width: 12px; height: 12px; border-radius: 50%; background: ${colors[i]}; margin-right: 0.5rem;"></span>
+          <span>${d.name}: ${d.count} (${d.percentage}%)</span>
+        </div>
+      `).join('');
+    }
+
+    // Render Claims Trend
+    function renderClaimsTrend(data) {
+      const ctx = document.getElementById('claimsTrend');
+      if (!ctx) return;
+
+      const labels = data.map(d => d.month);
+      const values = data.map(d => d.count);
+
+      if (claimsTrend) claimsTrend.destroy();
+
+      claimsTrend = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Claims',
+            data: values,
+            borderColor: '#0d2d6b',
+            backgroundColor: 'rgba(13, 45, 107, 0.1)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { stepSize: 1 }
+            }
+          }
+        }
+      });
+    }
+
+    // Render Age Bar Chart
+    function renderAgeBarChart(data) {
+      const ctx = document.getElementById('ageBarChart');
+      if (!ctx) return;
+
+      const labels = data.map(d => d.label);
+      const values = data.map(d => d.count);
+
+      if (ageBarChart) ageBarChart.destroy();
+
+      ageBarChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Beneficiaries',
+            data: values,
+            backgroundColor: '#0e9f6e',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: { stepSize: 1 }
+            }
+          }
+        }
+      });
+    }
+
+    // Render Gender Donut
+    function renderGenderDonut(data) {
+      const ctx = document.getElementById('genderDonut');
+      if (!ctx) return;
+
+      const labels = data.map(d => d.label);
+      const values = data.map(d => d.count);
+      const colors = [maleColor, femaleColor];
+
+      if (genderDonut) genderDonut.destroy();
+
+      genderDonut = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: values,
+            backgroundColor: colors,
+            borderWidth: 2,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'bottom',
+              labels: {
+                usePointStyle: true,
+                padding: 15
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: ctx => {
+                  const label = ctx.label || '';
+                  const value = ctx.parsed;
+                  const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                  return ` ${label}: ${value} (${percentage}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Render Top Barangays
+    function renderTopBarangays(data) {
+      const ctx = document.getElementById('topBarangaysChart');
+      if (!ctx) return;
+
+      const labels = data.map(d => d.name);
+      const values = data.map(d => d.count);
+
+      if (topBarangaysChart) topBarangaysChart.destroy();
+
+      topBarangaysChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Claims',
+            data: values,
+            backgroundColor: '#7c3aed',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: { stepSize: 1 }
+            }
+          }
+        }
+      });
+    }
+
+    // Render Recent Claims Table
+    function renderRecentClaims(data) {
+      const tbody = document.getElementById('recent-claims-body');
+      if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No claims found</td></tr>';
+        return;
       }
+
+      tbody.innerHTML = data.map(claim => `
+        <tr>
+          <td class="fw-medium">${claim.beneficiary}</td>
+          <td>${claim.aid_type}</td>
+          <td>${claim.barangay}</td>
+          <td>${claim.claimed_at}</td>
+          <td>${claim.amount ? '₱' + claim.amount.toLocaleString('en-PH', {minimumFractionDigits: 2}) : 'N/A'}</td>
+          <td><span class="badge ${claim.claim_type === 'WALK_IN' ? 'bg-success' : 'bg-primary'}">${claim.claim_type === 'WALK_IN' ? 'Walk-in' : 'Distribution'}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    // Render Program Summary Table
+    function renderProgramSummary(data) {
+      const tbody = document.getElementById('program-summary-body');
+      if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No programs found</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = data.map(prog => `
+        <tr>
+          <td class="fw-medium">${prog.program}</td>
+          <td>${prog.count.toLocaleString()}</td>
+          <td>${prog.percentage}%</td>
+        </tr>
+      `).join('');
+    }
+
+    // Event listeners
+    document.getElementById('apply-filters').addEventListener('click', fetchAnalytics);
+    
+    // Clear filters
+    document.getElementById('clear-filters').addEventListener('click', function() {
+      document.getElementById('filter-aid-category').value = '';
+      document.getElementById('filter-program').value = '';
+      document.getElementById('filter-barangay').value = '';
+      document.getElementById('filter-gender').value = '';
+      document.getElementById('filter-age-bracket').value = '';
+      document.getElementById('filter-date-from').value = '';
+      document.getElementById('filter-date-to').value = '';
+      fetchAnalytics();
     });
-  }
 
-  // ── Stat Pills ─────────────────────────────────────────
-  let reliefCount = 0;
-  let seniorCount = 0;
-
-  labels.forEach((label, i) => {
-    if (label === 'RELIEF') reliefCount = data[i];
-    if (label === 'SENIOR') seniorCount = data[i];
+    // Initial fetch
+    fetchAnalytics();
   });
-
-  const total = data.reduce((a, b) => a + b, 0);
-
-  ['relief-count', 'relief-count-2'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = reliefCount;
-  });
-  ['senior-count', 'senior-count-2'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = seniorCount;
-  });
-  const totalEl = document.getElementById('total-count');
-  if (totalEl) totalEl.textContent = total;
 </script>
 {% endblock %}

@@ -10,6 +10,14 @@
 <link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
 <link rel="stylesheet" href="{% static 'css/households.css' %}">
 <link rel="stylesheet" href="{% static 'css/register_rfid.css' %}">
+<style>
+  #filter-zone:disabled {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -60,8 +68,8 @@
         <label class="rfid-filter-label" for="filter-zone">
           <i class="bi bi-map"></i> Zone
         </label>
-        <select class="rfid-filter-select" id="filter-zone">
-          <option value="">All Zones</option>
+        <select class="rfid-filter-select" id="filter-zone" disabled>
+          <option value="">Select a Barangay first</option>
           {% for zone in all_zones %}
             <option value="{{ zone.id }}"
                     data-barangay="{{ zone.barangay_id }}"
@@ -411,20 +419,33 @@
   // ── Filter: cascade zones by barangay ───────────────────────
   const brgySelect  = document.getElementById('filter-barangay');
   const zoneSelect  = document.getElementById('filter-zone');
-  const allZoneOpts = Array.from(zoneSelect.options).slice(1); // skip "All Zones"
+  const allZoneOpts = Array.from(zoneSelect.options).slice(1); // skip placeholder
 
   function cascadeZones() {
     const brgyId = brgySelect.value;
-    // Remove all zone options except the first (All Zones)
+    zoneSelect.value = ''; // reset zone selection
+    // Remove all zone options except the first (placeholder)
     while (zoneSelect.options.length > 1) zoneSelect.remove(1);
     allZoneOpts.forEach(opt => {
       if (!brgyId || opt.dataset.barangay === brgyId) {
         zoneSelect.add(opt.cloneNode(true));
       }
     });
+    // Enable/disable based on barangay selection
+    if (brgyId) {
+      zoneSelect.disabled = false;
+    } else {
+      zoneSelect.disabled = true;
+    }
   }
 
   brgySelect.addEventListener('change', cascadeZones);
+  // Initial state: disabled if no barangay selected
+  if (!brgySelect.value) {
+    zoneSelect.disabled = true;
+  } else {
+    cascadeZones();
+  }
 
   // ── Apply filter → submit as GET params ─────────────────────
   document.getElementById('btn-apply-filter').addEventListener('click', () => {

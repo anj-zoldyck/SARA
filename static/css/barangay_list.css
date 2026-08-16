@@ -172,7 +172,7 @@
   align-items: center;
   gap: 12px;
   flex: 1;
-  min-width: 140px;
+  min-width: 0;
 }
 
 .brgy-info-divider {
@@ -211,10 +211,10 @@
   font-weight: 700;
   color: var(--text-main);
   line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 160px;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: none;
 }
 
 .brgy-info-label {

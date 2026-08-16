@@ -63,6 +63,13 @@ class AidClaim(models.Model):
     )
     schedule = models.ForeignKey('AidSchedule', on_delete=models.CASCADE, null=True)
     claimed_at = models.DateTimeField(auto_now_add=True)
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Actual amount distributed to the beneficiary. Auto-filled from schedule.per_beneficiary_amount for scheduled claims, manually entered for walk-ins."
+    )
     created_by = models.ForeignKey(
             settings.AUTH_USER_MODEL,
             on_delete=models.SET_NULL,

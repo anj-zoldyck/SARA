@@ -68,9 +68,18 @@
 </div>
 
 <!-- ── Filters ─────────────────────────────────────────────── -->
-<div class="dash-panel">
+<div class="dash-panel mb-4">
   <div class="dash-panel__body">
     <form method="get" id="filterForm" class="d-flex align-items-end gap-3 flex-wrap">
+      
+      <div class="acct-form__group mb-0" style="min-width: 250px;">
+        <label class="acct-form__label" for="searchFilter">
+          <i class="bi bi-search"></i> Search
+        </label>
+        <div class="acct-form__control-wrap">
+          <input type="text" name="search" class="form-control" id="searchFilter" placeholder="Search by name, username, or email..." value="{{ search_query }}">
+        </div>
+      </div>
       
       <div class="acct-form__group mb-0" style="min-width: 200px;">
         <label class="acct-form__label" for="roleFilter">
@@ -232,10 +241,10 @@
       <ul class="pagination justify-content-center" style="gap: 8px;">
         {% if page_obj.has_previous %}
         <li class="page-item">
-          <a class="page-link pagination-btn" data-page="1" href="?page=1{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}">&laquo;&laquo;</a>
+          <a class="page-link pagination-btn" data-page="1" href="?page=1{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">&laquo;&laquo;</a>
         </li>
         <li class="page-item">
-          <a class="page-link pagination-btn" data-page="{{ page_obj.previous_page_number }}" href="?page={{ page_obj.previous_page_number }}{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}">&laquo;</a>
+          <a class="page-link pagination-btn" data-page="{{ page_obj.previous_page_number }}" href="?page={{ page_obj.previous_page_number }}{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">&laquo;</a>
         </li>
         {% else %}
         <li class="page-item disabled"><span class="page-link">&laquo;&laquo;</span></li>
@@ -248,10 +257,10 @@
 
         {% if page_obj.has_next %}
         <li class="page-item">
-          <a class="page-link pagination-btn" data-page="{{ page_obj.next_page_number }}" href="?page={{ page_obj.next_page_number }}{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}">&raquo;</a>
+          <a class="page-link pagination-btn" data-page="{{ page_obj.next_page_number }}" href="?page={{ page_obj.next_page_number }}{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">&raquo;</a>
         </li>
         <li class="page-item">
-          <a class="page-link pagination-btn" data-page="{{ page_obj.paginator.num_pages }}" href="?page={{ page_obj.paginator.num_pages }}{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}">&raquo;&raquo;</a>
+          <a class="page-link pagination-btn" data-page="{{ page_obj.paginator.num_pages }}" href="?page={{ page_obj.paginator.num_pages }}{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">&raquo;&raquo;</a>
         </li>
         {% else %}
         <li class="page-item disabled"><span class="page-link">&raquo;</span></li>

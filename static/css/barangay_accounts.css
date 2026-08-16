@@ -60,7 +60,7 @@
   align-items: center;
   gap: 12px;
   flex: 1;
-  min-width: 140px;
+  min-width: 0;
 }
 
 .acct-summary-divider {
@@ -628,6 +628,16 @@
 
   .acct-btn {
     padding: 7px 9px;
+  }
+
+  .acct-actions {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .acct-actions .acct-btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .form-side {

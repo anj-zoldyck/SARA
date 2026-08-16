@@ -10,6 +10,14 @@
 <link rel="stylesheet" href="{% static 'css/barangay_list.css' %}">
 <link rel="stylesheet" href="{% static 'css/households.css' %}">
 <link rel="stylesheet" href="{% static 'css/register_rfid.css' %}">
+<style>
+  #filter-zone:disabled {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -59,8 +67,8 @@
         <label class="rfid-filter-label" for="filter-zone">
           <i class="bi bi-map"></i> Zone
         </label>
-        <select class="rfid-filter-select" id="filter-zone">
-          <option value="">All Zones</option>
+        <select class="rfid-filter-select" id="filter-zone" disabled>
+          <option value="">Select a Barangay first</option>
           {% for zone in all_zones %}
             <option value="{{ zone.id }}"
                     data-barangay="{{ zone.barangay_id }}"
@@ -187,7 +195,7 @@
         <tbody>
           {% for member in members %}
           <tr class="acct-row">
-            <td class="acct-td acct-td--num">{{ forloop.counter }}</td>
+            <td class="acct-td acct-td--num">{{ page_obj.start_index|add:forloop.counter0 }}</td>
             <td class="acct-td">
               <div class="d-flex align-items-center gap-2" style="cursor: pointer;" onclick="openMemberModal('{{ member.id }}')">
                 <div class="acct-avatar" style="width: 32px; height: 32px; font-size: 0.8rem;">
@@ -221,7 +229,7 @@
             </td>
             <td class="acct-td acct-td--actions">
               <div class="acct-actions">
-                <a href="{% url 'family_detail' member.family.id %}" class="acct-btn acct-btn--edit">
+                <a href="{% url 'family_detail' member.family.id %}?from=residents{% if selected_barangay %}&barangay={{ selected_barangay.id }}{% endif %}{% if selected_zone %}&zone={{ selected_zone.id }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter_senior %}&senior=on{% endif %}{% if filter_pwd %}&pwd=on{% endif %}{% if filter_solo_parent %}&solo_parent=on{% endif %}{% if page_obj.number %}&page={{ page_obj.number }}{% endif %}" class="acct-btn acct-btn--edit">
                   <i class="bi bi-eye"></i><span>View</span>
                 </a>
               </div>
@@ -245,7 +253,7 @@
   <!-- Pagination -->
   {% if page_obj.has_other_pages %}
   <div class="dash-panel__body">
-    <nav aria-label="Page navigation">
+    <nav aria-label="Page navigation" data-pagination-id="residents-overview">
       <ul class="pagination justify-content-center" style="gap: 8px;">
         {% if page_obj.has_previous %}
         <li class="page-item">
@@ -316,21 +324,30 @@
   // ── Zone Cascade Logic ──────────────────────────────────────────────────
   const brgySelect  = document.getElementById('filter-barangay');
   const zoneSelect  = document.getElementById('filter-zone');
-  const allZoneOpts = Array.from(zoneSelect.options).slice(1); // skip "All Zones"
+  const allZoneOpts = Array.from(zoneSelect.options).slice(1); // skip placeholder
 
   function cascadeZones() {
     const brgyId = brgySelect.value;
+    zoneSelect.value = ''; // reset zone selection
     while (zoneSelect.options.length > 1) zoneSelect.remove(1);
     allZoneOpts.forEach(opt => {
       if (!brgyId || opt.dataset.barangay === brgyId) {
         zoneSelect.add(opt.cloneNode(true));
       }
     });
+    // Enable/disable based on barangay selection
+    if (brgyId) {
+      zoneSelect.disabled = false;
+    } else {
+      zoneSelect.disabled = true;
+    }
   }
   brgySelect.addEventListener('change', cascadeZones);
   // trigger on load if barangay is selected
   if (brgySelect.value) {
     cascadeZones();
+  } else {
+    zoneSelect.disabled = true; // ensure disabled on initial load
   }
 
   // ── Apply filter → submit as GET params ─────────────────────
@@ -363,26 +380,27 @@
       btn.addEventListener('click', function(e) {
         e.preventDefault();
         const url = this.getAttribute('href');
-        loadPage(url);
+        const paginationId = this.closest('nav').getAttribute('data-pagination-id');
+        loadPage(url, paginationId);
       });
     });
   });
 
-  function loadPage(url) {
+  function loadPage(url, paginationId) {
     fetch(url)
       .then(response => response.text())
       .then(html => {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         
-        // Update table body
+        // Update table body using direct selector
         const newTableBody = doc.querySelector('.acct-table tbody');
         const currentTableBody = document.querySelector('.acct-table tbody');
         if (newTableBody && currentTableBody) {
           currentTableBody.innerHTML = newTableBody.innerHTML;
         }
         
-        // Update pagination
+        // Update pagination using direct selector
         const newPagination = doc.querySelector('.pagination');
         const currentPagination = document.querySelector('.pagination');
         if (newPagination && currentPagination) {
@@ -392,8 +410,9 @@
           newPaginationBtns.forEach(btn => {
             btn.addEventListener('click', function(e) {
               e.preventDefault();
-              const url = this.getAttribute('href');
-              loadPage(url);
+              const newUrl = this.getAttribute('href');
+              const newPaginationId = this.closest('nav').getAttribute('data-pagination-id');
+              loadPage(newUrl, newPaginationId);
             });
           });
         }
@@ -430,6 +449,23 @@
       })
       .then(html => {
         content.innerHTML = html;
+
+        // Append current search params to family_detail links in modal
+        const modalFamilyLink = content.querySelector('#modalFamilyLink');
+        const modalViewFullInfoLink = content.querySelector('#modalViewFullInfoLink');
+        const currentParams = new URLSearchParams(window.location.search);
+        currentParams.set('from', 'residents');
+        currentParams.set('modal', 'member');
+        currentParams.set('member_id', memberId);
+
+        if (modalFamilyLink) {
+          const baseUrl = modalFamilyLink.href.split('?')[0];
+          modalFamilyLink.href = `${baseUrl}?${currentParams.toString()}`;
+        }
+        if (modalViewFullInfoLink) {
+          const baseUrl = modalViewFullInfoLink.href.split('?')[0];
+          modalViewFullInfoLink.href = `${baseUrl}?${currentParams.toString()}`;
+        }
       })
       .catch(err => {
         content.innerHTML = '<div class="p-4 text-center text-danger"><i class="bi bi-exclamation-triangle fs-1"></i><p class="mt-2">Failed to load member details.</p></div>';
@@ -467,6 +503,17 @@
       .catch(err => {
         content.innerHTML = '<div class="p-4 text-center text-danger"><i class="bi bi-exclamation-triangle fs-1"></i><p class="mt-2">Failed to load family members.</p></div>';
       });
+  }
+
+  // Auto-reopen modal if returning from family_detail
+  const urlParams = new URLSearchParams(window.location.search);
+  const modalType = urlParams.get('modal');
+  if (modalType === 'member') {
+    const memberId = urlParams.get('member_id');
+    if (memberId) openMemberModal(memberId);
+  } else if (modalType === 'family') {
+    const familyId = urlParams.get('family_id');
+    if (familyId) openFamilyModal(familyId);
   }
 </script>
 {% endblock %}

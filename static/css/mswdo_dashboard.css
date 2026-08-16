@@ -57,6 +57,15 @@
   flex-shrink: 0;
 }
 
+.dash-action-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  width: 100%;
+}
+
 /* =============================================================
    BUTTON VARIANTS
 ============================================================= */
@@ -808,27 +817,55 @@
 }
 
 @media (max-width: 767.98px) {
-  .dash-page-header {
+  .dash-panel__header {
     flex-direction: column;
     gap: 12px;
   }
 
-  .dash-grid--cards {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+  .dash-panel__header-right {
+    width: 100%;
+  }
+
+  .dash-panel__header-right .btn-dash-outline {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .dash-panel__title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .dash-header-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .dash-header-actions .btn-dash-outline,
+  .dash-header-actions .btn-dash-primary {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+  }
+
+  .sched-item__meta {
+    flex-direction: column;
+    gap: 6px;
   }
 
   .dash-grid--main {
+    grid-template-columns: 1fr;
     gap: 16px;
   }
 
-  .dash-side {
-    grid-template-columns: 1fr;
-  }
-
-  .sched-form__grid {
+  .dash-grid--cards {
     grid-template-columns: 1fr;
     gap: 12px;
+  }
+
+  .dash-grid--demographics {
+    grid-template-columns: 1fr;
   }
 
   .stat-card__value {
@@ -837,6 +874,14 @@
 
   .dash-page-title {
     font-size: 19px;
+  }
+
+  /* Mobile chart height adjustments */
+  .chart-wrap[style*="height: 290px"] {
+    height: 220px !important;
+  }
+  .chart-wrap[style*="height: 200px"] {
+    height: 160px !important;
   }
 }
 
@@ -852,6 +897,67 @@
   .sched-item__meta {
     flex-direction: column;
     gap: 4px;
+  }
+
+  /* Fix button overlap - stack button below content on mobile */
+  .sched-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .sched-item__badge {
+    align-self: flex-start;
+    margin-top: 0;
+  }
+
+  .sched-item .btn-dash-primary {
+    width: 100%;
+    justify-content: center;
+    margin-top: 8px;
+  }
+
+  /* Further reduce chart heights on very small screens */
+  .chart-wrap[style*="height: 290px"] {
+    height: 180px !important;
+  }
+  .chart-wrap[style*="height: 200px"] {
+    height: 140px !important;
+  }
+}
+
+/* Modal responsiveness */
+.modal-content-scrollable {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.modal-content-scrollable table {
+  margin-bottom: 0;
+}
+
+@media (max-width: 767.98px) {
+  .modal-content-scrollable {
+    max-height: 300px;
+  }
+
+  /* Ensure modals fit within viewport on mobile */
+  .kiosk-modal {
+    max-height: 90vh;
+    overflow-y: auto;
+    margin: 5vh auto;
+  }
+
+  .kiosk-modal-header {
+    padding: 16px;
+  }
+
+  .kiosk-modal-body {
+    padding: 16px;
+  }
+
+  .kiosk-modal-footer {
+    padding: 16px;
   }
 }
 

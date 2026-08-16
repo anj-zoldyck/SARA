@@ -14,13 +14,17 @@
 
 {% block content %}
 
-<div class="dash-page-header">
+<div class="dash-page-header mb-4">
   <div>
     <div class="page-breadcrumb">
       <a href="{% if user.role == 'MSWDO_STAFF' %}{% url 'staff_dashboard' %}{% elif user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'barangay_dashboard' %}{% endif %}" class="breadcrumb-link">
         <i class="bi bi-speedometer2"></i> Dashboard
       </a>
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      {% if user.role == 'BARANGAY' %}
+      <a href="{% url 'barangay_zones' %}" class="breadcrumb-link">Zones</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      {% endif %}
       <a href="{% if user.role == 'BARANGAY' %}{% url 'zone_detail' family.household.zone.id %}{% else %}{% url 'zone_households' family.household.zone.id %}{% endif %}" class="breadcrumb-link">{{ family.household.zone.name }}</a>
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
       <a href="{% if user.role == 'BARANGAY' %}{% url 'household_detail' family.household.id %}{% else %}{% url 'household_info' family.household.id %}{% endif %}" class="breadcrumb-link">House {{ family.household.house_number }}</a>
@@ -55,51 +59,62 @@
       &nbsp;·&nbsp; House {{ family.household.house_number }}
     </p>
   </div>
-  <div class="dash-header-actions">
-    {% if user.role == 'BARANGAY' %}
-      {% if family.is_archived %}
-      <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="Unarchive this family to add members">
-        <button class="btn-dash-primary" style="opacity: 0.5; cursor: not-allowed;" disabled>
-          <i class="bi bi-plus-lg"></i> Add Member
-        </button>
-      </span>
-      {% else %}
-      <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary">
+</div>
+
+<div class="dash-action-row mb-4">
+  {% if user.role == 'BARANGAY' %}
+    {% if family.is_archived %}
+    <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="Unarchive this family to add members">
+      <button class="btn-dash-primary" style="opacity: 0.5; cursor: not-allowed;" disabled>
         <i class="bi bi-plus-lg"></i> Add Member
-      </a>
-      {% endif %}
-    {% endif %}
-    <a href="{% if user.role == 'BARANGAY' %}{% url 'export_family_excel' family.id %}{% else %}{% url 'export_family_excel_mswdo' family.id %}{% endif %}" class="btn-dash-primary btn-dash-action-export">
-      <i class="bi bi-file-earmark-excel"></i> Export to Excel
+      </button>
+    </span>
+    {% else %}
+    <a href="{% url 'add_family_member' family.id %}" class="btn-dash-primary">
+      <i class="bi bi-plus-lg"></i> Add Member
     </a>
-    
-    {% if user.role == 'BARANGAY' %}
-      {% if family.is_archived %}
-      <button class="btn-dash-outline btn-dash-action-unarchive" data-bs-toggle="modal"
-        data-bs-target="#unarchiveFamilyModal">
-        <i class="bi bi-box-arrow-up"></i> Unarchive Family
-      </button>
-      <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="Unarchive this family before removing it">
-        <button class="btn-dash-outline btn-dash-action-remove" style="opacity: 0.5; cursor: not-allowed;" disabled>
-          <i class="bi bi-trash"></i> Remove Family
-        </button>
-      </span>
-      {% else %}
-      <button class="btn-dash-outline btn-dash-action-archive" data-bs-toggle="modal"
-        data-bs-target="#archiveFamilyModal">
-        <i class="bi bi-archive"></i> Archive Family
-      </button>
-      <button class="btn-dash-outline btn-dash-action-remove" data-bs-toggle="modal"
-        data-bs-target="#removeFamilyModal">
+    {% endif %}
+  {% endif %}
+  <a href="{% if user.role == 'BARANGAY' %}{% url 'export_family_excel' family.id %}{% else %}{% url 'export_family_excel_mswdo' family.id %}{% endif %}" class="btn-dash-primary btn-dash-action-export">
+    <i class="bi bi-file-earmark-excel"></i> Export to Excel
+  </a>
+  
+  {% if user.role == 'BARANGAY' %}
+    {% if family.is_archived %}
+    <button class="btn-dash-outline btn-dash-action-unarchive" data-bs-toggle="modal"
+      data-bs-target="#unarchiveFamilyModal">
+      <i class="bi bi-box-arrow-up"></i> Unarchive Family
+    </button>
+    <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="Unarchive this family before removing it">
+      <button class="btn-dash-outline btn-dash-action-remove" style="opacity: 0.5; cursor: not-allowed;" disabled>
         <i class="bi bi-trash"></i> Remove Family
       </button>
-      {% endif %}
+    </span>
+    {% else %}
+    <button class="btn-dash-outline btn-dash-action-archive" data-bs-toggle="modal"
+      data-bs-target="#archiveFamilyModal">
+      <i class="bi bi-archive"></i> Archive Family
+    </button>
+    <button class="btn-dash-outline btn-dash-action-remove" data-bs-toggle="modal"
+      data-bs-target="#removeFamilyModal">
+      <i class="bi bi-trash"></i> Remove Family
+    </button>
     {% endif %}
+  {% endif %}
 
-    <a href="{% if user.role == 'BARANGAY' %}{% url 'household_detail' family.household.id %}{% else %}{% url 'household_info' family.household.id %}{% endif %}" class="btn-dash-outline ms-2">
-      <i class="bi bi-arrow-left"></i> Back to Household
-    </a>
-  </div>
+  <a href="{% if user.role == 'BARANGAY' %}{% url 'household_detail' family.household.id %}{% else %}{% url 'household_info' family.household.id %}{% endif %}" class="btn-dash-outline">
+    <i class="bi bi-arrow-left"></i> Back to Household
+  </a>
+  {% if request.GET.from == 'walkin' and user.role == 'MSWDO_STAFF' %}
+  <a href="{% url 'staff_walkin' %}?q={{ request.GET.q|urlencode }}&barangay={{ request.GET.barangay|urlencode }}&zone={{ request.GET.zone|urlencode }}&member={{ request.GET.member|urlencode }}" class="btn-dash-outline">
+    <i class="bi bi-arrow-left"></i> Back to Walk-in Assistance
+  </a>
+  {% endif %}
+  {% if request.GET.from == 'residents' %}
+  <a href="{% url 'residents_overview' %}?{% if request.GET.barangay %}barangay={{ request.GET.barangay|urlencode }}&{% endif %}{% if request.GET.zone %}zone={{ request.GET.zone|urlencode }}&{% endif %}{% if request.GET.search %}search={{ request.GET.search|urlencode }}&{% endif %}{% if request.GET.senior %}senior=on&{% endif %}{% if request.GET.pwd %}pwd=on&{% endif %}{% if request.GET.solo_parent %}solo_parent=on&{% endif %}{% if request.GET.page %}page={{ request.GET.page|urlencode }}&{% endif %}modal={{ request.GET.modal }}&member_id={{ request.GET.member_id }}&family_id={{ request.GET.family_id }}" class="btn-dash-outline">
+    <i class="bi bi-arrow-left"></i> Back to Residents Overview
+  </a>
+  {% endif %}
 </div>
 
 <!-- Members Table -->
@@ -226,12 +241,6 @@
       </table>
     </div>
   </div>
-</div>
-
-<div class="page-back-row">
-  <a href="{% if user.role == 'BARANGAY' %}{% url 'household_detail' family.household.id %}{% else %}{% url 'household_info' family.household.id %}{% endif %}" class="btn-dash-outline">
-    <i class="bi bi-arrow-left"></i> Back to Household
-  </a>
 </div>
 
 

@@ -7,7 +7,6 @@
 
 {% block css %}
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -103,51 +102,159 @@
 </div>
 
 <!-- ======================================================
-     MAIN BODY: Schedule + Quick Actions
+     SCHEDULED DISTRIBUTION (moved to top for visibility)
 ====================================================== -->
-<div class="dash-grid dash-grid--main">
-
-  <!-- ── LEFT: Scheduled Distribution ───────────────────── -->
-  <div class="dash-panel">
-    <div class="dash-panel__header">
-      <div class="dash-panel__header-left">
-        <i class="bi bi-calendar-check dash-panel__icon"></i>
-        <div>
-          <h2 class="dash-panel__title">Scheduled Distribution</h2>
-          <p class="dash-panel__sub">Active and upcoming aid schedules</p>
-        </div>
+<div class="dash-panel mb-4">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-calendar-check dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Scheduled Distribution</h2>
+        <p class="dash-panel__sub">Active and upcoming aid schedules</p>
       </div>
-    </div>
-
-    <!-- Schedule Lists (populated by fetch) -->
-    <div class="dash-panel__body">
-
-      {% include "core/_dashboard_schedule_panel.html" %}
-
     </div>
   </div>
 
-  <!-- ── ANALYTICS OVERVIEW ───────────────────────────────── -->
+  <!-- Schedule Lists (populated by fetch) -->
+  <div class="dash-panel__body">
+    {% include "core/_dashboard_schedule_panel.html" %}
+  </div>
+</div>
+
+<!-- ======================================================
+     DEMOGRAPHICS & RFID STATS
+====================================================== -->
+<h3 class="dash-section-title mt-4 mb-3" style="font-size: 1.1rem; color: var(--clr-gray-700); font-weight: 600;">
+  Resident Demographics & Stats</h3>
+<div class="dash-grid dash-grid--demographics">
+  <!-- Left: Demographic Cards -->
+  <div class="dash-grid--demographics__cards">
+    <!-- PWDs -->
+    <div class="stat-card stat-card--purple" style="--card-color: #8b5cf6;">
+      <div class="stat-card__icon">
+        <i class="bi bi-person-wheelchair"></i>
+      </div>
+      <div class="stat-card__body">
+        <span class="stat-card__label">Total PWDs</span>
+        <span class="stat-card__value">{{ pwd_count }}</span>
+      </div>
+    </div>
+
+    <!-- Solo Parents -->
+    <div class="stat-card stat-card--pink" style="--card-color: #ec4899;">
+      <div class="stat-card__icon">
+        <i class="bi bi-person-heart"></i>
+      </div>
+      <div class="stat-card__body">
+        <span class="stat-card__label">Solo Parents</span>
+        <span class="stat-card__value">{{ solo_parent_count }}</span>
+      </div>
+    </div>
+
+    <!-- Senior Citizens -->
+    <div class="stat-card stat-card--orange" style="--card-color: #f97316;">
+      <div class="stat-card__icon">
+        <i class="bi bi-person-walking"></i>
+      </div>
+      <div class="stat-card__body">
+        <span class="stat-card__label">Senior Citizens</span>
+        <span class="stat-card__value">{{ senior_count }}</span>
+      </div>
+    </div>
+
+    <!-- RFID Rate -->
+    <div class="stat-card stat-card--green" style="--card-color: #10b981;">
+      <div class="stat-card__icon">
+        <i class="bi bi-upc-scan"></i>
+      </div>
+      <div class="stat-card__body">
+        <span class="stat-card__label">RFID Registration</span>
+        <div class="d-flex align-items-baseline gap-2">
+          <span class="stat-card__value">{{ rfid_completion_percent }}%</span>
+          <span style="font-size: 0.8rem; opacity: 0.8;">({{ total_families_rfid }}/{{ family_count }})</span>
+        </div>
+        <div class="rfid-progress" style="margin-top: 8px;">
+          <div class="rfid-progress__bar" style="width: {{ rfid_completion_percent }}%;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Demographics Comparison Chart -->
   <div class="dash-panel">
     <div class="dash-panel__header">
       <div class="dash-panel__header-left">
-        <i class="bi bi-graph-up dash-panel__icon"></i>
+        <i class="bi bi-bar-chart dash-panel__icon"></i>
         <div>
-          <h2 class="dash-panel__title">Analytics Overview</h2>
-          <p class="dash-panel__sub">Key insights and distribution patterns</p>
+          <h2 class="dash-panel__title">Demographics</h2>
+          <p class="dash-panel__sub">Comparison by category</p>
+        </div>
+      </div>
+    </div>
+    <div class="dash-panel__body">
+      <div class="chart-wrap" style="height: 200px; position: relative;">
+        <canvas id="demographicsChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mb-4">
+  {% include "core/_dashboard_sector_age_panel.html" %}
+</div>
+
+<!-- ======================================================
+     MAIN BODY: Charts + Quick Actions
+====================================================== -->
+<div class="dash-grid dash-grid--main">
+
+  <!-- ── LEFT COLUMN ─────────────────────────────────────── -->
+  <div class="dash-main-left">
+
+    <!-- Monthly Aid Distribution Trend -->
+    <div class="dash-panel mb-4">
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-graph-up dash-panel__icon"></i>
+          <div>
+            <h2 class="dash-panel__title">Monthly Trend</h2>
+            <p class="dash-panel__sub">Claims over the last 6 months</p>
+          </div>
+        </div>
+      </div>
+      <div class="dash-panel__body">
+        <div class="chart-wrap" style="height: 290px; position: relative;">
+          <canvas id="monthlyTrendChart"></canvas>
         </div>
       </div>
     </div>
 
-    <div class="dash-panel__body">
-      <!-- Aid Type Distribution Chart -->
-      <div class="analytics-chart">
-        <h3 class="analytics-chart__title">Aid Type Distribution</h3>
-        <div class="analytics-chart__container">
-          <canvas id="aidTypeChart"></canvas>
+    <!-- This Month's Distribution -->
+    <div class="dash-panel mb-4">
+      <div id="filterIndicator" class="alert alert-info alert-dismissible fade show d-none mb-3" role="alert">
+        <i class="bi bi-funnel me-2"></i>
+        Filtered by: <strong id="filterBarangayName"></strong>
+        <button type="button" class="btn-close" onclick="clearBarangayFilter()" aria-label="Close"></button>
+      </div>
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-bar-chart-line dash-panel__icon"></i>
+          <div>
+            <h2 class="dash-panel__title">This Month's Distribution</h2>
+            <p class="dash-panel__sub">Claims summary across all barangays</p>
+          </div>
+        </div>
+        <a href="{% url 'analytics' %}" class="btn-dash-outline btn-sm">
+          <i class="bi bi-arrow-right"></i> View Full Analytics
+        </a>
+      </div>
+      <div class="dash-panel__body">
+        <div class="chart-wrap" style="height: 290px; position: relative;">
+          <canvas id="mswdoDashAnalyticsChart"></canvas>
         </div>
       </div>
     </div>
+
   </div>
 
   <!-- ── RIGHT: Quick Actions + Aid Shortcuts ────────────── -->
@@ -157,8 +264,9 @@
     <div class="dash-panel mb-4" style="background: linear-gradient(145deg, #ffffff, #f8fafc); border-color: #e2e8f0;">
       <div class="dash-panel__body p-3">
         <h3 class="dash-section-title mb-3" style="font-size: 0.95rem;">System Operations</h3>
-        
-        <div class="d-flex align-items-center justify-content-between p-2 mb-3 rounded" style="background: #eff6ff; border: 1px solid #bfdbfe;">
+
+        <div class="d-flex align-items-center justify-content-between p-2 mb-2 rounded"
+          style="background: #eff6ff; border: 1px solid #bfdbfe;">
           <div class="d-flex align-items-center gap-2">
             <i class="bi bi-box-seam text-primary"></i>
             <span class="fw-medium text-primary-emphasis" style="font-size: 0.9rem;">Today's Claims</span>
@@ -166,12 +274,63 @@
           <span class="badge bg-primary rounded-pill">{{ today_claims }}</span>
         </div>
 
-        <a href="javascript:void(0)" onclick="openScheduleSelector()" class="btn-dash-primary w-100 d-flex justify-content-center align-items-center gap-2 py-2 mb-2">
+        <div class="d-flex align-items-center justify-content-between p-2 mt-2 rounded"
+          style="background: #f0fdf4; border: 1px solid #bbf7d0;">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-people text-success"></i>
+            <span class="fw-medium text-success-emphasis" style="font-size: 0.9rem;">This Month's Beneficiaries</span>
+          </div>
+          <span class="badge bg-success rounded-pill">{{ this_month_beneficiaries }}</span>
+        </div>
+
+        <a href="javascript:void(0)" onclick="openScheduleSelector()" class="btn-dash-primary w-100 d-flex justify-content-center align-items-center gap-2 py-2 mt-3 mb-2">
           <i class="bi bi-upc-scan"></i> Launch RFID Scanner
         </a>
         <a href="{% url 'staff_walkin' %}" class="btn-dash-outline w-100 d-flex justify-content-center align-items-center gap-2 py-2">
           <i class="bi bi-person-lines-fill"></i> Walk-in Assistance
         </a>
+      </div>
+    </div>
+
+    <!-- Barangay Profiling Progress -->
+    <div class="dash-panel mb-4">
+      <div class="dash-panel__header">
+        <div class="dash-panel__header-left">
+          <i class="bi bi-bar-chart-steps dash-panel__icon"></i>
+          <div>
+            <h2 class="dash-panel__title">Barangay Profiling Progress</h2>
+            <p class="dash-panel__sub">Households, Families, and RFID coverage</p>
+          </div>
+        </div>
+      </div>
+      <div class="dash-panel__body p-0 dash-panel__scrollable">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th class="ps-4">Barangay</th>
+                <th class="text-center">Households</th>
+                <th class="text-center">Families</th>
+                <th class="text-center">RFID</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for b in barangays %}
+              <tr>
+                <td class="ps-4 fw-medium">{{ b.name }}</td>
+                <td class="text-center">{{ b.household_count }}</td>
+                <td class="text-center">{{ b.family_count }}</td>
+                <td class="text-center">
+                  {{ b.rfid_count }}
+                  <span class="text-muted" style="font-size: 0.8em;">
+                    ({% if b.family_count > 0 %}{% widthratio b.rfid_count b.family_count 100 %}{% else %}0{% endif %}%)
+                  </span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -182,30 +341,55 @@
 
 {% include "core/_schedule_selector_modal.html" %}
 
+<!-- Chart Interaction Modal -->
+<div id="chartModal" class="modal-overlay" style="display: none;">
+  <div class="kiosk-modal">
+    <div class="kiosk-modal-header">
+      <h3 id="modalTitle" class="kiosk-modal-title">Title</h3>
+      <button type="button" class="btn-close" onclick="closeChartModal()" aria-label="Close"></button>
+    </div>
+    <div class="kiosk-modal-body">
+      <div id="modalContent" class="modal-content-scrollable">
+        <!-- Dynamic content -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Safe data injection -->
+{{ analytics_labels|json_script:"dash-chart-labels" }}
+{{ analytics_data|json_script:"dash-chart-data" }}
+{{ demo_chart_labels|json_script:"demo-chart-labels" }}
+{{ demo_chart_data|json_script:"demo-chart-data" }}
+{{ monthly_trend_labels|json_script:"monthly-trend-labels" }}
+{{ monthly_trend_data|json_script:"monthly-trend-data" }}
+{{ monthly_trend_iso|json_script:"monthly-trend-iso" }}
+
 {% endblock %}
 
 {% block js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
   // ── Live Clock ─────────────────────────────────────────
   function updateClock() {
-    const now  = new Date();
+    const now = new Date();
     const time = now.toLocaleTimeString('en-PH', {
-      hour:   '2-digit',
+      hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
       hour12: true
     });
-    const day  = now.toLocaleDateString('en-PH', { weekday: 'long' });
+    const day = now.toLocaleDateString('en-PH', { weekday: 'long' });
     const date = now.toLocaleDateString('en-PH', {
       month: 'long',
-      day:   'numeric',
-      year:  'numeric'
+      day: 'numeric',
+      year: 'numeric'
     });
     const timeEl = document.getElementById('dashTime');
-    const dayEl  = document.getElementById('dashDay');
+    const dayEl = document.getElementById('dashDay');
     const dateEl = document.getElementById('dashDate');
     if (timeEl) timeEl.textContent = time;
-    if (dayEl)  dayEl.textContent  = day;
+    if (dayEl) dayEl.textContent = day;
     if (dateEl) dateEl.textContent = date;
   }
   updateClock();
@@ -231,13 +415,13 @@
         const now = new Date();
         const diffMs = schedDate - now;
         if (diffMs > 0 && !isNaN(diffMs)) {
-            const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-            const diffDays = Math.floor(diffHrs / 24);
-            if (diffDays > 0) {
-              countdownHtml = `<span class="badge bg-light text-dark ms-2" style="font-size: 0.75rem;"><i class="bi bi-hourglass-split"></i> In ${diffDays} day${diffDays > 1 ? 's' : ''}</span>`;
-            } else {
-              countdownHtml = `<span class="badge bg-light text-dark ms-2" style="font-size: 0.75rem;"><i class="bi bi-hourglass-split"></i> In ${diffHrs} hr${diffHrs !== 1 ? 's' : ''}</span>`;
-            }
+          const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+          const diffDays = Math.floor(diffHrs / 24);
+          if (diffDays > 0) {
+            countdownHtml = `<span class="badge bg-light text-dark ms-2" style="font-size: 0.75rem;"><i class="bi bi-hourglass-split"></i> In ${diffDays} day${diffDays > 1 ? 's' : ''}</span>`;
+          } else {
+            countdownHtml = `<span class="badge bg-light text-dark ms-2" style="font-size: 0.75rem;"><i class="bi bi-hourglass-split"></i> In ${diffHrs} hr${diffHrs !== 1 ? 's' : ''}</span>`;
+          }
         }
       }
 
@@ -268,62 +452,333 @@
         return res.json();
       })
       .then(data => {
-        const activeEl   = document.getElementById('active-schedules-list');
+        const activeEl = document.getElementById('active-schedules-list');
         const upcomingEl = document.getElementById('upcoming-schedules-list');
-        if (activeEl)   activeEl.innerHTML   = renderScheduleList(data.active,   'active',   'Active');
+        if (activeEl) activeEl.innerHTML = renderScheduleList(data.active, 'active', 'Active');
         if (upcomingEl) upcomingEl.innerHTML = renderScheduleList(data.upcoming, 'upcoming', 'Upcoming');
       })
       .catch(err => {
-        // Silently fail
+        // Silently fail — page still shows server-rendered data on error
         console.warn('Schedule refresh failed:', err);
       });
   }
 
+  // Run immediately then every 30 seconds
   refreshSchedules();
   setInterval(refreshSchedules, 30000);
 
-  // ── Analytics Charts ───────────────────────────────────────
-  function initAnalyticsCharts() {
-    // Aid Type Distribution Chart (Donut)
-    const aidTypeCtx = document.getElementById('aidTypeChart');
-    if (aidTypeCtx) {
-      new Chart(aidTypeCtx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Medical', 'Food', 'Educational', 'Burial', 'Cash'],
-          datasets: [{
-            data: [35, 25, 20, 12, 8],
-            backgroundColor: [
-              '#134ed5',  // secondary (blue)
-              '#0d2d6b',  // primary (dark blue)
-              '#4a6fa5',  // lighter blue
-              '#8492a6',  // text-muted (gray-blue)
-              '#1a2340'   // text-main (dark blue-gray)
-            ],
-            borderWidth: 0
-          }]
+  // ── Analytics Chart ──────────────────────────────────────
+  const dashLabels = JSON.parse(document.getElementById('dash-chart-labels').textContent);
+  const dashData   = JSON.parse(document.getElementById('dash-chart-data').textContent);
+
+  // Token-sourced palette: --primary, --secondary, --teal, amber (icon variant), --indigo, --success
+  const dashPalette = [
+    '#0d2d6b', '#134ed5', '#0d7377', '#d97706', '#3730a3', '#22A06B'
+  ];
+
+  const dashBgColors = dashLabels.map((l, i) => dashPalette[i % dashPalette.length]);
+
+  const dashChartCtx = document.getElementById('mswdoDashAnalyticsChart');
+  if (dashChartCtx && dashLabels.length > 0) {
+    new Chart(dashChartCtx, {
+      type: 'bar',
+      data: {
+        labels: dashLabels,
+        datasets: [{
+          label: 'Claims',
+          data: dashData,
+          backgroundColor: dashBgColors,
+          borderRadius: 4,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        onClick: (event, elements) => {
+          if (elements.length > 0) {
+            const index = elements[0].index;
+            const barangayName = dashLabels[index];
+            applyBarangayFilter(barangayName);
+          }
         },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: {
-                padding: 15,
-                usePointStyle: true,
-                font: { size: 11 }
-              }
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.parsed.y} claims`
             }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 },
+            grid: { color: '#e2eaf4' }
           },
-          cutout: '65%'
+          x: { grid: { display: false } }
         }
-      });
-    }
+      }
+    });
   }
 
-  // Initialize charts when DOM is ready
-  document.addEventListener('DOMContentLoaded', initAnalyticsCharts);
+  // ── Demographics Comparison Chart ─────────────────────────
+  const demoLabels = JSON.parse(document.getElementById('demo-chart-labels').textContent);
+  const demoData   = JSON.parse(document.getElementById('demo-chart-data').textContent);
 
+  const demoPalette = ['#8b5cf6', '#ec4899', '#f97316']; // PWD, Solo Parent, Senior Citizen colors
+
+  const demoChartCtx = document.getElementById('demographicsChart');
+  if (demoChartCtx && demoLabels.length > 0) {
+    new Chart(demoChartCtx, {
+      type: 'bar',
+      data: {
+        labels: demoLabels,
+        datasets: [{
+          label: 'Count',
+          data: demoData,
+          backgroundColor: demoPalette,
+          borderRadius: 4,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        onClick: (event, elements) => {
+          if (elements.length > 0) {
+            const index = elements[0].index;
+            const categories = ['pwd', 'solo_parent', 'senior'];
+            const category = categories[index];
+            const label = demoLabels[index];
+            openDemographicsModal(category, label);
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.parsed.y} residents`
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 },
+            grid: { color: 'rgba(0,0,0,.05)' }
+          },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // ── Monthly Trend Chart ───────────────────────────────────
+  const trendLabels = JSON.parse(document.getElementById('monthly-trend-labels').textContent);
+  const trendData   = JSON.parse(document.getElementById('monthly-trend-data').textContent);
+  const trendIso    = JSON.parse(document.getElementById('monthly-trend-iso').textContent);
+
+  // Color corresponds to --secondary in base.css (#134ed5)
+  const trendColor = '#134ed5';
+  const trendFill = 'rgba(19, 78, 213, 0.15)';
+
+  const trendChartCtx = document.getElementById('monthlyTrendChart');
+  if (trendChartCtx && trendLabels.length > 0) {
+    new Chart(trendChartCtx, {
+      type: 'line',
+      data: {
+        labels: trendLabels,
+        datasets: [{
+          label: 'Claims',
+          data: trendData,
+          borderColor: trendColor,
+          backgroundColor: trendFill,
+          borderWidth: 2,
+          pointBackgroundColor: trendColor,
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        onClick: (event, elements) => {
+          if (elements.length > 0) {
+            const index = elements[0].index;
+            const monthLabel = trendLabels[index];
+            const monthIso = trendIso[index];
+            openMonthlyClaimsModal(monthIso, monthLabel);
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.parsed.y} claims`
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 },
+            grid: { color: 'rgba(0,0,0,.05)' }
+          },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // ── Chart Modal Functions ─────────────────────────────────────
+  function openChartModal(title, content) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalContent').innerHTML = content;
+    const modal = document.getElementById('chartModal');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('active'), 10);
+  }
+
+  function closeChartModal() {
+    const modal = document.getElementById('chartModal');
+    modal.classList.remove('active');
+    setTimeout(() => modal.style.display = 'none', 300);
+  }
+
+  function openDemographicsModal(category, label) {
+    fetch(`/mswdo/api/demographics/${category}/`)
+      .then(res => {
+        if (!res.ok) throw new Error('Network error');
+        return res.json();
+      })
+      .then(data => {
+        if (data.residents && data.residents.length > 0) {
+          let tableHtml = `
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Barangay</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+          data.residents.forEach(resident => {
+            tableHtml += `
+              <tr>
+                <td>${resident.name}</td>
+                <td>${resident.barangay}</td>
+              </tr>
+            `;
+          });
+          tableHtml += `
+              </tbody>
+            </table>
+          `;
+          openChartModal(`${label} Residents`, tableHtml);
+        } else {
+          openChartModal(`${label} Residents`, '<p class="text-muted text-center py-4">No residents found.</p>');
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load demographics:', err);
+        openChartModal(`${label} Residents`, '<p class="text-danger text-center py-4">Failed to load data.</p>');
+      });
+  }
+
+  function openMonthlyClaimsModal(monthIso, monthLabel) {
+    fetch(`/mswdo/api/monthly-claims/${monthIso}/`)
+      .then(res => {
+        if (!res.ok) throw new Error('Network error');
+        return res.json();
+      })
+      .then(data => {
+        if (data.breakdown && data.breakdown.length > 0) {
+          let tableHtml = `
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Program</th>
+                  <th class="text-end">Claims</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+          data.breakdown.forEach(item => {
+            tableHtml += `
+              <tr>
+                <td>${item.program_name}</td>
+                <td class="text-end">${item.claim_count}</td>
+              </tr>
+            `;
+          });
+          tableHtml += `
+              </tbody>
+            </table>
+          `;
+          openChartModal(`${monthLabel} Claims Breakdown`, tableHtml);
+        } else {
+          openChartModal(`${monthLabel} Claims Breakdown`, '<p class="text-muted text-center py-4">No claims data found.</p>');
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load monthly claims:', err);
+        openChartModal(`${monthLabel} Claims Breakdown`, '<p class="text-danger text-center py-4">Failed to load data.</p>');
+      });
+  }
+
+  // ── Barangay Filter Functions ─────────────────────────────────
+  let analyticsChartInstance = null;
+  let originalDashLabels = [...dashLabels];
+  let originalDashData = [...dashData];
+
+  function applyBarangayFilter(barangayName) {
+    fetch(`/mswdo/api/analytics-chart-data/?barangay=${encodeURIComponent(barangayName)}`)
+      .then(res => {
+        if (!res.ok) throw new Error('Network error');
+        return res.json();
+      })
+      .then(data => {
+        // Update chart data
+        const chart = Chart.getChart('mswdoDashAnalyticsChart');
+        if (chart) {
+          chart.data.labels = data.labels;
+          chart.data.datasets[0].data = data.data;
+          chart.update();
+        }
+
+        // Show filter indicator
+        document.getElementById('filterBarangayName').textContent = barangayName;
+        document.getElementById('filterIndicator').classList.remove('d-none');
+      })
+      .catch(err => {
+        console.error('Failed to apply barangay filter:', err);
+      });
+  }
+
+  function clearBarangayFilter() {
+    // Restore original data
+    const chart = Chart.getChart('mswdoDashAnalyticsChart');
+    if (chart) {
+      chart.data.labels = originalDashLabels;
+      chart.data.datasets[0].data = originalDashData;
+      chart.update();
+    }
+
+    // Hide filter indicator
+    document.getElementById('filterIndicator').classList.add('d-none');
+  }
+
+  // Close modal on overlay click
+  document.getElementById('chartModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeChartModal();
+    }
+  });
 </script>
 {% endblock %}

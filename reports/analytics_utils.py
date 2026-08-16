@@ -4,6 +4,50 @@ from django.utils.dateformat import DateFormat
 from collections import defaultdict
 from distribution.models import AidClaim
 
+# Shared age bracket definitions (10 brackets)
+AGE_BRACKETS = [
+    {'label': '0-5 years', 'range': '0-5', 'min_age': 0, 'max_age': 5},
+    {'label': '6-12 years', 'range': '6-12', 'min_age': 6, 'max_age': 12},
+    {'label': '13-17 years', 'range': '13-17', 'min_age': 13, 'max_age': 17},
+    {'label': '18-24 years', 'range': '18-24', 'min_age': 18, 'max_age': 24},
+    {'label': '25-34 years', 'range': '25-34', 'min_age': 25, 'max_age': 34},
+    {'label': '35-44 years', 'range': '35-44', 'min_age': 35, 'max_age': 44},
+    {'label': '45-59 years', 'range': '45-59', 'min_age': 45, 'max_age': 59},
+    {'label': '60-69 years', 'range': '60-69', 'min_age': 60, 'max_age': 69},
+    {'label': '70-79 years', 'range': '70-79', 'min_age': 70, 'max_age': 79},
+    {'label': '80+ years', 'range': '80+', 'min_age': 80, 'max_age': None},
+]
+
+def get_age_bracket_index(age):
+    """
+    Returns the index of the age bracket for a given age.
+    Uses the same 10-bracket logic as the dashboard sector/age panel.
+    Returns None if age is None.
+    """
+    if age is None:
+        return None
+    
+    if age <= 5:
+        return 0
+    elif 6 <= age <= 12:
+        return 1
+    elif 13 <= age <= 17:
+        return 2
+    elif 18 <= age <= 24:
+        return 3
+    elif 25 <= age <= 34:
+        return 4
+    elif 35 <= age <= 44:
+        return 5
+    elif 45 <= age <= 59:
+        return 6
+    elif 60 <= age <= 69:
+        return 7
+    elif 70 <= age <= 79:
+        return 8
+    else:
+        return 9  # 80+
+
 def get_category_claims_data(barangay=None, start_date=None, end_date=None):
     qs = AidClaim.objects.filter(assistance__isnull=False)
     if barangay:

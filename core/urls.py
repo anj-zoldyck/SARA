@@ -10,4 +10,5 @@ urlpatterns = [
     path('mswdo/api/demographics/<str:category>/', views.api_demographics, name='api_demographics'),
     path('mswdo/api/monthly-claims/<str:month>/', views.api_monthly_claims, name='api_monthly_claims'),
     path('mswdo/api/analytics-chart-data/', views.api_analytics_chart_data, name='api_analytics_chart_data'),
+    path('api/sector-age-data/', views.api_sector_age_data, name='api_sector_age_data'),
 ]

@@ -46,6 +46,14 @@
   .walkin-badge--senior { background: #cce5ff; color: #004085; }
   .walkin-badge--pwd { background: #d4edda; color: #155724; }
   .walkin-badge--solo { background: #fff3cd; color: #856404; }
+
+  /* Walk-in modal content wrapper - pass through flex layout */
+  #walkinProfileModalContent {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
 </style>
 {% endblock %}
 
@@ -90,8 +98,8 @@
       </div>
       <div class="form-group mb-0">
         <label class="text-muted small fw-bold mb-1" for="filter-zone"><i class="bi bi-map"></i> Zone</label>
-        <select class="form-select" id="filter-zone" name="zone">
-          <option value="">All Zones</option>
+        <select class="form-select" id="filter-zone" name="zone" disabled>
+          <option value="">Select a Barangay first</option>
           {% for zone in all_zones %}
             <option value="{{ zone.id }}"
                     data-barangay="{{ zone.barangay_id }}"
@@ -184,7 +192,7 @@
 
 <!-- Main Walk-in Modal for Individual Member -->
 <div class="modal-overlay" id="walkinProfileModalOverlay">
-  <div class="kiosk-modal" style="max-width: 600px;">
+  <div class="kiosk-modal" style="max-width: 750px;">
     <div id="walkinProfileModalContent">
       <div class="p-5 text-center">
         <div class="spinner-border text-primary" role="status"></div>
@@ -251,11 +259,17 @@
   function cascadeZones() {
     const brgyId = brgySelect.value;
     while (zoneSelect.options.length > 1) zoneSelect.remove(1);
+    zoneSelect.value = '';
     allZoneOpts.forEach(opt => {
       if (!brgyId || opt.dataset.barangay === brgyId) {
         zoneSelect.add(opt.cloneNode(true));
       }
     });
+    if (brgyId) {
+      zoneSelect.disabled = false;
+    } else {
+      zoneSelect.disabled = true;
+    }
   }
   brgySelect.addEventListener('change', cascadeZones);
   // trigger on load if barangay is selected
@@ -397,6 +411,16 @@
       .then(html => {
         content.innerHTML = html;
         attachClaimFormListener();
+
+        // Append current search params to "View Full Info" link
+        const viewFullInfoLink = content.querySelector('#viewFullInfoLink');
+        if (viewFullInfoLink) {
+          const currentParams = new URLSearchParams(window.location.search);
+          currentParams.set('from', 'walkin');
+          currentParams.set('member', memberId);
+          const baseUrl = viewFullInfoLink.href.split('?')[0];
+          viewFullInfoLink.href = `${baseUrl}?${currentParams.toString()}`;
+        }
       })
       .catch(err => {
         content.innerHTML = '<div class="p-4 text-center text-danger"><i class="bi bi-exclamation-triangle fs-1"></i><p class="mt-2">Failed to load member details.</p></div>';
@@ -510,5 +534,12 @@
         });
     }
   });
+
+  // Auto-reopen member modal if returning from family_detail
+  const urlParams = new URLSearchParams(window.location.search);
+  const reopenMemberId = urlParams.get('member');
+  if (reopenMemberId) {
+    openWalkinModal(reopenMemberId);
+  }
 </script>
 {% endblock %}

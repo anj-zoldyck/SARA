@@ -11,7 +11,7 @@ from datetime import date, timedelta
 from django.db.models import Count, Q
 from django.core.paginator import Paginator
 
-from accounts.decorators import session_protected
+from accounts.decorators import session_protected, mswdo_or_staff_required
 from accounts.models import User, Barangay
 from households.models import Household, Zone, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
@@ -30,7 +30,7 @@ from django.urls import reverse
 from django.core.cache import cache
 import json
 import calendar
-from reports.analytics_utils import get_category_claims_data, get_unique_beneficiaries_count
+from reports.analytics_utils import get_category_claims_data, get_unique_beneficiaries_count, get_age_bracket_index, AGE_BRACKETS
 from core.models import AuditLog
 
 User = get_user_model()
@@ -166,6 +166,9 @@ def mswdo_dashboard(request):
         'monthly_trend_labels': monthly_trend_labels,
         'monthly_trend_data': monthly_trend_data,
         'monthly_trend_iso': monthly_trend_iso,
+        
+        # Sector & Age panel context
+        'show_barangay_filter': True,
     }
 
     return render(request, 'core/mswdo_dashboard.html', context)
@@ -230,6 +233,9 @@ def barangay_dashboard(request):
         'analytics_data': analytics_data,
         'total_claims': total_claims,
         'claimed_families': claimed_families,
+        
+        # Sector & Age panel context (no filter for BARANGAY role)
+        'show_barangay_filter': False,
     })
 
 
@@ -263,8 +269,54 @@ def staff_dashboard(request):
     # Count registered RFID cards
     rfid_count = Family.objects.filter(rfid_uid__isnull=False).exclude(rfid_uid="").count()
 
+    # Leaderboard & per-barangay profiling progress
+    barangays = Barangay.objects.annotate(
+        household_count=Count('households', distinct=True),
+        family_count=Count('households__families', distinct=True),
+        rfid_count=Count('households__families', filter=Q(households__families__rfid_uid__isnull=False) & ~Q(households__families__rfid_uid=""), distinct=True)
+    )
+
+    # Demographics
+    pwd_count = FamilyMember.objects.filter(is_pwd=True).count()
+    solo_parent_count = FamilyMember.objects.filter(is_solo_parent=True).count()
+    senior_count = FamilyMember.objects.filter(is_senior_citizen=True).count()
+
+    # RFID Registration Rate
+    total_families_rfid = Family.objects.filter(rfid_uid__isnull=False).exclude(rfid_uid="").count()
+    rfid_completion_percent = round((total_families_rfid / family_count) * 100) if family_count > 0 else 0
+
     now = timezone.localtime(timezone.now())
     today_claims = AidClaim.objects.filter(claimed_at__date=now.date()).count()
+
+    # Analytics data for this month
+    start_date = now.replace(day=1).date()
+    last_day = calendar.monthrange(start_date.year, start_date.month)[1]
+    end_date = now.replace(day=last_day).date()
+
+    analytics_labels, analytics_data, _ = get_category_claims_data(
+        start_date=start_date, end_date=end_date
+    )
+    this_month_beneficiaries = get_unique_beneficiaries_count(
+        start_date=start_date, end_date=end_date
+    )
+
+    # Monthly trend data (last 6 months)
+    monthly_trend_labels = []
+    monthly_trend_data = []
+    monthly_trend_iso = []
+    for i in range(5, -1, -1):
+        month_date = now.replace(day=1) - timedelta(days=32 * i)
+        month_date = month_date.replace(day=1)
+        month_end = month_date.replace(day=calendar.monthrange(month_date.year, month_date.month)[1])
+        month_name = month_date.strftime('%b %Y')
+        month_iso = month_date.strftime('%Y-%m')
+        monthly_trend_labels.append(month_name)
+        monthly_trend_iso.append(month_iso)
+        month_claims = AidClaim.objects.filter(
+            claimed_at__date__gte=month_date.date(),
+            claimed_at__date__lte=month_end.date()
+        ).count()
+        monthly_trend_data.append(month_claims)
 
     # ACTIVE (ongoing)
     active_schedules = AidSchedule.objects.filter(
@@ -280,15 +332,36 @@ def staff_dashboard(request):
         is_active=True
     )
 
+    # Active Aid Schedules count (active + upcoming)
+    active_aid_schedules_count = (active_schedules.count() + upcoming_schedules.count())
+
     context = {
         'household_count': household_count,
         'family_count': family_count,
         'active_programs_count': active_programs_count,
         'rfid_count': rfid_count,
+        'barangays': barangays,
+        'pwd_count': pwd_count,
+        'solo_parent_count': solo_parent_count,
+        'senior_count': senior_count,
+        'rfid_completion_percent': rfid_completion_percent,
+        'total_families_rfid': total_families_rfid,
         'today_claims': today_claims,
+        'analytics_labels': analytics_labels,
+        'analytics_data': analytics_data,
+        'this_month_beneficiaries': this_month_beneficiaries,
+        'demo_chart_labels': ['PWDs', 'Solo Parents', 'Senior Citizens'],
+        'demo_chart_data': [pwd_count, solo_parent_count, senior_count],
+        'monthly_trend_labels': monthly_trend_labels,
+        'monthly_trend_data': monthly_trend_data,
+        'monthly_trend_iso': monthly_trend_iso,
+        'active_aid_schedules_count': active_aid_schedules_count,
         'active_schedules': active_schedules,
         'upcoming_schedules': upcoming_schedules,
         'assigned_schedule_ids': list(request.user.distribution_assignments.values_list('schedule_id', flat=True)),
+        
+        # Sector & Age panel context
+        'show_barangay_filter': True,
     }
 
     return render(request, 'core/staff_dashboard.html', context)
@@ -375,6 +448,7 @@ def audit_log_view(request):
 
 @login_required(login_url='login')
 @session_protected
+@mswdo_or_staff_required
 def api_demographics(request, category):
     """API endpoint to get residents by demographic category (PWD, Solo Parent, Senior)"""
     valid_categories = ['pwd', 'solo_parent', 'senior']
@@ -400,6 +474,7 @@ def api_demographics(request, category):
 
 @login_required(login_url='login')
 @session_protected
+@mswdo_or_staff_required
 def api_monthly_claims(request, month):
     """API endpoint to get claims breakdown by program for a specific month (ISO format: YYYY-MM)"""
     try:
@@ -433,6 +508,7 @@ def api_monthly_claims(request, month):
 
 @login_required(login_url='login')
 @session_protected
+@mswdo_or_staff_required
 def api_analytics_chart_data(request):
     """API endpoint to get analytics chart data, optionally filtered by barangay"""
     barangay_name = request.GET.get('barangay')
@@ -457,4 +533,89 @@ def api_analytics_chart_data(request):
         'labels': labels,
         'data': data,
         'total_claims': total_claims
+    })
+
+
+@login_required(login_url='login')
+@session_protected
+def api_sector_age_data(request):
+    """API endpoint for sex counts and 10-sector life-stage breakdown"""
+    # Role enforcement: BARANGAY users are forced to their own barangay
+    barangay_id = request.GET.get('barangay')
+    barangay = None
+    
+    if request.user.role == 'BARANGAY':
+        # Force to user's barangay, ignore query param
+        barangay = request.user.barangay
+    elif barangay_id:
+        # MSWDO/MSWDO_STAFF can filter by barangay
+        try:
+            barangay = Barangay.objects.get(id=barangay_id)
+        except (Barangay.DoesNotExist, ValueError):
+            return JsonResponse({'error': 'Invalid barangay'}, status=400)
+    
+    # Base queryset: exclude archived families and deceased members
+    members_queryset = FamilyMember.objects.filter(
+        family__is_archived=False,
+        date_of_death__isnull=True
+    )
+    
+    # Apply barangay filter if specified
+    if barangay:
+        members_queryset = members_queryset.filter(family__household__barangay=barangay)
+    
+    # Sex counts
+    male_count = members_queryset.filter(sex='M').count()
+    female_count = members_queryset.filter(sex='F').count()
+    
+    # Initialize sector counts using shared AGE_BRACKETS
+    sector_data = [{'male': 0, 'female': 0, 'total': 0} for _ in AGE_BRACKETS]
+    
+    for member in members_queryset:
+        if member.age is None or member.sex is None:
+            continue
+            
+        sector_idx = get_age_bracket_index(member.age)
+        if sector_idx is None:
+            continue
+            
+        sex = member.sex
+        
+        # Update sector counts
+        sector_data[sector_idx]['total'] += 1
+        if sex == 'M':
+            sector_data[sector_idx]['male'] += 1
+        elif sex == 'F':
+            sector_data[sector_idx]['female'] += 1
+    
+    # Format sector data for response (use dashboard's sector labels)
+    dashboard_sector_labels = [
+        'Infant / Early Childhood',
+        'Child',
+        'Adolescent',
+        'Young Adult',
+        'Adult',
+        'Adult',
+        'Adult',
+        'Senior Citizen',
+        'Senior Citizen',
+        'Senior Citizen',
+    ]
+    
+    sectors_with_data = []
+    for i, bracket in enumerate(AGE_BRACKETS):
+        sectors_with_data.append({
+            'label': dashboard_sector_labels[i],
+            'range': bracket['range'],
+            'male': sector_data[i]['male'],
+            'female': sector_data[i]['female'],
+            'total': sector_data[i]['total']
+        })
+    
+    return JsonResponse({
+        'sex_counts': {
+            'male': male_count,
+            'female': female_count
+        },
+        'sectors': sectors_with_data
     })
