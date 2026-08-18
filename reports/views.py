@@ -318,6 +318,7 @@ def walkin_reports(request):
 
 
 @login_required
+@session_protected
 def generate_summary_report(request):
     if request.user.role != 'MSWDO_STAFF':
         return HttpResponseForbidden("Only MSWDO Staff can generate this report.")
@@ -398,6 +399,7 @@ def generate_summary_report(request):
 
 
 @login_required
+@session_protected
 def generate_beneficiary_list_report(request):
     if request.user.role != 'MSWDO_STAFF':
         return HttpResponseForbidden("Only MSWDO Staff can generate this report.")
@@ -461,6 +463,7 @@ def generate_beneficiary_list_report(request):
 
 
 @login_required
+@session_protected
 def generate_walkin_summary_report(request):
     if request.user.role != 'MSWDO_STAFF':
         return HttpResponseForbidden("Only MSWDO Staff can generate this report.")
@@ -541,6 +544,7 @@ def generate_walkin_summary_report(request):
 
 
 @login_required
+@session_protected
 def generate_walkin_beneficiary_list_report(request):
     if request.user.role != 'MSWDO_STAFF':
         return HttpResponseForbidden("Only MSWDO Staff can generate this report.")

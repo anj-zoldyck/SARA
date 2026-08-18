@@ -310,7 +310,7 @@ def cancel_schedule(request, schedule_id):
 
 
 @login_required
-@session_protected
+@session_protected(timeout=1800)
 def scan_rfid(request, schedule_id):
     if request.user.role not in ('MSWDO', 'MSWDO_STAFF', 'BARANGAY'):
         messages.error(request, "Access Denied.")
@@ -1349,7 +1349,7 @@ def assign_staff(request, schedule_id):
     })
 
 @login_required
-@session_protected
+@session_protected(timeout=1800)
 def finish_distribution(request, schedule_id):
     if request.user.role not in ('MSWDO', 'MSWDO_STAFF'):
         return HttpResponseForbidden("Access Denied")
@@ -1378,7 +1378,7 @@ def finish_distribution(request, schedule_id):
     return HttpResponseForbidden("Invalid Method")
 
 @login_required
-@session_protected
+@session_protected(timeout=1800)
 def generate_report_stub(request):
     if request.user.role not in ('MSWDO', 'MSWDO_STAFF'):
         return HttpResponseForbidden("Access Denied")

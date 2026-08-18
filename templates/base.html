@@ -625,6 +625,35 @@
     function hideLoadingModal() {
       document.getElementById('loadingModalOverlay').classList.remove('active');
     }
+
+    // ── Idle Timer (Auto-Logout) ───────────────────────────────────────────────
+    // Redirects to logout after 15 minutes of inactivity
+    // Only counts user-initiated activity, not setInterval polling
+    (function() {
+      const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+      let idleTimer = null;
+      let lastActivityTime = Date.now();
+
+      function resetIdleTimer() {
+        lastActivityTime = Date.now();
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(handleIdleTimeout, IDLE_TIMEOUT_MS);
+      }
+
+      function handleIdleTimeout() {
+        // Redirect to logout to properly invalidate session
+        window.location.href = "{% url 'logout' %}";
+      }
+
+      // Standard user activity events
+      const activityEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+      activityEvents.forEach(event => {
+        document.addEventListener(event, resetIdleTimer, { passive: true });
+      });
+
+      // Start timer on page load
+      resetIdleTimer();
+    })();
   </script>
 
   {% block js %}{% endblock %}

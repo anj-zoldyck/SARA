@@ -165,10 +165,11 @@ DEFAULT_FROM_EMAIL = 'SRC Capstone System<dizonjelo50@gmail.com>'
 #OTP_EMAIL_SUBJECT = 'Your login verification code'
 #OTP_EMAIL_TOKEN_VALIDITY = 300  # 5 minutes
 
-# TO DO before deployment: review and tighten session settings
-# SESSION_COOKIE_AGE = 1800
-# SESSION_COOKIE_SECURE = True
-# SESSION_COOKIE_HTTPONLY = True
-# SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+# Session settings for idle-based auto-logout
+SESSION_COOKIE_AGE = 1800  # 30 minutes - global fallback/hard ceiling
+SESSION_SAVE_EVERY_REQUEST = False  # Disabled - @session_protected decorator handles set_expiry() explicitly
+SESSION_COOKIE_SECURE = not DEBUG  # True in production, False for local HTTP development
+SESSION_COOKIE_HTTPONLY = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
 CSRF_COOKIE_HTTPONLY = True

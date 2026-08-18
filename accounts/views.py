@@ -31,7 +31,7 @@ from django.utils.dateparse import parse_datetime
 from django_otp.plugins.otp_email.models import EmailDevice
 from django.urls import reverse
 from django.core.cache import cache
-import json
+import json, secrets, string
 
 from core.audit_utils import log_action
 
@@ -135,8 +135,7 @@ def check_session(request):
     return JsonResponse({'authenticated': False}, status=401)
 
 
-import secrets
-import string
+
 
 def generate_temp_password(length=12):
     alphabet = string.ascii_letters + string.digits
@@ -169,6 +168,7 @@ def create_user(request):
 
 
 @login_required(login_url='login')
+@session_protected
 def force_password_change(request):
     if not request.user.must_change_password:
         if request.user.role == 'MSWDO':

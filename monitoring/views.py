@@ -298,7 +298,7 @@ def get_aid_categories(request):
 
 
 @login_required
-@session_protected
+@session_protected(extend_session=False)
 @mswdo_or_staff_required
 def schedule_status(request):
 
@@ -644,7 +644,7 @@ def barangay_analytics(request):
 
 
 @login_required(login_url='login')
-@session_protected
+@session_protected(extend_session=False)
 def barangay_schedule_status(request):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")

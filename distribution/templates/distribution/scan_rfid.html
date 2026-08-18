@@ -588,7 +588,10 @@
     const barangayFilterEl = document.getElementById('barangayFilter');
     const brgy = barangayFilterEl ? barangayFilterEl.value : '';
     fetch("{% url 'scan_rfid' aid_schedule.id %}?barangay=" + brgy, {
-      headers: { 'Accept': 'text/html' }
+      headers: { 
+        'Accept': 'text/html',
+        'X-Background-Poll': 'true'
+      }
     })
       .then(response => response.text())
       .then(html => {
@@ -648,6 +651,63 @@
     }
     focusRfidInput(); // re-focus just in case
   });
+
+  // ── Override Idle Timer for Kiosk Mode (30-minute timeout) ─────────────
+  // Overrides base.html idle timer with longer timeout and broadened activity definition
+  (function() {
+    const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes for kiosk mode
+    let idleTimer = null;
+    let lastActivityTime = Date.now();
+
+    function resetIdleTimer() {
+      lastActivityTime = Date.now();
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(handleIdleTimeout, IDLE_TIMEOUT_MS);
+    }
+
+    function handleIdleTimeout() {
+      window.location.href = "{% url 'logout' %}";
+    }
+
+    // Standard user activity events
+    const activityEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    activityEvents.forEach(event => {
+      document.addEventListener(event, resetIdleTimer, { passive: true });
+    });
+
+    // Kiosk-specific activity events
+    // 1. Successful RFID scan (when processClaim returns success)
+    const originalProcessClaim = window.processClaim;
+    if (originalProcessClaim) {
+      window.processClaim = async function(uid, memberId) {
+        const result = await originalProcessClaim(uid, memberId);
+        if (result && result.status === 'success') {
+          resetIdleTimer(); // Count successful scan as activity
+        }
+        return result;
+      };
+    }
+
+    // 2. Force Finish button click
+    const forceFinishBtn = document.getElementById('forceFinishBtn');
+    if (forceFinishBtn) {
+      forceFinishBtn.addEventListener('click', resetIdleTimer);
+    }
+
+    // 3. Fullscreen toggle
+    if (fullscreenBtn) {
+      fullscreenBtn.addEventListener('click', resetIdleTimer);
+    }
+
+    // 4. Barangay filter change
+    const barangayFilter = document.getElementById('barangayFilter');
+    if (barangayFilter) {
+      barangayFilter.addEventListener('change', resetIdleTimer);
+    }
+
+    // Start timer on page load
+    resetIdleTimer();
+  })();
 
 </script>
 {% endblock %}
