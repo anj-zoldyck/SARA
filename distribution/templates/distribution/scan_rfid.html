@@ -654,19 +654,116 @@
 
   // ── Override Idle Timer for Kiosk Mode (30-minute timeout) ─────────────
   // Overrides base.html idle timer with longer timeout and broadened activity definition
+  // Reuses the same session timeout modal mechanism
+  // Only runs for authenticated users
+  {% if user.is_authenticated %}
   (function() {
     const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes for kiosk mode
+    const TIMEOUT_MESSAGE = "Session Timed Out due to 30 minutes of inactivity.";
     let idleTimer = null;
     let lastActivityTime = Date.now();
+    let modalShown = false;
 
     function resetIdleTimer() {
+      if (modalShown) return; // Don't reset after modal is shown
       lastActivityTime = Date.now();
       if (idleTimer) clearTimeout(idleTimer);
       idleTimer = setTimeout(handleIdleTimeout, IDLE_TIMEOUT_MS);
     }
 
     function handleIdleTimeout() {
-      window.location.href = "{% url 'logout' %}";
+      if (modalShown) return;
+      modalShown = true;
+
+      // Immediately send logout request via sendBeacon (more reliable than fetch)
+      // Read CSRF token from hidden input (required due to CSRF_COOKIE_HTTPONLY=True)
+      const logoutUrl = "{% url 'logout' %}";
+      const csrfTokenInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+      const formData = new FormData();
+      if (csrfTokenInput) {
+        formData.append('csrfmiddlewaretoken', csrfTokenInput.value);
+      }
+
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(logoutUrl, formData);
+      } else {
+        fetch(logoutUrl, {
+          method: 'POST',
+          body: formData,
+          credentials: 'same-origin'
+        });
+      }
+
+      // Show the modal (reusing base.html's modal)
+      showSessionTimeoutModal(TIMEOUT_MESSAGE);
+    }
+
+    function showSessionTimeoutModal(message) {
+      const overlay = document.getElementById('sessionTimeoutModalOverlay');
+      const messageEl = document.getElementById('sessionTimeoutMessage');
+      const loginBtn = document.getElementById('sessionTimeoutLoginBtn');
+
+      messageEl.textContent = message;
+
+      // Remove aria-hidden from overlay, add to main content
+      overlay.setAttribute('aria-hidden', 'false');
+      const mainContent = document.querySelector('main') || document.body;
+      if (mainContent && mainContent !== overlay) {
+        // Blur currently focused element before applying aria-hidden
+        const activeElement = document.activeElement;
+        if (activeElement) activeElement.blur();
+        mainContent.setAttribute('aria-hidden', 'true');
+      }
+
+      overlay.classList.add('active');
+
+      // Focus trap
+      const focusableElements = overlay.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      const firstFocusable = focusableElements[0];
+      const lastFocusable = focusableElements[focusableElements.length - 1];
+
+      if (firstFocusable) firstFocusable.focus();
+
+      overlay.addEventListener('keydown', trapFocus);
+
+      function trapFocus(e) {
+        if (e.key === 'Tab') {
+          if (e.shiftKey) {
+            if (document.activeElement === firstFocusable) {
+              e.preventDefault();
+              lastFocusable.focus();
+            }
+          } else {
+            if (document.activeElement === lastFocusable) {
+              e.preventDefault();
+              firstFocusable.focus();
+            }
+          }
+        }
+        // Prevent Escape key from closing modal
+        if (e.key === 'Escape') {
+          e.preventDefault();
+        }
+      }
+
+      // Prevent click-outside-to-dismiss
+      overlay.addEventListener('click', function preventDismiss(e) {
+        if (e.target === overlay) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      });
+
+      // History trapping guard
+      history.pushState({ modalOpen: true }, '', window.location.href);
+      window.addEventListener('popstate', handlePopState);
+
+      function handlePopState(e) {
+        if (modalShown) {
+          e.preventDefault();
+          history.pushState({ modalOpen: true }, '', window.location.href);
+        }
+      }
     }
 
     // Standard user activity events
@@ -705,9 +802,17 @@
       barangayFilter.addEventListener('change', resetIdleTimer);
     }
 
+    // bfcache handling - force reload if page is restored from cache
+    window.addEventListener('pageshow', function(e) {
+      if (e.persisted) {
+        window.location.href = "{% url 'login' %}";
+      }
+    });
+
     // Start timer on page load
     resetIdleTimer();
   })();
+  {% endif %}
 
 </script>
 {% endblock %}

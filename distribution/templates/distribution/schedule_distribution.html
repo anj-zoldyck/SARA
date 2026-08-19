@@ -127,6 +127,77 @@
   .route-info.show {
     display: block;
   }
+
+  .assistance-search-wrapper {
+    position: relative;
+  }
+
+  #assistanceSearch {
+    padding-right: 40px;
+  }
+
+  #clearAssistanceBtn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #64748b;
+    padding: 4px 8px;
+    cursor: pointer;
+    z-index: 1;
+  }
+
+  #clearAssistanceBtn:hover {
+    color: #334155;
+  }
+
+  .assistance-search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 0 0 6px 6px;
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    display: none;
+  }
+
+  .assistance-search-results.show {
+    display: block;
+  }
+
+  .assistance-result-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .assistance-result-item:hover {
+    background: #f8fafc;
+  }
+
+  .assistance-result-item:last-child {
+    border-bottom: none;
+  }
+
+  .assistance-result-program {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+
+  .assistance-result-label {
+    font-weight: 500;
+    color: #1e293b;
+  }
 </style>
 {% endblock %}
 
@@ -153,7 +224,7 @@
       <i class="bi bi-calendar-plus dash-panel__icon"></i>
       <div>
         <h2 class="dash-panel__title">New Distribution Schedule</h2>
-        <p class="dash-panel__sub">Configure the aid type, timing, and location.</p>
+        <p class="dash-panel__sub">Configure the assistance type, timing, and location.</p>
       </div>
     </div>
   </div>
@@ -229,10 +300,20 @@
       <div class="acct-form mt-3">
         <div class="acct-form__group">
           <label class="acct-form__label">
-            <i class="bi bi-box-seam"></i> Aid Type <span class="acct-form__required">*</span>
+            <i class="bi bi-box-seam"></i> Search & Select Assistance <span class="acct-form__required">*</span>
           </label>
-          <div class="acct-form__control-wrap">
-            <select name="assistance" class="form-select" required>
+          <div class="acct-form__control-wrap assistance-search-wrapper">
+            <div class="input-group">
+              <input type="text" id="assistanceSearch" class="form-control" 
+                     placeholder="Search assistance by program or category..." autocomplete="off">
+              <button type="button" id="clearAssistanceBtn" class="btn d-none">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+            <input type="hidden" name="assistance" id="assistanceSelectedId" value="">
+            <div id="assistanceSearchResults" class="assistance-search-results"></div>
+            <!-- Original select kept in DOM for data extraction, but hidden -->
+            <select name="assistance_original" class="form-select" style="display: none;">
               <option value="">-- Select Assistance --</option>
               {% regroup assistances by program as program_list %}
               {% for group in program_list %}
@@ -242,7 +323,9 @@
                   data-requires-pwd="{{ a.requires_pwd|yesno:"true,false" }}"
                   data-requires-solo-parent="{{ a.requires_solo_parent|yesno:"true,false" }}"
                   data-requires-senior="{{ a.requires_senior_citizen|yesno:"true,false" }}"
-                  data-default-strategy="{{ a.prioritization_strategy }}">
+                  data-default-strategy="{{ a.prioritization_strategy }}"
+                  data-program="{{ group.grouper }}"
+                  data-label="{{ a.aid_category.name }} ({{ a.get_beneficiary_type_display }})">
                   {{ a.aid_category.name }} ({{ a.get_beneficiary_type_display }})
                 </option>
                 {% endfor %}
@@ -250,6 +333,7 @@
               {% endfor %}
             </select>
           </div>
+          <p class="acct-form__hint">Type to search assistances. Results are filtered by your selected prioritization strategy.</p>
         </div>
 
         <div class="acct-form__group">
@@ -306,6 +390,8 @@
 {% endblock %}
 
 {% block js %}
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <!-- Leaflet -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <!-- Leaflet Routing Machine -->
@@ -335,7 +421,7 @@
     const perAmountInput = document.getElementById('perAmountInput');
     const prioritizationInput = document.getElementById('prioritizationStrategyInput');
     const submitBtn = document.getElementById('submitBtn');
-    const assistanceSelect = document.querySelector('select[name="assistance"]');
+    const assistanceSelect = document.querySelector('select[name="assistance_original"]');
 
     const datetimeInput = document.getElementById('scheduleDatetimeInput');
     if (datetimeInput) {
@@ -353,27 +439,133 @@
       }
     }
 
-    // Handle assistance select change to control SPECIAL_CATEGORY visibility
-    assistanceSelect.addEventListener('change', function() {
-      const selectedOption = this.options[this.selectedIndex];
-      const requiresPwd = selectedOption.getAttribute('data-requires-pwd') === 'true';
-      const requiresSoloParent = selectedOption.getAttribute('data-requires-solo-parent') === 'true';
-      const requiresSenior = selectedOption.getAttribute('data-requires-senior') === 'true';
+    // ========== ASSISTANCE SEARCH ==========
+    const assistanceSearchInput = document.getElementById('assistanceSearch');
+    const assistanceResultsContainer = document.getElementById('assistanceSearchResults');
+    const assistanceSelectedId = document.getElementById('assistanceSelectedId');
+    const clearAssistanceBtn = document.getElementById('clearAssistanceBtn');
+    let assistanceDebounceTimer;
+
+    // Extract assistance data from the hidden select into a JS array
+    const assistancesData = [];
+    for (let i = 1; i < assistanceSelect.options.length; i++) {
+      const opt = assistanceSelect.options[i];
+      assistancesData.push({
+        id: opt.value,
+        program: opt.getAttribute('data-program'),
+        label: opt.getAttribute('data-label'),
+        requiresPwd: opt.getAttribute('data-requires-pwd') === 'true',
+        requiresSoloParent: opt.getAttribute('data-requires-solo-parent') === 'true',
+        requiresSenior: opt.getAttribute('data-requires-senior') === 'true',
+        defaultStrategy: opt.getAttribute('data-default-strategy')
+      });
+    }
+
+    // Current filter state (null = no filter)
+    let currentAssistanceFilter = null;
+
+    function filterAssistances(query) {
+      const lowerQuery = query.toLowerCase();
+      const filtered = assistancesData.filter(a => {
+        // Apply text search
+        const matchesText = a.program.toLowerCase().includes(lowerQuery) || 
+                           a.label.toLowerCase().includes(lowerQuery);
+        
+        // Apply strategy filter if active
+        const matchesStrategy = currentAssistanceFilter === null || 
+                               (currentAssistanceFilter === 'SPECIAL_CATEGORY' && 
+                                (a.requiresPwd || a.requiresSoloParent || a.requiresSenior));
+        
+        return matchesText && matchesStrategy;
+      });
+      return filtered;
+    }
+
+    function displayAssistanceResults(results) {
+      assistanceResultsContainer.innerHTML = '';
       
-      // Show/hide SPECIAL_CATEGORY option based on assistance flags
-      const specialCategoryOption = prioritizationInput.querySelector('option[value="SPECIAL_CATEGORY"]');
-      const hasSpecialCategory = requiresPwd || requiresSoloParent || requiresSenior;
-      
-      if (hasSpecialCategory) {
-        specialCategoryOption.disabled = false;
-        specialCategoryOption.style.display = '';
+      if (results.length === 0) {
+        assistanceResultsContainer.innerHTML = '<div class="p-3 text-muted small text-center">No matching assistance found.</div>';
       } else {
-        specialCategoryOption.disabled = true;
-        specialCategoryOption.style.display = 'none';
-        // Reset selection if SPECIAL_CATEGORY was selected
-        if (prioritizationInput.value === 'SPECIAL_CATEGORY') {
-          prioritizationInput.value = 'LOWEST_INCOME_FIRST';
-        }
+        results.forEach(assistance => {
+          const div = document.createElement('div');
+          div.className = 'assistance-result-item';
+          div.innerHTML = `
+            <div class="assistance-result-program">${assistance.program}</div>
+            <div class="assistance-result-label">${assistance.label}</div>
+          `;
+          div.addEventListener('click', () => {
+            assistanceSelectedId.value = assistance.id;
+            assistanceSearchInput.value = `${assistance.program} › ${assistance.label}`;
+            assistanceSearchInput.readOnly = true;
+            assistanceResultsContainer.classList.remove('show');
+            clearAssistanceBtn.classList.remove('d-none');
+            
+            // Pre-select default strategy if available
+            if (assistance.defaultStrategy && !prioritizationInput.value) {
+              prioritizationInput.value = assistance.defaultStrategy;
+              
+              // Apply strategy filter if the default is SPECIAL_CATEGORY
+              if (assistance.defaultStrategy === 'SPECIAL_CATEGORY') {
+                currentAssistanceFilter = 'SPECIAL_CATEGORY';
+              }
+            }
+          });
+          assistanceResultsContainer.appendChild(div);
+        });
+      }
+      
+      assistanceResultsContainer.classList.add('show');
+    }
+
+    assistanceSearchInput.addEventListener('input', function() {
+      clearTimeout(assistanceDebounceTimer);
+      const query = this.value.trim();
+      
+      if (query.length === 0) {
+        assistanceResultsContainer.classList.remove('show');
+        return;
+      }
+      
+      assistanceDebounceTimer = setTimeout(() => {
+        const results = filterAssistances(query);
+        displayAssistanceResults(results);
+      }, 300);
+    });
+
+    // Re-show results when focusing on input if it has a value
+    assistanceSearchInput.addEventListener('focus', function() {
+      const query = this.value.trim();
+      if (query.length > 0 && !this.readOnly) {
+        const results = filterAssistances(query);
+        displayAssistanceResults(results);
+      }
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!assistanceSearchInput.contains(e.target) && 
+          !assistanceResultsContainer.contains(e.target) && 
+          !clearAssistanceBtn.contains(e.target)) {
+        assistanceResultsContainer.classList.remove('show');
+      }
+    });
+
+    clearAssistanceBtn.addEventListener('click', function() {
+      assistanceSelectedId.value = '';
+      assistanceSearchInput.value = '';
+      assistanceSearchInput.readOnly = false;
+      assistanceSearchInput.focus();
+      assistanceResultsContainer.classList.remove('show');
+      this.classList.add('d-none');
+    });
+
+    // Form validation - ensure assistance is selected
+    document.querySelector('.sched-form').addEventListener('submit', function(e) {
+      if (!assistanceSelectedId.value) {
+        e.preventDefault();
+        Swal.fire('Missing Assistance', 'Please select an assistance type before submitting.', 'warning');
+        assistanceSearchInput.focus();
       }
     });
 
@@ -397,6 +589,49 @@
         perAmountInput.required = false;
         prioritizationInput.required = false;
         submitBtn.innerHTML = '<i class="bi bi-calendar-plus me-1"></i> Create Schedule';
+        
+        // Reset strategy filter when toggling off
+        if (currentAssistanceFilter === 'SPECIAL_CATEGORY') {
+          currentAssistanceFilter = null;
+        }
+      }
+    });
+
+    // ========== STRATEGY-DRIVEN ASSISTANCE FILTERING ==========
+    prioritizationInput.addEventListener('change', function() {
+      const selectedStrategy = this.value;
+      
+      if (selectedStrategy === 'SPECIAL_CATEGORY') {
+        // Apply filter to only show special category assistances
+        currentAssistanceFilter = 'SPECIAL_CATEGORY';
+        
+        // Check if currently selected assistance is compatible
+        if (assistanceSelectedId.value) {
+          const selectedAssistance = assistancesData.find(a => a.id === assistanceSelectedId.value);
+          if (selectedAssistance && !(selectedAssistance.requiresPwd || selectedAssistance.requiresSoloParent || selectedAssistance.requiresSenior)) {
+            // Clear incompatible selection
+            assistanceSelectedId.value = '';
+            assistanceSearchInput.value = '';
+            assistanceSearchInput.readOnly = false;
+            clearAssistanceBtn.classList.add('d-none');
+            
+            Swal.fire({
+              icon: 'warning',
+              title: 'Assistance Incompatible',
+              text: 'The previously selected assistance is not compatible with Special Category strategy. Please select a PWD, Senior, or Solo Parent assistance.',
+              confirmButtonColor: '#134ed5'
+            });
+          }
+        }
+      } else {
+        // Remove filter
+        currentAssistanceFilter = null;
+      }
+      
+      // If search input has a value, refresh results with new filter
+      if (assistanceSearchInput.value.trim() && !assistanceSearchInput.readOnly) {
+        const results = filterAssistances(assistanceSearchInput.value.trim());
+        displayAssistanceResults(results);
       }
     });
 

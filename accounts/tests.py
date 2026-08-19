@@ -645,6 +645,29 @@ class SessionExpiryTests(TestCase):
         
         self.assertEqual(settings.SESSION_SAVE_EVERY_REQUEST, False)
 
+    def test_logout_endpoint_invalidates_session(self):
+        """Logout endpoint should properly invalidate the session when called."""
+        from django.contrib.sessions.models import Session
+        
+        # Login user via client
+        self.client.login(username='mswdo_test', password='testpass123')
+        
+        # Get session key from the client
+        session_key = self.client.session.session_key
+        
+        # Verify session exists in database
+        self.assertTrue(Session.objects.filter(session_key=session_key).exists())
+        
+        # Call logout endpoint
+        response = self.client.post('/logout/')
+        
+        # Verify redirect (logout view redirects to landing page)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.endswith('/') or response.url.endswith('/landing/'))
+        
+        # Verify session is deleted from database
+        self.assertFalse(Session.objects.filter(session_key=session_key).exists())
+
     @override_settings(DEBUG=True)
     def test_session_cookie_age_1800(self):
         """SESSION_COOKIE_AGE should be 1800 (30 minutes)."""

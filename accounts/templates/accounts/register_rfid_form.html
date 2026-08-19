@@ -46,6 +46,8 @@
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
       <a href="{% url 'register_rfid' %}" class="breadcrumb-link">RFID Registration</a>
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'barangay_rfid_detail' selected_family.household.zone.barangay.id %}" class="breadcrumb-link">{{ selected_family.household.zone.barangay.name }}</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
       <span class="breadcrumb-current">{{ selected_family.family_name }}</span>
     </div>
     <h1 class="dash-page-title">Register RFID</h1>
@@ -56,8 +58,8 @@
     </p>
   </div>
   <div class="dash-header-actions">
-    <a href="{% url 'register_rfid' %}" class="btn-dash-outline">
-      <i class="bi bi-arrow-left"></i> Back to Overview
+    <a href="{% url 'barangay_rfid_detail' selected_family.household.zone.barangay.id %}" class="btn-dash-outline">
+      <i class="bi bi-arrow-left"></i> Back to Brgy {{ selected_family.household.zone.barangay.name }}
     </a>
   </div>
 </div>
@@ -86,8 +88,14 @@
           required
         >
 
+        <div style="margin-top: 20px;">
+          <button type="button" class="btn-dash-primary" onclick="focusRfidInput()">
+            <i class="bi bi-upc-scan"></i> Ready to Scan
+          </button>
+        </div>
+
         <div style="margin-top: 30px;">
-          <a href="{% url 'register_rfid' %}" class="btn-dash-outline">
+          <a href="{% url 'barangay_rfid_detail' selected_family.household.zone.barangay.id %}" class="btn-dash-outline">
             <i class="bi bi-arrow-left"></i> Cancel
           </a>
         </div>
@@ -237,10 +245,41 @@
   let keyPressStartTime = null;
   let keyPressCount = 0;
 
-  // Autofocus fallback for browsers that may not respect autofocus on hidden inputs
-  document.addEventListener('DOMContentLoaded', function() {
-    if (rfidInput) rfidInput.focus();
+  // ---------------- Focus Management ----------------
+  function focusRfidInput() {
+    const isModalActive = document.querySelector('.modal-overlay.active');
+    if (!isModalActive) {
+      rfidInput.focus();
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    const interactive = e.target.closest('select, button, a, input, .modal-overlay');
+    if (!interactive) focusRfidInput();
   });
+
+  function shouldRefocus() {
+    if (document.activeElement) {
+      const tag = document.activeElement.tagName;
+      if (['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].includes(tag)) {
+        if (document.activeElement.id !== 'rfidHiddenInput') return false;
+      }
+    }
+    return true;
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && shouldRefocus()) {
+      focusRfidInput();
+    }
+  });
+
+  window.addEventListener('blur', () => {
+    if (shouldRefocus()) {
+      setTimeout(focusRfidInput, 100);
+    }
+  });
+  focusRfidInput();
 
   // Status pill state helpers
   function setStatusProcessing() {
@@ -258,7 +297,7 @@
     statusSpinner.classList.add('d-none');
     statusText.textContent = "Waiting for RFID";
     rfidInput.value = '';
-    rfidInput.focus();
+    focusRfidInput();
   }
 
   // RFID Input Validation
@@ -333,14 +372,14 @@
   closeErrorBtn.addEventListener('click', () => {
     if (modalTimeout) clearTimeout(modalTimeout);
     errorModal.classList.remove('active');
-    rfidInput.focus();
+    focusRfidInput();
   });
 
   // Close success modal
   closeSuccessBtn.addEventListener('click', () => {
     if (modalTimeout) clearTimeout(modalTimeout);
     successModal.classList.remove('active');
-    rfidInput.focus();
+    focusRfidInput();
   });
 
   // Show modals on page load based on Django context

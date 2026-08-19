@@ -128,3 +128,25 @@ class RFIDRegistrationTestCase(TestCase):
         else:
             # Bug fixed - cross-barangay duplicate was blocked
             self.assertIsNone(family_cross_barangay.rfid_uid)
+
+    def test_register_rfid_form_context(self):
+        """
+        Test that the register_rfid view with family_id passes the necessary
+        context variables for the breadcrumb and navigation to work correctly.
+        Specifically verifies that selected_family has the household->zone->barangay
+        relationship chain needed for the barangay breadcrumb link.
+        """
+        response = self.client.get(f'/mswdo/rfid/register/{self.family1.id}/')
+        self.assertEqual(response.status_code, 200)
+        
+        # Verify context includes selected_family
+        self.assertIn('selected_family', response.context)
+        selected_family = response.context['selected_family']
+        self.assertEqual(selected_family.id, self.family1.id)
+        
+        # Verify the relationship chain exists for breadcrumb navigation
+        self.assertIsNotNone(selected_family.household)
+        self.assertIsNotNone(selected_family.household.zone)
+        self.assertIsNotNone(selected_family.household.zone.barangay)
+        self.assertEqual(selected_family.household.zone.barangay.id, self.barangay.id)
+        self.assertEqual(selected_family.household.zone.barangay.name, 'Test Barangay')

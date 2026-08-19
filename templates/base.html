@@ -472,6 +472,26 @@
     </div>
   </div>
 
+  <!-- Session Timed Out Modal (Non-dismissible) -->
+  <div class="modal-overlay" id="sessionTimeoutModalOverlay" aria-hidden="true">
+    <div class="kiosk-modal" style="max-width: 500px;" role="dialog" aria-modal="true" aria-labelledby="sessionTimeoutTitle">
+      <div class="kiosk-modal-header mb-3">
+        <h4 class="kiosk-modal-title m-0 text-danger" id="sessionTimeoutTitle">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>Session Timed Out
+        </h4>
+      </div>
+      <div class="kiosk-modal-body">
+        <p class="mb-0" id="sessionTimeoutMessage">Session Timed Out due to 15 minutes of inactivity.</p>
+      </div>
+      <div class="kiosk-modal-footer mt-3">
+        <a href="{% url 'login' %}" class="btn btn-primary w-100" id="sessionTimeoutLoginBtn">Return to Login</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- CSRF Token for AJAX requests (needed for logout via sendBeacon/fetch) -->
+  {% csrf_token %}
+
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -626,24 +646,126 @@
       document.getElementById('loadingModalOverlay').classList.remove('active');
     }
 
-    // ── Idle Timer (Auto-Logout) ───────────────────────────────────────────────
-    // Redirects to logout after 15 minutes of inactivity
+    // ── Idle Timer (Auto-Logout with Session Timeout Modal) ─────────────────
+    // Shows non-dismissible modal and immediately logs out after 15 minutes of inactivity
     // Only counts user-initiated activity, not setInterval polling
+    // Only runs for authenticated users (not on login, password-reset pages)
+    {% if user.is_authenticated %}
     (function() {
       const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+      const TIMEOUT_MESSAGE = "Session Timed Out due to 15 minutes of inactivity.";
       let idleTimer = null;
       let lastActivityTime = Date.now();
+      let modalShown = false;
 
       function resetIdleTimer() {
+        if (modalShown) return; // Don't reset after modal is shown
         lastActivityTime = Date.now();
         if (idleTimer) clearTimeout(idleTimer);
         idleTimer = setTimeout(handleIdleTimeout, IDLE_TIMEOUT_MS);
       }
 
       function handleIdleTimeout() {
-        // Redirect to logout to properly invalidate session
-        window.location.href = "{% url 'logout' %}";
+        if (modalShown) return;
+        modalShown = true;
+
+        // Immediately send logout request via sendBeacon (more reliable than fetch)
+        // Read CSRF token from hidden input (required due to CSRF_COOKIE_HTTPONLY=True)
+        const logoutUrl = "{% url 'logout' %}";
+        const csrfTokenInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        const formData = new FormData();
+        if (csrfTokenInput) {
+          formData.append('csrfmiddlewaretoken', csrfTokenInput.value);
+        }
+
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(logoutUrl, formData);
+        } else {
+          fetch(logoutUrl, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+          });
+        }
+
+        // Show the modal
+        showSessionTimeoutModal(TIMEOUT_MESSAGE);
       }
+
+      function showSessionTimeoutModal(message) {
+        const overlay = document.getElementById('sessionTimeoutModalOverlay');
+        const messageEl = document.getElementById('sessionTimeoutMessage');
+        const loginBtn = document.getElementById('sessionTimeoutLoginBtn');
+
+        messageEl.textContent = message;
+
+        // Remove aria-hidden from overlay, add to main content
+        overlay.setAttribute('aria-hidden', 'false');
+        const mainContent = document.querySelector('main') || document.body;
+        if (mainContent && mainContent !== overlay) {
+          // Blur currently focused element before applying aria-hidden
+          const activeElement = document.activeElement;
+          if (activeElement) activeElement.blur();
+          mainContent.setAttribute('aria-hidden', 'true');
+        }
+
+        overlay.classList.add('active');
+
+        // Focus trap
+        const focusableElements = overlay.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        const firstFocusable = focusableElements[0];
+        const lastFocusable = focusableElements[focusableElements.length - 1];
+
+        if (firstFocusable) firstFocusable.focus();
+
+        overlay.addEventListener('keydown', trapFocus);
+
+        function trapFocus(e) {
+          if (e.key === 'Tab') {
+            if (e.shiftKey) {
+              if (document.activeElement === firstFocusable) {
+                e.preventDefault();
+                lastFocusable.focus();
+              }
+            } else {
+              if (document.activeElement === lastFocusable) {
+                e.preventDefault();
+                firstFocusable.focus();
+              }
+            }
+          }
+          // Prevent Escape key from closing modal
+          if (e.key === 'Escape') {
+            e.preventDefault();
+          }
+        }
+
+        // Prevent click-outside-to-dismiss
+        overlay.addEventListener('click', function preventDismiss(e) {
+          if (e.target === overlay) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        });
+
+        // History trapping guard
+        history.pushState({ modalOpen: true }, '', window.location.href);
+        window.addEventListener('popstate', handlePopState);
+
+        function handlePopState(e) {
+          if (modalShown) {
+            e.preventDefault();
+            history.pushState({ modalOpen: true }, '', window.location.href);
+          }
+        }
+      }
+
+      // bfcache handling - force reload if page is restored from cache
+      window.addEventListener('pageshow', function(e) {
+        if (e.persisted) {
+          window.location.href = "{% url 'login' %}";
+        }
+      });
 
       // Standard user activity events
       const activityEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
@@ -654,6 +776,7 @@
       // Start timer on page load
       resetIdleTimer();
     })();
+    {% endif %}
   </script>
 
   {% block js %}{% endblock %}
