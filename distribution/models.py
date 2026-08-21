@@ -61,7 +61,8 @@ class AidClaim(models.Model):
         choices=CLAIM_TYPE_CHOICES,
         default='DISTRIBUTION'
     )
-    schedule = models.ForeignKey('AidSchedule', on_delete=models.CASCADE, null=True)
+    # Note: related_name='claims' creates schedule.claims reverse relation (distinct from assistance.claims)
+    schedule = models.ForeignKey('AidSchedule', on_delete=models.CASCADE, null=True, related_name='claims')
     claimed_at = models.DateTimeField(auto_now_add=True)
     amount = models.DecimalField(
         max_digits=12,
@@ -77,6 +78,18 @@ class AidClaim(models.Model):
             blank=True,
             related_name='processed_claims'
         )
+    is_late_scheduled_claim = models.BooleanField(
+        default=False,
+        help_text="True if this walk-in claim fulfills a missed scheduled distribution within the 7-day grace period"
+    )
+    original_schedule = models.ForeignKey(
+        'AidSchedule',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='late_claims',
+        help_text="If is_late_scheduled_claim=True, links to the original missed schedule this claim fulfills"
+    )
 
     def __str__(self):
         label = str(self.assistance) if self.assistance else 'No Assistance'

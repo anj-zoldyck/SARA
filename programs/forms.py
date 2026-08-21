@@ -5,7 +5,7 @@ from .models import Program, AidCategory, Assistance
 class ProgramForm(forms.ModelForm):
     class Meta:
         model = Program
-        fields = ['name', 'description', 'is_active']
+        fields = ['name', 'description', 'is_active', 'is_emergency_program']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -17,6 +17,9 @@ class ProgramForm(forms.ModelForm):
                 'placeholder': 'Brief description of this program'
             }),
             'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'is_emergency_program': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             }),
         }

@@ -1,9 +1,13 @@
 from django.contrib import admin
-from .models import Program, AidCategory, Assistance
+from .models import Program, AidCategory, Assistance, EligibilityRule
 
 class AidCategoryInline(admin.TabularInline):
     model = AidCategory
     extra = 1
+
+class EligibilityRuleInline(admin.TabularInline):
+    model = EligibilityRule
+    extra = 0
 
 class AssistanceInline(admin.TabularInline):
     model = Assistance
@@ -23,3 +27,4 @@ class AidCategoryAdmin(admin.ModelAdmin):
 class AssistanceAdmin(admin.ModelAdmin):
     list_display = ['program', 'aid_category', 'beneficiary_type', 'minimum_age', 'is_active']
     list_filter = ['program', 'beneficiary_type']
+    inlines = [EligibilityRuleInline]

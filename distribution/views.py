@@ -729,11 +729,68 @@ def staff_walkin_rfid_lookup(request):
         
     members = family.members.all().order_by('first_name')
     member_data = []
+    
+    # Check for missed scheduled claims within 7-day grace period
+    from django.utils import timezone
+    from datetime import timedelta
+    from distribution.models import GeneratedBeneficiary
+    
+    seven_days_ago = timezone.now() - timedelta(days=7)
+    
     for m in members:
+        # Check for individual-based missed claims
+        # Exclude both regular scheduled claims AND late walk-in claims (via original_schedule)
+        missed_claim = GeneratedBeneficiary.objects.filter(
+            family_member=m,
+            beneficiary_list__schedule__is_finished=True,
+            beneficiary_list__schedule__finished_at__gte=seven_days_ago
+        ).exclude(
+            beneficiary_list__schedule__claims__family_member=m
+        ).exclude(
+            beneficiary_list__schedule__late_claims__family_member=m
+        ).select_related(
+            'beneficiary_list__schedule__assistance__program',
+            'beneficiary_list__schedule__assistance__aid_category',
+            'beneficiary_list__schedule'
+        ).order_by('-beneficiary_list__schedule__finished_at').first()
+
+        # If no individual-based missed claim, check for family-based
+        if not missed_claim:
+            missed_claim = GeneratedBeneficiary.objects.filter(
+                family=family,
+                beneficiary_list__schedule__is_finished=True,
+                beneficiary_list__schedule__finished_at__gte=seven_days_ago
+            ).exclude(
+                beneficiary_list__schedule__claims__family=family
+            ).exclude(
+                beneficiary_list__schedule__late_claims__family=family
+            ).select_related(
+                'beneficiary_list__schedule__assistance__program',
+                'beneficiary_list__schedule__assistance__aid_category',
+                'beneficiary_list__schedule'
+            ).order_by('-beneficiary_list__schedule__finished_at').first()
+        
+        # Calculate days remaining if missed claim exists
+        missed_claim_info = None
+        if missed_claim:
+            finished_at = missed_claim.beneficiary_list.schedule.finished_at
+            expiry_date = finished_at + timedelta(days=7)
+            days_remaining = (expiry_date - timezone.now()).days
+            
+            if days_remaining >= 0:
+                missed_claim_info = {
+                    'program': missed_claim.beneficiary_list.schedule.assistance.program.name,
+                    'category': missed_claim.beneficiary_list.schedule.assistance.aid_category.name,
+                    'days_remaining': days_remaining,
+                    'expiry_date': expiry_date.strftime('%b %d')
+                }
+        
         member_data.append({
             'id': m.id,
             'name': f"{m.first_name} {m.last_name}",
-            'profile_image': m.profile_image.url if m.profile_image else None
+            'profile_image': m.profile_image.url if m.profile_image else None,
+            'has_missed_claim': missed_claim_info is not None,
+            'missed_claim_info': missed_claim_info
         })
         
     return JsonResponse({
@@ -790,7 +847,9 @@ def staff_walkin_claim(request):
         member_id = request.POST.get('member_id')
         assistance_id = request.POST.get('assistance_id')
         amount = request.POST.get('amount')
-        
+        is_late_scheduled_claim = request.POST.get('is_late_scheduled_claim') == 'true'
+        original_schedule_id = request.POST.get('original_schedule_id')
+
         member = get_object_or_404(FamilyMember, id=member_id)
         assistance = get_object_or_404(Assistance, id=assistance_id, is_active=True)
         
@@ -829,7 +888,78 @@ def staff_walkin_claim(request):
                 'status': 'error',
                 'message': 'Invalid amount format.'
             }, status=400)
+
+        # Server-side validation for late scheduled claims
+        # Re-verify that the member/family was actually on the beneficiary list for this schedule
+        # and that it's still within the 7-day grace period
+        original_schedule = None
+        if is_late_scheduled_claim and original_schedule_id:
+            from distribution.models import AidSchedule, GeneratedBeneficiary
             
+            original_schedule = AidSchedule.objects.filter(id=original_schedule_id).first()
+            
+            if not original_schedule:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Invalid schedule reference for late claim.'
+                }, status=400)
+            
+            # Verify the schedule is finished
+            if not original_schedule.is_finished or not original_schedule.finished_at:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Cannot claim late for a schedule that has not finished.'
+                }, status=400)
+            
+            # Verify within 7-day grace period
+            seven_days_ago = timezone.now() - timedelta(days=7)
+            if original_schedule.finished_at < seven_days_ago:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'The 7-day grace period for this missed distribution has expired.'
+                }, status=400)
+            
+            # Verify the member/family was actually on the beneficiary list for this schedule
+            # and no claim already exists
+            beneficiary_entry = GeneratedBeneficiary.objects.filter(
+                beneficiary_list__schedule=original_schedule
+            ).filter(
+                Q(family_member=member) | Q(family=member.family)
+            ).first()
+            
+            if not beneficiary_entry:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'This member/family was not on the beneficiary list for the specified schedule.'
+                }, status=400)
+            
+            # Verify no claim already exists for this schedule + member/family
+            existing_late_claim = AidClaim.objects.filter(
+                schedule=original_schedule
+            ).filter(
+                Q(family_member=member) | Q(family=member.family, family_member__isnull=True)
+            ).exists()
+            
+            if existing_late_claim:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'A claim has already been recorded for this distribution.'
+                }, status=400)
+            
+            # Verify the assistance matches the schedule's assistance
+            if original_schedule.assistance_id != int(assistance_id):
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Assistance mismatch - the late claim must match the scheduled assistance.'
+                }, status=400)
+        else:
+            # If one flag is set but not the other, reject
+            if is_late_scheduled_claim or original_schedule_id:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Invalid late claim parameters.'
+                }, status=400)
+
         claim = AidClaim.objects.create(
             family=member.family,
             family_member=member,
@@ -838,6 +968,8 @@ def staff_walkin_claim(request):
             claim_type='WALK_IN',
             created_by=request.user,
             amount=amount_decimal,
+            is_late_scheduled_claim=is_late_scheduled_claim,
+            original_schedule=original_schedule
         )
         log_action(request.user, 'CLAIM_WALKIN', target=claim, description=f"Walk-in claim processed for {member.first_name} {member.last_name}")
         return JsonResponse({'status': 'success', 'message': f'Walk-in claim recorded for {member.first_name} {member.last_name}.'})
@@ -884,9 +1016,67 @@ def staff_walkin_member_modal(request, member_id):
         Q(family_member=member) | Q(family=member.family, family_member__isnull=True)
     ).select_related('assistance__program', 'assistance__aid_category').order_by('-claimed_at')[:5]
     
+    # Check for missed scheduled claims within 7-day grace period
+    from django.utils import timezone
+    from datetime import timedelta
+    from distribution.models import GeneratedBeneficiary
+    
+    seven_days_ago = timezone.now() - timedelta(days=7)
+    
+    # Check for individual-based missed claims
+    # Exclude both regular scheduled claims AND late walk-in claims (via original_schedule)
+    missed_claim = GeneratedBeneficiary.objects.filter(
+        family_member=member,
+        beneficiary_list__schedule__is_finished=True,
+        beneficiary_list__schedule__finished_at__gte=seven_days_ago
+    ).exclude(
+        beneficiary_list__schedule__claims__family_member=member
+    ).exclude(
+        beneficiary_list__schedule__late_claims__family_member=member
+    ).select_related(
+        'beneficiary_list__schedule__assistance__program',
+        'beneficiary_list__schedule__assistance__aid_category',
+        'beneficiary_list__schedule'
+    ).order_by('-beneficiary_list__schedule__finished_at').first()
+
+    # If no individual-based missed claim, check for family-based
+    if not missed_claim:
+        missed_claim = GeneratedBeneficiary.objects.filter(
+            family=member.family,
+            beneficiary_list__schedule__is_finished=True,
+            beneficiary_list__schedule__finished_at__gte=seven_days_ago
+        ).exclude(
+            beneficiary_list__schedule__claims__family=member.family
+        ).exclude(
+            beneficiary_list__schedule__late_claims__family=member.family
+        ).select_related(
+            'beneficiary_list__schedule__assistance__program',
+            'beneficiary_list__schedule__assistance__aid_category',
+            'beneficiary_list__schedule'
+        ).order_by('-beneficiary_list__schedule__finished_at').first()
+    
+    # Calculate days remaining if missed claim exists
+    missed_claim_days_remaining = None
+    missed_claim_expired = False
+    missed_claim_expiry_date = None
+    if missed_claim:
+        finished_at = missed_claim.beneficiary_list.schedule.finished_at
+        expiry_date = finished_at + timedelta(days=7)
+        missed_claim_expiry_date = expiry_date
+        days_remaining = (expiry_date - timezone.now()).days
+        if days_remaining < 0:
+            missed_claim_expired = True
+            missed_claim_days_remaining = 0
+        else:
+            missed_claim_days_remaining = days_remaining
+    
     return render(request, 'households/partials/walkin_profile_modal.html', {
         'member': member,
-        'claims': claims
+        'claims': claims,
+        'missed_claim': missed_claim,
+        'missed_claim_days_remaining': missed_claim_days_remaining,
+        'missed_claim_expired': missed_claim_expired,
+        'missed_claim_expiry_date': missed_claim_expiry_date
     })
 
 @login_required

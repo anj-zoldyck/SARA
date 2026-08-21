@@ -10,6 +10,7 @@ class Program(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
+    is_emergency_program = models.BooleanField(default=False, help_text="Emergency programs bypass 90-day cooldown and rotation eligibility rules")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -181,15 +182,20 @@ class Assistance(models.Model):
 #                    this rule; this rule combines with AND against all other
 #                    active rules on the same Assistance)
 # DAYS_SINCE_LAST_ASSISTANCE: {"min_days": 30} — household/family must NOT have
-#   received ANY AidClaim within the last `min_days` days to be eligible.
-#   This checks claims across ALL assistances/programs, not just this one —
-#   confirmed with the developer this is intentional (a general cooldown,
-#   not per-program).
-# ROTATION_ELIGIBILITY: {} (no config needed) — checks this household/family's
-#   MOST RECENT AidClaim's assistance.aid_type. If their last claim was CASH,
-#   they are only eligible for assistances with aid_type=GOODS this cycle,
-#   and vice versa. If they have no prior claims at all, this rule passes
-#   automatically (nothing to rotate away from yet).
+#   received a non-emergency CASH AidClaim within the last `min_days` days to be eligible.
+#   This checks claims across ALL assistances/programs (general cooldown), but:
+#   - Emergency program claims (is_emergency_program=True) are completely ignored
+#   - Only CASH-type claims count toward the cooldown (goods claims don't trigger it)
+#   This ensures emergency aid like AICS doesn't block regular program eligibility.
+# ROTATION_ELIGIBILITY: {} (no config needed) — implements a 3-month rotation system:
+#   - Checks the household/family's MOST RECENT non-emergency CASH AidClaim AND listing in beneficiary lists
+#   - Rotation is based on when they were LISTED in a cash assistance schedule (not just when they claimed)
+#   - If they were listed for cash assistance within the last 90 days, they can only receive GOODS (not CASH)
+#   - After 90 days, they're eligible for CASH assistance again
+#   - This ensures cash recipients get relief goods during the cooldown, allowing other beneficiaries
+#     to receive cash assistance for transparency
+#   - Emergency program claims (is_emergency_program=True) are completely ignored
+#   - If they have no prior non-emergency CASH claims or listings, this rule passes automatically
 # ACTIVE_TYPHOON_SIGNAL: {"min_signal": 1} — checks the latest WeatherSnapshot
 #   and confirms get_tcws_signal(current_wind_speed) >= min_signal. If no
 #   signal is currently active (or no WeatherSnapshot exists), this rule fails

@@ -3,8 +3,9 @@ from datetime import timedelta
 from django.utils import timezone
 from django.db.models import Sum, Q, Exists, OuterRef
 from households.models import Household, Family, FamilyMember, FloodProneArea, WeatherSnapshot
-from distribution.models import AidClaim
+from distribution.models import AidClaim, GeneratedBeneficiary
 from households.constants import get_tcws_signal
+from programs.eligibility import check_eligibility
 
 def evaluate_household_against_rules(household, rules):
     """
@@ -59,25 +60,75 @@ def evaluate_household_against_rules(household, rules):
                     return False
                         
         elif rule.rule_type == 'DAYS_SINCE_LAST_ASSISTANCE':
-            # Query AidClaim across ALL assistances for this household's families.
-            # This is intentionally a general cooldown (not per-program).
+            # Emergency programs bypass this rule entirely
+            if rule.assistance.program.is_emergency_program:
+                continue
+            # Query AidClaim for this household's families, but only count non-emergency cash claims
+            # This is intentionally a general cooldown (not per-program), but emergency claims don't count
             min_days = rule.config.get('min_days', 0)
             threshold_date = timezone.now() - timedelta(days=min_days)
-            # Find the most recent claim tied to this household
-            last_claim = AidClaim.objects.filter(family__household=household).order_by('-claimed_at').first()
+            # Find the most recent non-emergency CASH claim tied to this household
+            last_claim = AidClaim.objects.filter(
+                family__household=household,
+                assistance__aid_type='CASH',
+                assistance__program__is_emergency_program=False
+            ).order_by('-claimed_at').first()
             if last_claim and last_claim.claimed_at > threshold_date:
                 # Claimed too recently, so not eligible
                 return False
 
         elif rule.rule_type == 'ROTATION_ELIGIBILITY':
-            # Query the single most recent AidClaim for this household
-            last_claim = AidClaim.objects.filter(family__household=household).order_by('-claimed_at').first()
-            if last_claim:
-                # If they have a prior claim, they are only eligible if the CURRENT assistance's aid_type 
-                # is DIFFERENT from their last claim's aid_type.
-                if last_claim.assistance.aid_type == rule.assistance.aid_type:
-                    return False
-            # If there's no prior claim at all, this automatically passes (nothing to rotate away from yet)
+            # Emergency programs bypass this rule entirely
+            if rule.assistance.program.is_emergency_program:
+                continue
+            
+            # Check both actual claims AND being listed in beneficiary lists
+            # Rotation is based on when they were LISTED, not just when they claimed
+            
+            # Get the most recent cash claim for this household
+            last_cash_claim = AidClaim.objects.filter(
+                family__household=household,
+                assistance__aid_type='CASH',
+                assistance__program__is_emergency_program=False
+            ).order_by('-claimed_at').first()
+            
+            # Get the most recent time this household was listed in a cash assistance beneficiary list
+            # This includes both household-level listings and family_member listings from this household
+            last_household_listing = GeneratedBeneficiary.objects.filter(
+                household=household,
+                beneficiary_list__schedule__assistance__aid_type='CASH',
+                beneficiary_list__schedule__assistance__program__is_emergency_program=False
+            ).order_by('-beneficiary_list__generated_at').first()
+            
+            # Also check for any family_member listings from families in this household
+            last_member_listing = GeneratedBeneficiary.objects.filter(
+                family_member__family__household=household,
+                beneficiary_list__schedule__assistance__aid_type='CASH',
+                beneficiary_list__schedule__assistance__program__is_emergency_program=False
+            ).order_by('-beneficiary_list__generated_at').first()
+            
+            # Determine the most recent rotation event (claim or any listing)
+            last_rotation_date = None
+            dates_to_check = []
+            if last_cash_claim:
+                dates_to_check.append(last_cash_claim.claimed_at)
+            if last_household_listing:
+                dates_to_check.append(last_household_listing.beneficiary_list.generated_at)
+            if last_member_listing:
+                dates_to_check.append(last_member_listing.beneficiary_list.generated_at)
+            
+            if dates_to_check:
+                last_rotation_date = max(dates_to_check)
+            
+            if last_rotation_date:
+                # 3-month cooldown for cash assistance
+                three_months_ago = timezone.now() - timedelta(days=90)
+                if last_rotation_date > three_months_ago:
+                    # Still within 3-month cooldown period - can only receive GOODS, not CASH
+                    if rule.assistance.aid_type == 'CASH':
+                        return False
+                # After 90 days, they're eligible for CASH again
+            # If no prior cash claim or listing, they're eligible
 
         elif rule.rule_type == 'ACTIVE_TYPHOON_SIGNAL':
             # Check the latest WeatherSnapshot
@@ -142,19 +193,70 @@ def evaluate_family_against_rules(family, rules):
                     return False
                         
         elif rule.rule_type == 'DAYS_SINCE_LAST_ASSISTANCE':
-            # Query AidClaim across ALL assistances for this specific family
+            # Emergency programs bypass this rule entirely
+            if rule.assistance.program.is_emergency_program:
+                continue
+            # Query AidClaim for this specific family, but only count non-emergency cash claims
             min_days = rule.config.get('min_days', 0)
             threshold_date = timezone.now() - timedelta(days=min_days)
-            last_claim = AidClaim.objects.filter(family=family).order_by('-claimed_at').first()
+            last_claim = AidClaim.objects.filter(
+                family=family,
+                assistance__aid_type='CASH',
+                assistance__program__is_emergency_program=False
+            ).order_by('-claimed_at').first()
             if last_claim and last_claim.claimed_at > threshold_date:
                 return False
 
         elif rule.rule_type == 'ROTATION_ELIGIBILITY':
-            last_claim = AidClaim.objects.filter(family=family).order_by('-claimed_at').first()
-            if last_claim:
-                if last_claim.assistance.aid_type == rule.assistance.aid_type:
-                    return False
-            # Automatically passes if no prior claims
+            # Emergency programs bypass this rule entirely
+            if rule.assistance.program.is_emergency_program:
+                continue
+            
+            # Check both actual claims AND being listed in beneficiary lists
+            # Rotation is based on when they were LISTED, not just when they claimed
+            # Get the most recent cash claim for this family
+            last_cash_claim = AidClaim.objects.filter(
+                family=family,
+                assistance__aid_type='CASH',
+                assistance__program__is_emergency_program=False
+            ).order_by('-claimed_at').first()
+            
+            # Get the most recent time this family was listed in a cash assistance beneficiary list
+            last_family_listing = GeneratedBeneficiary.objects.filter(
+                family=family,
+                beneficiary_list__schedule__assistance__aid_type='CASH',
+                beneficiary_list__schedule__assistance__program__is_emergency_program=False
+            ).order_by('-beneficiary_list__generated_at').first()
+            
+            # Also check for any family_member listings from this family
+            last_member_listing = GeneratedBeneficiary.objects.filter(
+                family_member__family=family,
+                beneficiary_list__schedule__assistance__aid_type='CASH',
+                beneficiary_list__schedule__assistance__program__is_emergency_program=False
+            ).order_by('-beneficiary_list__generated_at').first()
+            
+            # Determine the most recent rotation event (claim or any listing)
+            last_rotation_date = None
+            dates_to_check = []
+            if last_cash_claim:
+                dates_to_check.append(last_cash_claim.claimed_at)
+            if last_family_listing:
+                dates_to_check.append(last_family_listing.beneficiary_list.generated_at)
+            if last_member_listing:
+                dates_to_check.append(last_member_listing.beneficiary_list.generated_at)
+            
+            if dates_to_check:
+                last_rotation_date = max(dates_to_check)
+            
+            if last_rotation_date:
+                # 3-month cooldown for cash assistance
+                three_months_ago = timezone.now() - timedelta(days=90)
+                if last_rotation_date > three_months_ago:
+                    # Still within 3-month cooldown period - can only receive GOODS, not CASH
+                    if rule.assistance.aid_type == 'CASH':
+                        return False
+                # After 90 days, they're eligible for CASH again
+            # If no prior cash claim or listing, they're eligible
 
         elif rule.rule_type == 'ACTIVE_TYPHOON_SIGNAL':
             min_signal = rule.config.get('min_signal', 1)
@@ -184,8 +286,7 @@ def get_eligible_pool(assistance, barangay=None, current_schedule=None):
     limited budget slots to the same highest-ranked beneficiaries across
     concurrent distributions.
     """
-    from distribution.models import GeneratedBeneficiary
-    from programs.eligibility import check_eligibility
+    
     rules = assistance.eligibility_rules.filter(is_active=True)
     eligible_pool = []
 

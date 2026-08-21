@@ -215,6 +215,10 @@
         <h6 class="mb-1 text-dark fw-bold" id="rfidFamilyName"></h6>
         <p class="text-muted small mb-0" id="rfidFamilyAddress"></p>
       </div>
+      <div id="missedClaimAlert" class="alert alert-warning py-2 px-3 mb-3 small" style="display: none; background-color: #fffbeb; border-color: #fcd34d;">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+        <strong>Missed Distribution:</strong> <span id="missedClaimMemberName"></span> has a claimable missed distribution (<span id="missedClaimDetails"></span>)
+      </div>
       <h6 class="text-muted small fw-bold mb-2">Select the resident present:</h6>
       <div class="list-group list-group-flush border rounded" id="rfidMembersList">
         <!-- Populated by JS -->
@@ -400,11 +404,11 @@
   function openWalkinModal(memberId) {
     // Hide RFID modal if open
     hideRfidModal();
-    
+
     const content = document.getElementById('walkinProfileModalContent');
     content.innerHTML = '<div class="p-5 text-center"><div class="spinner-border text-primary" role="status"></div></div>';
     showWalkinModal();
-    
+
     fetch(`/staff/walkin/member/${memberId}/modal/`)
       .then(res => {
         if (!res.ok) throw new Error('Network error');
@@ -430,6 +434,48 @@
       .catch(err => {
         content.innerHTML = '<div class="p-4 text-center text-danger"><i class="bi bi-exclamation-triangle fs-1"></i><p class="mt-2">Failed to load member details.</p></div>';
       });
+  }
+
+  // Functions for missed claim handling (called from dynamically loaded modal content)
+  function claimMissedAssistance() {
+    const banner = document.getElementById('missedClaimBanner');
+    if (!banner) return;
+
+    const assistanceId = banner.dataset.assistanceId;
+    const assistanceName = banner.dataset.assistanceName;
+    const scheduleId = banner.dataset.scheduleId;
+    const perBeneficiaryAmount = banner.dataset.perBeneficiaryAmount;
+
+    // Lock the assistance field
+    const assistanceSearch = document.getElementById('assistanceSearch');
+    const assistanceSelectedId = document.getElementById('assistanceSelectedId');
+
+    assistanceSearch.value = assistanceName;
+    assistanceSearch.classList.add('assistance-locked');
+    assistanceSearch.disabled = true;
+    assistanceSelectedId.value = assistanceId;
+
+    // Pre-fill amount if available
+    if (perBeneficiaryAmount && parseFloat(perBeneficiaryAmount) > 0) {
+      const amountInput = document.querySelector('input[name="amount"]');
+      if (amountInput) {
+        amountInput.value = perBeneficiaryAmount;
+      }
+    }
+
+    // Set hidden fields for late claim tracking
+    document.getElementById('isLateScheduledClaim').value = 'true';
+    document.getElementById('originalScheduleId').value = scheduleId;
+
+    // Hide the banner
+    banner.style.display = 'none';
+  }
+
+  function dismissMissedClaim() {
+    const banner = document.getElementById('missedClaimBanner');
+    if (banner) {
+      banner.style.display = 'none';
+    }
   }
 
   function attachClaimFormListener() {
@@ -655,12 +701,27 @@
             document.getElementById('rfidFamilyAddress').textContent = `${data.address}, ${data.zone}, ${data.barangay}`;
             
             const list = document.getElementById('rfidMembersList');
+            const missedClaimAlert = document.getElementById('missedClaimAlert');
+            const missedClaimMemberName = document.getElementById('missedClaimMemberName');
+            const missedClaimDetails = document.getElementById('missedClaimDetails');
+            
             list.innerHTML = '';
+            
+            // Check if any member has a missed claim and show alert at the top
+            const memberWithMissedClaim = data.members.find(m => m.has_missed_claim && m.missed_claim_info);
+            if (memberWithMissedClaim) {
+              missedClaimAlert.style.display = 'block';
+              missedClaimMemberName.textContent = memberWithMissedClaim.name;
+              missedClaimDetails.textContent = `${memberWithMissedClaim.missed_claim_info.program} › ${memberWithMissedClaim.missed_claim_info.category} (${memberWithMissedClaim.missed_claim_info.days_remaining} day${memberWithMissedClaim.missed_claim_info.days_remaining !== 1 ? 's' : ''} left)`;
+            } else {
+              missedClaimAlert.style.display = 'none';
+            }
+            
             data.members.forEach(m => {
-              const imgHtml = m.profile_image 
+              const imgHtml = m.profile_image
                 ? `<img src="${m.profile_image}" class="rounded-circle" style="width:30px; height:30px; object-fit:cover;">`
                 : `<div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:30px; height:30px; font-size:0.8rem;">${m.name.charAt(0)}</div>`;
-                
+
               list.innerHTML += `
                 <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-2" onclick="openWalkinModal('${m.id}')">
                   ${imgHtml}

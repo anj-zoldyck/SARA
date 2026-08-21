@@ -19,6 +19,37 @@
 </div>
 
 <div class="kiosk-modal-body p-3 pt-2" style="background: #f8fafc; text-align: left; max-height: 70vh; overflow-y: auto;">
+  <!-- Missed Distribution Banner -->
+  {% if missed_claim %}
+    {% if missed_claim_expired %}
+      <div class="alert alert-secondary py-2 px-3 mb-3 small" role="alert" id="missedClaimBanner">
+        <i class="bi bi-info-circle me-1"></i>
+        <strong>Missed Distribution:</strong> {{ missed_claim.beneficiary_list.schedule.assistance.program.name }} › {{ missed_claim.beneficiary_list.schedule.assistance.aid_category.name }} from {{ missed_claim.beneficiary_list.schedule.finished_at|date:"M d" }}
+        <br>
+        <span class="text-muted">Claim window expired {{ missed_claim_expiry_date|date:"M d" }}</span>
+      </div>
+    {% else %}
+      <div class="alert alert-warning py-2 px-3 mb-3 small" role="alert" id="missedClaimBanner" style="background-color: #fffbeb; border-color: #fcd34d;"
+           data-assistance-id="{{ missed_claim.beneficiary_list.schedule.assistance.id }}"
+           data-assistance-name="{{ missed_claim.beneficiary_list.schedule.assistance.program.name }} › {{ missed_claim.beneficiary_list.schedule.assistance.aid_category.name }}"
+           data-schedule-id="{{ missed_claim.beneficiary_list.schedule.id }}"
+           data-per-beneficiary-amount="{{ missed_claim.beneficiary_list.schedule.per_beneficiary_amount }}">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+        <strong>Missed Distribution:</strong> {{ missed_claim.beneficiary_list.schedule.assistance.program.name }} › {{ missed_claim.beneficiary_list.schedule.assistance.aid_category.name }} from {{ missed_claim.beneficiary_list.schedule.finished_at|date:"M d" }}
+        <br>
+        <span class="fw-medium">Claimable until {{ missed_claim_expiry_date|date:"M d" }} ({{ missed_claim_days_remaining }} day{{ missed_claim_days_remaining|pluralize }} left)</span>
+        <div class="mt-2" style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-sm btn-primary" onclick="claimMissedAssistance()" style="font-size: 0.8rem;">
+            <i class="bi bi-check2-circle"></i> Claim This Assistance
+          </button>
+          <button type="button" class="btn btn-sm btn-danger" onclick="dismissMissedClaim()" style="font-size: 0.8rem;">
+            Dismiss
+          </button>
+        </div>
+      </div>
+    {% endif %}
+  {% endif %}
+
   <!-- Location Context -->
   <div class="mb-4 bg-white p-3 rounded border" style="border-color: #e2e8f0 !important;">
     <div class="d-flex align-items-center gap-2 mb-1">
@@ -104,6 +135,8 @@
 <form id="walkinClaimForm" class="m-0 border-top" style="background: #fff; border-bottom-left-radius: 0.5rem; border-bottom-right-radius: 0.5rem; position: relative; z-index: 10;">
   {% csrf_token %}
   <input type="hidden" name="member_id" value="{{ member.id }}">
+  <input type="hidden" name="is_late_scheduled_claim" id="isLateScheduledClaim" value="">
+  <input type="hidden" name="original_schedule_id" id="originalScheduleId" value="">
   <div class="p-3">
     {% if member.is_deceased %}
       <div class="alert alert-warning py-2 px-3 mb-3 small" role="alert">
@@ -202,5 +235,10 @@
   #clearAssistanceBtn:focus {
     outline: 2px solid #134ed5;
     outline-offset: 2px;
+  }
+
+  .assistance-locked {
+    background-color: #f1f5f9 !important;
+    cursor: not-allowed !important;
   }
 </style>

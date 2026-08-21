@@ -183,6 +183,7 @@
           data-program-name="{{ program.name }}"
           data-program-desc="{{ program.description|default:'' }}"
           data-program-active="{{ program.is_active|yesno:'true,false' }}"
+          data-program-emergency="{{ program.is_emergency_program|yesno:'true,false' }}"
           title="Edit program">
           <i class="bi bi-pencil"></i>
           <span>Edit</span>
@@ -397,6 +398,16 @@
             </div>
           </div>
 
+          <div class="modal-form__group">
+            <div class="modal-form__check-row">
+              <input type="checkbox" id="prog_is_emergency" name="is_emergency_program">
+              <div>
+                <label class="modal-form__check-label" for="prog_is_emergency">Emergency Program</label>
+                <p class="modal-form__check-sub">Emergency programs bypass 90-day cooldown and rotation eligibility rules. Use for crisis-response aid like AICS or disaster relief.</p>
+              </div>
+            </div>
+          </div>
+
         </div>
         <div class="modal-footer">
           <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
@@ -455,6 +466,16 @@
               <div>
                 <label class="modal-form__check-label" for="edit_prog_is_active">Active</label>
                 <p class="modal-form__check-sub">Inactive programs won't appear in schedule forms.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-form__group">
+            <div class="modal-form__check-row">
+              <input type="checkbox" id="edit_prog_is_emergency" name="is_emergency_program">
+              <div>
+                <label class="modal-form__check-label" for="edit_prog_is_emergency">Emergency Program</label>
+                <p class="modal-form__check-sub">Emergency programs bypass 90-day cooldown and rotation eligibility rules. Use for crisis-response aid like AICS or disaster relief.</p>
               </div>
             </div>
           </div>
@@ -917,6 +938,7 @@ document.getElementById('editProgramModal').addEventListener('show.bs.modal', fu
   const programName = btn.dataset.programName;
   const programDesc = btn.dataset.programDesc;
   const isActive    = btn.dataset.programActive === 'true';
+  const isEmergency = btn.dataset.programEmergency === 'true';
 
   // Set form action dynamically
   document.getElementById('editProgramForm').action = `/mswdo/programs/${programId}/edit/`;
@@ -925,6 +947,7 @@ document.getElementById('editProgramModal').addEventListener('show.bs.modal', fu
   document.getElementById('edit_prog_name').value    = programName;
   document.getElementById('edit_prog_desc').value    = programDesc;
   document.getElementById('edit_prog_is_active').checked = isActive;
+  document.getElementById('edit_prog_is_emergency').checked = isEmergency;
 });
 
 
