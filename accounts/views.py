@@ -1,9 +1,9 @@
-
 from urllib import request
 from django.contrib.auth import authenticate, login, logout, get_user_model, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.forms import ValidationError
 from django.shortcuts import render, redirect, get_object_or_404
+from django.conf import settings
 from django.http import HttpResponseForbidden, JsonResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.utils import timezone
@@ -71,19 +71,29 @@ def login_view(request):
                 log_action(None, 'LOGIN_FAILURE', description=f"Failed login attempt for username: {username} (account deactivated)", ip_address=ip)
             else:
                 cache.delete(cache_key)  # Reset attempts on successful login
-                login(request, user)
-                log_action(user, 'LOGIN_SUCCESS', description=f"User {username} logged in successfully", ip_address=ip)
-                if user.must_change_password:
-                    response = redirect('force_password_change')
+
+                # OTP bypass for offline local development (controlled by OTP_ENABLED env var)
+                if settings.OTP_ENABLED:
+                    # Store user ID for OTP verification and send OTP
+                    request.session['pre_2fa_user_id'] = user.id
+                    send_otp(request, user)
+                    log_action(user, 'LOGIN_SUCCESS', description=f"User {username} authenticated successfully, awaiting OTP", ip_address=ip)
+                    return redirect('verify_otp')
                 else:
-                    if user.role == 'MSWDO':
-                        response = redirect('mswdo_dashboard')
-                    elif user.role == 'MSWDO_STAFF':
-                        response = redirect('staff_dashboard')
+                    # OTP disabled: direct login (original pre-OTP behavior)
+                    login(request, user)
+                    log_action(user, 'LOGIN_SUCCESS', description=f"User {username} logged in successfully (OTP bypassed for development)", ip_address=ip)
+                    if user.must_change_password:
+                        response = redirect('force_password_change')
                     else:
-                        response = redirect('barangay_dashboard')
-                response.set_cookie('sara_auth', '1', samesite='Lax')
-                return response
+                        if user.role == 'MSWDO':
+                            response = redirect('mswdo_dashboard')
+                        elif user.role == 'MSWDO_STAFF':
+                            response = redirect('staff_dashboard')
+                        else:
+                            response = redirect('barangay_dashboard')
+                    response.set_cookie('sara_auth', '1', samesite='Lax')
+                    return response
         else:
             # Increment failed attempts, expire after 60 seconds
             cache.set(cache_key, attempts + 1, timeout=60)
@@ -285,13 +295,50 @@ def verify_otp(request):
         user_id = request.session.get('pre_2fa_user_id')
         ip = request.META.get('REMOTE_ADDR')
 
-        device = EmailDevice.objects.filter(user_id=user_id, confirmed=True).first()
+        # Guard: if no valid 2FA session, redirect to login
+        if user_id is None:
+            return redirect('login')
+
+        # OTP brute-force lockout - max 5 attempts per user per minute
+        otp_attempts_key = f'otp_attempts_{user_id}'
+        otp_attempts = cache.get(otp_attempts_key, 0)
+
+        if otp_attempts >= 5:
+            user = get_user_model().objects.filter(pk=user_id).first()
+            log_action(user, 'OTP_LOCKOUT', description=f"OTP verification locked out for user_id: {user_id} after {otp_attempts} failed attempts", ip_address=ip)
+            # Invalidate session to force re-authentication
+            if 'pre_2fa_user_id' in request.session:
+                del request.session['pre_2fa_user_id']
+            return render(request, 'accounts/verify_otp.html', {'error': 'Too many incorrect codes. Please wait a minute and try again.'})
+
+        device = EmailDevice.objects.filter(user_id=user_id).first()
         if device and device.verify_token(otp_token):
             user = get_user_model().objects.get(pk=user_id)
+            # Reset attempts on successful verification
+            cache.delete(otp_attempts_key)
+            # Auto-confirm device on first successful verification
+            if not device.confirmed:
+                device.confirmed = True
+                device.save()
+
             login(request, user, backend='accounts.backends.EmailBackend')
             log_action(user, 'OTP_SUCCESS', description=f"User {user.username} verified OTP successfully", ip_address=ip)
-            return redirect('dashboard')
+
+            # Handle forced password change and role-based redirect
+            if user.must_change_password:
+                response = redirect('force_password_change')
+            else:
+                if user.role == 'MSWDO':
+                    response = redirect('mswdo_dashboard')
+                elif user.role == 'MSWDO_STAFF':
+                    response = redirect('staff_dashboard')
+                else:
+                    response = redirect('barangay_dashboard')
+            response.set_cookie('sara_auth', '1', samesite='Lax')
+            return response
         else:
+            # Increment failed attempts, expire after 60 seconds
+            cache.set(otp_attempts_key, otp_attempts + 1, timeout=60)
             user = get_user_model().objects.filter(pk=user_id).first()
             log_action(user, 'OTP_FAILURE', description=f"Failed OTP verification for user_id: {user_id}", ip_address=ip)
             return render(request, 'accounts/verify_otp.html', {'error': 'Invalid OTP'})
@@ -301,7 +348,13 @@ def verify_otp(request):
 
 def send_otp(request, user):
     device, _ = EmailDevice.objects.get_or_create(user=user, defaults={'name': 'email'})
-    device.generate_challenge()  # sends OTP via Brevo SMTP
+    # Pass context to email template for personalized greeting and image URLs
+    # Matches Django's password reset view behavior (sites framework not installed)
+    device.generate_challenge(extra_context={
+        'user': user,
+        'protocol': 'https' if request.is_secure() else 'http',
+        'domain': request.get_host(),
+    })  # sends OTP via Brevo SMTP
 
 
 #Settings view for logged-in users to edit their own profile

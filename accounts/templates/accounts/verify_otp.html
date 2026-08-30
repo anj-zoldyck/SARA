@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Verify OTP | S.A.R.A{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/login.css' %}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+{% endblock %}
+
+{% block navbar_title %}
+S.A.R.A: SANTA RITA AUTOMATED RELIEF ASSISTANCE SYSTEM
+{% endblock %}
+
+{% block content %}
+
+<section class="logform">
+  <div class="form-container">
+
+    <!-- Header -->
+    <div class="login-header">
+      <i class="bi bi-shield-check login-icon"></i>
+      <h2>Two-Factor Authentication</h2>
+      <p>Enter the verification code sent to your email</p>
+      <small class="security-note">Check your inbox for the 6-digit code</small>
+    </div>
+
+    <!-- Django Messages -->
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <!-- Error Display -->
+    {% if error %}
+      <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endif %}
+
+    <!-- OTP Form -->
+    <form method="post" id="otpForm">
+      {% csrf_token %}
+
+      <!-- OTP Code -->
+      <div class="mb-3">
+        <label class="form-label">Verification Code</label>
+        <div class="input-group custom-input-group">
+          <span class="input-group-text">
+            <i class="bi bi-key-fill"></i>
+          </span>
+          <input type="text" name="otp_token" class="form-control"
+            placeholder="Enter 6-digit code" pattern="[0-9]{6}" maxlength="6" required autocomplete="one-time-code">
+        </div>
+      </div>
+
+      <!-- Verify Button -->
+      <button type="submit" class="btn btn-primary mt-3" id="otpBtn">
+        <span class="btn-text">
+          <i class="bi bi-shield-check"></i> Verify Code
+        </span>
+      </button>
+
+    </form>
+
+  </div>
+</section>
+
+<script>
+document.querySelector("#otpForm").addEventListener("submit", function () {
+    document.querySelector(".btn-text").innerHTML = `
+        <span class="spinner-border spinner-border-sm"></span>
+        Verifying...
+    `;
+});
+</script>
+{% endblock %}

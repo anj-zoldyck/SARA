@@ -10,14 +10,30 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
-from pathlib import Path
 import os
+import logging
+
+from pathlib import Path
+from datetime import timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# ═══════════════════════════════════════════════════════════════
+# OTP/2FA CONFIGURATION
+# ═══════════════════════════════════════════════════════════════
+# IMPORTANT: OTP_ENABLED must be True (or unset) in production.
+# This flag is intended ONLY for offline local development/testing without internet access.
+# If this is False in a real deployment, authentication security is severely compromised.
+# Set via environment variable: OTP_ENABLED=True (or omit to default to True)
+# ═══════════════════════════════════════════════════════════════
+OTP_ENABLED = os.getenv('OTP_ENABLED', 'True') == 'True'
+
+if not OTP_ENABLED:
+    logging.warning("⚠️ OTP IS DISABLED — this should never be true in production. This setting is for offline local development only.")
 
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
@@ -163,7 +179,8 @@ DEFAULT_FROM_EMAIL = 'SRC Capstone System<dizonjelo50@gmail.com>'
 # Email OTP config
 #OTP_EMAIL_SENDER = 'noreply@yourdomain.com'
 #OTP_EMAIL_SUBJECT = 'Your login verification code'
-#OTP_EMAIL_TOKEN_VALIDITY = 300  # 5 minutes
+OTP_EMAIL_TOKEN_VALIDITY = 300  # 5 minutes
+OTP_EMAIL_BODY_HTML_TEMPLATE_PATH = 'otp/otp_email.html'
 
 # Session settings for idle-based auto-logout
 SESSION_COOKIE_AGE = 1800  # 30 minutes - global fallback/hard ceiling

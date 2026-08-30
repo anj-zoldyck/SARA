@@ -14,6 +14,7 @@ class AuditLog(models.Model):
         ('LOGIN_SUCCESS', 'Login Success'),
         ('LOGIN_FAILURE', 'Login Failure'),
         ('LOGOUT', 'Logout'),
+        ('OTP_LOCKOUT', 'OTP Verification Lockout'),
         ('OTP_SUCCESS', 'OTP Verification Success'),
         ('OTP_FAILURE', 'OTP Verification Failure'),
         # User management

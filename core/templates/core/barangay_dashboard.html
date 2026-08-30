@@ -100,6 +100,25 @@
   </div>
 </div>
 
+<!-- ── Zones ──────────────────────────────────────────────── -->
+<div class="dash-panel">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-map dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">{{ barangay }} — Zones</h2>
+        <p class="dash-panel__sub">Manage zones and households</p>
+      </div>
+    </div>
+    <a href="{% url 'barangay_zones' %}" class="btn-dash-outline btn-sm">
+      <i class="bi bi-arrow-right"></i> View All Zones
+    </a>
+  </div>
+  <div class="dash-panel__body">
+    <p class="text-muted mb-0">View and manage all zones for {{ barangay }}.</p>
+  </div>
+</div>
+
 {% include "core/_dashboard_sector_age_panel.html" %}
 
 <!-- ── Aid Distribution Overview ────────────────────────────── -->
@@ -273,25 +292,6 @@
     </div>
     {% endif %}
 
-  </div>
-</div>
-
-<!-- ── Zones ──────────────────────────────────────────────── -->
-<div class="dash-panel">
-  <div class="dash-panel__header">
-    <div class="dash-panel__header-left">
-      <i class="bi bi-map dash-panel__icon"></i>
-      <div>
-        <h2 class="dash-panel__title">{{ barangay }} — Zones</h2>
-        <p class="dash-panel__sub">Manage zones and households</p>
-      </div>
-    </div>
-    <a href="{% url 'barangay_zones' %}" class="btn-dash-outline btn-sm">
-      <i class="bi bi-arrow-right"></i> View All Zones
-    </a>
-  </div>
-  <div class="dash-panel__body">
-    <p class="text-muted mb-0">View and manage all zones for {{ barangay }}.</p>
   </div>
 </div>
 
