@@ -1783,7 +1783,7 @@ class OfflineSyncTestCase(TestCase):
             rfid_uid='TEST_RFID',
             is_active=True
         )
-        FamilyMember.objects.create(
+        self.member = FamilyMember.objects.create(
             family=self.family,
             first_name='John',
             last_name='Doe'
@@ -2074,3 +2074,220 @@ class OfflineSyncTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'unresolved')
         self.assertContains(response, 'Family ID not found')
+
+    def test_download_beneficiary_backup(self):
+        """Test that beneficiary backup download completes successfully."""
+        from distribution.views import download_beneficiary_backup
+        from django.contrib.sessions.middleware import SessionMiddleware
+
+        # Request as MSWDO (can download any schedule)
+        factory = RequestFactory()
+        request = factory.get(f'/schedule/{self.schedule.id}/download-backup/')
+        request.user = self.mswdo
+        
+        # Add session to request (required by session_protected decorator)
+        middleware = SessionMiddleware(lambda x: x)
+        middleware.process_request(request)
+        request.session.save()
+
+        response = download_beneficiary_backup(request, self.schedule.id)
+
+        # Should return HttpResponse with xlsx content type
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        self.assertIn('attachment; filename=', response['Content-Disposition'])
+        
+        # Verify BeneficiaryBackupDownload was logged
+        self.assertEqual(BeneficiaryBackupDownload.objects.count(), 1)
+        backup = BeneficiaryBackupDownload.objects.first()
+        self.assertEqual(backup.schedule, self.schedule)
+        self.assertEqual(backup.downloaded_by, self.mswdo)
+
+    def test_beneficiary_backup_field_mapping(self):
+        """Test that beneficiary backup exports correct field values for matching."""
+        from distribution.offline_sync import export_beneficiary_list
+        from openpyxl import load_workbook
+        import io
+
+        # Test family-based assistance (existing setup)
+        filename, xlsx_bytes = export_beneficiary_list(self.schedule)
+        
+        # Load and verify the Excel file
+        wb = load_workbook(filename=io.BytesIO(xlsx_bytes))
+        ws = wb.active
+        
+        # Find the data rows (start after header at row 11)
+        data_rows = []
+        for row in ws.iter_rows(min_row=12, values_only=True):
+            if row[0]:  # Only rows with family_id
+                data_rows.append(row)
+        
+        # Verify we have at least one beneficiary
+        self.assertGreater(len(data_rows), 0, "Should have at least one beneficiary row")
+        
+        # Verify field mapping for family-based beneficiary
+        family_id, member_id, full_name, rfid_uid, address, criteria = data_rows[0]
+        
+        print(f"\n=== Family-Based Backup Row Values ===")
+        print(f"Family ID: {family_id} (type: {type(family_id).__name__})")
+        print(f"Member ID: {member_id} (type: {type(member_id).__name__})")
+        print(f"Full Name: {full_name}")
+        print(f"RFID UID: {rfid_uid}")
+        print(f"Address: {address}")
+        print(f"Criteria: {criteria}")
+        print(f"======================================\n")
+        
+        # Family ID should be an integer, not an address string
+        self.assertIsInstance(family_id, int, f"Family ID should be int, got {type(family_id)}: {family_id}")
+        self.assertEqual(family_id, self.family.id, f"Family ID should match {self.family.id}")
+        
+        # Full Name should be family name without "Family" suffix duplication
+        self.assertNotIn("Zone", str(full_name), f"Full Name should not contain address data: {full_name}")
+        self.assertEqual(full_name, "Test Family", f"Full Name should be 'Test Family', got: {full_name}")
+        self.assertNotIn("Family Family", full_name, f"Full Name should not duplicate 'Family': {full_name}")
+        
+        # RFID UID should be populated (not empty)
+        self.assertEqual(rfid_uid, "TEST_RFID", f"RFID UID should be TEST_RFID, got: {rfid_uid}")
+        
+        # Member ID should be empty for family-based
+        self.assertIn(member_id, [None, ""], f"Member ID should be empty for family-based assistance, got: {member_id}")
+
+        # Test individual-based assistance
+        individual_assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='individual',
+            aid_type='CASH'
+        )
+        individual_schedule = AidSchedule.objects.create(
+            assistance=individual_assistance,
+            schedule_datetime=timezone.now(),
+            location='Plaza',
+            is_active=True,
+            is_finished=False
+        )
+        individual_ben_list = GeneratedBeneficiaryList.objects.create(
+            schedule=individual_schedule,
+            generated_by=self.mswdo,
+            prioritization_strategy_used='RANDOM'
+        )
+        GeneratedBeneficiary.objects.create(
+            beneficiary_list=individual_ben_list,
+            family=self.family,
+            family_member=self.member
+        )
+        
+        # Generate backup for individual-based schedule
+        filename2, xlsx_bytes2 = export_beneficiary_list(individual_schedule)
+        wb2 = load_workbook(filename=io.BytesIO(xlsx_bytes2))
+        ws2 = wb2.active
+        
+        # Get the individual-based row
+        individual_rows = []
+        for row in ws2.iter_rows(min_row=12, values_only=True):
+            if row[0]:  # Only rows with family_id
+                individual_rows.append(row)
+        
+        self.assertGreater(len(individual_rows), 0, "Should have at least one individual beneficiary row")
+        
+        family_id2, member_id2, full_name2, rfid_uid2, address2, criteria2 = individual_rows[0]
+        
+        print(f"\n=== Individual-Based Backup Row Values ===")
+        print(f"Family ID: {family_id2} (type: {type(family_id2).__name__})")
+        print(f"Member ID: {member_id2} (type: {type(member_id2).__name__})")
+        print(f"Full Name: {full_name2}")
+        print(f"RFID UID: {rfid_uid2}")
+        print(f"Address: {address2}")
+        print(f"Criteria: {criteria2}")
+        print(f"=========================================\n")
+        
+        # Family ID should still be integer
+        self.assertIsInstance(family_id2, int, f"Family ID should be int, got {type(family_id2)}: {family_id2}")
+        self.assertEqual(family_id2, self.family.id, f"Family ID should match {self.family.id}")
+        
+        # Full Name should be member's first + last name
+        self.assertEqual(full_name2, "John Doe", f"Full Name should be 'John Doe', got: {full_name2}")
+        
+        # Member ID should be populated for individual-based
+        self.assertEqual(member_id2, self.member.id, f"Member ID should be {self.member.id}, got: {member_id2}")
+        
+        # RFID UID should still be populated
+        self.assertEqual(rfid_uid2, "TEST_RFID", f"RFID UID should be TEST_RFID, got: {rfid_uid2}")
+
+        # Test individual-based assistance with household-level entries (the bug case)
+        # This simulates the actual bug where multiple FamilyMembers from same household
+        # were showing the same Family ID in export
+        # Use a different category to avoid UNIQUE constraint
+        category2 = AidCategory.objects.create(
+            program=self.program,
+            name='Test Category 2'
+        )
+        individual_assistance2 = Assistance.objects.create(
+            program=self.program,
+            aid_category=category2,
+            beneficiary_type='individual',
+            aid_type='CASH'
+        )
+        individual_schedule2 = AidSchedule.objects.create(
+            assistance=individual_assistance2,
+            schedule_datetime=timezone.now(),
+            location='Plaza',
+            is_active=True,
+            is_finished=False
+        )
+        individual_ben_list2 = GeneratedBeneficiaryList.objects.create(
+            schedule=individual_schedule2,
+            generated_by=self.mswdo,
+            prioritization_strategy_used='RANDOM'
+        )
+        # Create two different family members from the same household
+        member2 = FamilyMember.objects.create(
+            family=self.family,
+            first_name='Jane',
+            last_name='Smith'
+        )
+        GeneratedBeneficiary.objects.create(
+            beneficiary_list=individual_ben_list2,
+            household=self.family.household,
+            family_member=self.member
+        )
+        GeneratedBeneficiary.objects.create(
+            beneficiary_list=individual_ben_list2,
+            household=self.family.household,
+            family_member=member2
+        )
+        
+        # Generate backup for this schedule
+        filename3, xlsx_bytes3 = export_beneficiary_list(individual_schedule2)
+        wb3 = load_workbook(filename=io.BytesIO(xlsx_bytes3))
+        ws3 = wb3.active
+        
+        # Get all rows
+        household_rows = []
+        for row in ws3.iter_rows(min_row=12, values_only=True):
+            if row[0]:  # Only rows with family_id
+                household_rows.append(row)
+        
+        self.assertEqual(len(household_rows), 2, f"Should have 2 household entries, got {len(household_rows)}")
+        
+        # Both should have the same Family ID (from their shared family)
+        family_id_a, member_id_a, full_name_a, rfid_uid_a, _, _ = household_rows[0]
+        family_id_b, member_id_b, full_name_b, rfid_uid_b, _, _ = household_rows[1]
+        
+        print(f"\n=== Household-Level Individual Entries ===")
+        print(f"Entry 1: Family ID {family_id_a}, Member ID {member_id_a}, Name {full_name_a}")
+        print(f"Entry 2: Family ID {family_id_b}, Member ID {member_id_b}, Name {full_name_b}")
+        print(f"========================================\n")
+        
+        # Both should have the same Family ID (they're from the same family)
+        self.assertEqual(family_id_a, family_id_b, f"Both entries should have same Family ID")
+        self.assertEqual(family_id_a, self.family.id, f"Family ID should match {self.family.id}")
+        
+        # But different Member IDs and names (different people)
+        self.assertNotEqual(member_id_a, member_id_b, f"Member IDs should be different")
+        self.assertEqual(full_name_a, "John Doe", f"First entry should be John Doe")
+        self.assertEqual(full_name_b, "Jane Smith", f"Second entry should be Jane Smith")
+        
+        # Both should have RFID UID populated
+        self.assertEqual(rfid_uid_a, "TEST_RFID", f"RFID UID should be TEST_RFID")
+        self.assertEqual(rfid_uid_b, "TEST_RFID", f"RFID UID should be TEST_RFID")

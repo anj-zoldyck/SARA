@@ -7,6 +7,19 @@
 {% block css %}
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<style>
+    /* Prevent layout jump when modals close */
+    .modal {
+        transition: opacity 0.15s linear;
+    }
+    .modal-backdrop {
+        transition: opacity 0.15s linear;
+    }
+    body.modal-open {
+        overflow: hidden;
+        padding-right: 0 !important;
+    }
+</style>
 {% endblock %}
 
 {% block content %}

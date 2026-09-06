@@ -80,21 +80,36 @@ def export_beneficiary_list(schedule):
             if entry.family_member:
                 full_name = f"{entry.family_member.first_name} {entry.family_member.last_name}"
             else:
-                full_name = f"{entry.family.family_name} Family"
+                full_name = entry.family.family_name
             
-            address = entry.family.household.address
+            address = entry.family.household.address if entry.family.household else ""
         elif entry.household:
-            family_id = ""
-            member_id = ""
-            rfid_uid = ""
-            full_name = entry.household.address
-            address = entry.household.address
+            # Household-level entries: check if family_member is set (individual-based assistance)
+            # For individual-based assistance, use the family_member's family for proper matching
+            if entry.family_member:
+                family_id = entry.family_member.family.id if entry.family_member.family else ""
+                member_id = entry.family_member.id
+                rfid_uid = entry.family_member.family.rfid_uid if entry.family_member.family else ""
+                full_name = f"{entry.family_member.first_name} {entry.family_member.last_name}"
+                address = entry.household.address
+            else:
+                # True household-level entries (no specific member): use first family as fallback
+                first_family = entry.household.families.first()
+                family_id = first_family.id if first_family else ""
+                member_id = ""
+                rfid_uid = first_family.rfid_uid if first_family else ""
+                full_name = f"Household at {entry.household.address}"
+                address = entry.household.address
         else:
             family_id = ""
             member_id = ""
             rfid_uid = ""
             full_name = "Unknown"
             address = ""
+        
+        # Convert None to empty string for Excel compatibility
+        member_id = member_id or ""
+        rfid_uid = rfid_uid or ""
         
         # Determine eligibility criteria (simplified - could be expanded)
         criteria = "Listed beneficiary"

@@ -4,7 +4,7 @@ from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.contrib.auth.decorators import login_required
 from django.forms import ValidationError
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponseForbidden, JsonResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.utils import timezone
 from datetime import date, timedelta
