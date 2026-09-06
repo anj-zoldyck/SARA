@@ -50,6 +50,12 @@
         <i class="bi bi-arrow-left"></i> <span class="d-none d-sm-inline">Back to Dashboard</span>
       </a>
 
+      {% if aid_schedule and user.role == 'MSWDO_STAFF' %}
+      <a href="{% url 'download_beneficiary_backup' aid_schedule.id %}" class="btn btn-dash-outline" title="Download beneficiary list for offline backup">
+        <i class="bi bi-download"></i> <span class="d-none d-sm-inline">Backup List</span>
+      </a>
+      {% endif %}
+
       {% if aid_schedule and not aid_schedule.is_finished and user.role != 'BARANGAY' %}
       <form method="post" action="{% url 'finish_distribution' aid_schedule.id %}" id="finishDistributionForm" class="d-inline">
         {% csrf_token %}

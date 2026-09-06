@@ -232,14 +232,6 @@ textarea.modal-form__control {
 ============================================================= */
 .prog-card {
   margin-bottom: 20px;
-  transition: transform var(--transition), box-shadow var(--transition),
-              border-color var(--transition);
-}
-
-.prog-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-hover);
-  border-color: var(--secondary);
 }
 
 .prog-card__arrow {

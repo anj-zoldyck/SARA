@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Import Full Sync — SARA{% endblock %}
+
+{% block navbar_title %}IMPORT FULL SYNC{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- ── Django Messages ────────────────────────────────────── -->
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+      <i class="bi bi-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<!-- ======================================================
+     PAGE HEADER
+====================================================== -->
+<div class="dash-page-header">
+  <div>
+    <h1 class="dash-page-title">Import Full Offline Sync</h1>
+    <p class="dash-page-sub">
+      &nbsp;·&nbsp; Import municipal-wide data from offline kit
+    </p>
+  </div>
+</div>
+
+<!-- ======================================================
+     IMPORT FORM
+====================================================== -->
+<div class="dash-panel">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-archive dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Upload Offline Sync Package</h2>
+        <p class="dash-panel__sub">Import a .zip file exported from the online system</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-panel__body">
+    <div class="alert alert-warning">
+      <i class="bi bi-exclamation-triangle-fill me-2"></i>
+      <strong>Warning:</strong> This will import households, families, members, programs, and claims data. Existing records with matching IDs will be updated. This operation cannot be undone.
+    </div>
+
+    <div class="alert alert-info">
+      <i class="bi bi-info-circle-fill me-2"></i>
+      The sync package should contain: households.json, programs.json, claims.json, and metadata.json.
+    </div>
+
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      
+      <div class="mb-4">
+        <label for="zip_file" class="form-label fw-semibold">Offline Sync Package (.zip)</label>
+        <input type="file" class="form-control" id="zip_file" name="zip_file" accept=".zip" required>
+        <div class="form-text">Select the .zip file exported from the online system's "Prepare Offline Kit" feature.</div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn-dash-primary">
+          <i class="bi bi-upload me-1"></i> Import
+        </button>
+        <a href="{% url 'staff_dashboard' %}" class="btn-dash-outline">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+  // No additional JavaScript needed for this page
+</script>
+{% endblock %}

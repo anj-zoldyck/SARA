@@ -159,6 +159,16 @@
 {% endfor %}
 {% endif %}
 
+{% if is_stale %}
+<div class="alert alert-warning mt-3" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    <strong>Stale Backup:</strong> {{ staleness_message }}
+    <a href="{% url 'download_beneficiary_backup' schedule.id %}" class="btn btn-sm btn-warning ms-2">
+        <i class="bi bi-download me-1"></i> Download Updated Backup
+    </a>
+</div>
+{% endif %}
+
 <div class="dash-panel">
     <div class="dash-panel__header d-flex justify-content-between align-items-center">
         <div class="dash-panel__header-left">
@@ -176,6 +186,9 @@
                 <a href="{% url 'assign_staff' schedule.id %}" class="btn-dash-outline btn-sm me-2">
                     <i class="bi bi-person-badge me-1"></i> Assign Staff
                 </a>
+                <a href="{% url 'download_beneficiary_backup' schedule.id %}" class="btn-dash-outline btn-sm me-2" title="Download beneficiary list for offline backup">
+                    <i class="bi bi-download me-1"></i> Backup
+                </a>
                 {% if has_claims %}
                 <button type="button" class="btn-dash-outline btn-sm text-danger border-danger" disabled title="Cannot cancel a schedule with processed claims. Use Finish Distribution instead." style="opacity: 0.5; cursor: not-allowed;">
                     <i class="bi bi-x-circle me-1"></i> Cancel
@@ -185,6 +198,10 @@
                     <i class="bi bi-x-circle me-1"></i> Cancel
                 </button>
                 {% endif %}
+            {% elif request.user.role == 'MSWDO_STAFF' %}
+                <a href="{% url 'download_beneficiary_backup' schedule.id %}" class="btn-dash-outline btn-sm me-2" title="Download beneficiary list for offline backup">
+                    <i class="bi bi-download me-1"></i> Backup
+                </a>
             {% endif %}
         </div>
     </div>
@@ -479,6 +496,40 @@
   </div>
 </div>
 
+<!-- Backup Download Modal (Admin Only) -->
+{% if request.user.role == 'MSWDO' and not last_download %}
+<div class="modal fade" id="backupDownloadModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
+        <h5 class="modal-title fw-bold text-dark">
+          <i class="bi bi-download text-primary me-2"></i>Download Beneficiary List Backup
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="alert alert-light border mb-4" style="font-size: 0.9rem;">
+          <i class="bi bi-info-circle-fill text-primary me-2"></i>
+          For backup and preparedness for unexpected situations (power interruption, no internet connection, or similar).
+        </div>
+        <p class="mb-0">
+          <strong>File format:</strong> .xlsx (Excel spreadsheet)
+        </p>
+        <p class="mb-0">
+          <strong>Contents:</strong> Schedule metadata + beneficiary list with RFID UIDs and addresses
+        </p>
+      </div>
+      <div class="modal-footer border-top-0 pt-0 pb-4 px-4">
+        <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Skip for now</button>
+        <a href="{% url 'download_beneficiary_backup' schedule.id %}" class="btn-dash-primary">
+          <i class="bi bi-download me-1"></i> Download
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}
 
 {% block js %}
@@ -686,6 +737,15 @@
                 hideLoadingModal();
             }, 2000);
         }, 400);
+        {% endif %}
+
+        // Show backup download modal for Admin on first visit (no previous download)
+        {% if request.user.role == 'MSWDO' and not last_download %}
+        const backupModal = document.getElementById('backupDownloadModal');
+        if (backupModal) {
+            const modal = new bootstrap.Modal(backupModal);
+            modal.show();
+        }
         {% endif %}
     });
 

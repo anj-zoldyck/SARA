@@ -14,7 +14,7 @@ from accounts.decorators import session_protected, mswdo_or_staff_required
 from accounts.models import User, Barangay
 from households.models import Household, Zone, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
-from distribution.models import AidSchedule, AidClaim, GeneratedBeneficiaryList, GeneratedBeneficiary, DistributionVenue
+from distribution.models import AidSchedule, AidClaim, GeneratedBeneficiaryList, GeneratedBeneficiary, DistributionVenue, BeneficiaryBackupDownload
 
 from accounts.forms import CreateUserForm
 from households.forms import HouseholdForm, FamilyForm, FamilyMemberForm
@@ -24,9 +24,11 @@ from programs.eligibility import check_eligibility, get_eligibility_badges
 
 from django.utils.safestring import mark_safe
 from distribution.services import get_active_aid_schedule, get_active_schedule, is_staff_assigned_to_scan
+from distribution.offline_sync import export_beneficiary_list, export_full_offline_sync, import_beneficiary_list, import_full_offline_sync, export_offline_claims
 from django.utils.dateparse import parse_datetime
 from django_otp.plugins.otp_email.models import EmailDevice
 from django.urls import reverse
+from django.conf import settings
 from django.core.cache import cache
 import json
 
@@ -872,6 +874,25 @@ def staff_walkin_claim(request):
                 'message': 'This resident has already received this assistance today.'
             }, status=400)
         
+        # Check eligibility against synced data (including all EligibilityRules)
+        from programs.eligibility import check_eligibility
+        is_eligible, reasons = check_eligibility(member, assistance)
+        
+        if not is_eligible:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'Eligibility check failed: {", ".join(reasons)}'
+            }, status=400)
+        
+        # Check for ACTIVE_TYPHOON_SIGNAL rule - block unconditionally for offline walk-in
+        # Offline weather data becomes stale during outages, so we don't evaluate against it
+        typhoon_rule = assistance.eligibility_rules.filter(rule_type='ACTIVE_TYPHOON_SIGNAL', is_active=True).first()
+        if typhoon_rule:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'This assistance is only available during active typhoon conditions. Walk-in requests are not permitted offline for typhoon-gated assistance.'
+            }, status=400)
+        
         # Validate amount for walk-in claims
         if not amount:
             return JsonResponse({
@@ -1183,6 +1204,19 @@ def review_beneficiaries(request, schedule_id):
 
     just_generated_count = request.session.pop('just_generated_count', None)
 
+    # Staleness tracking for offline backup
+    last_download = BeneficiaryBackupDownload.objects.filter(schedule=schedule).order_by('-downloaded_at').first()
+    is_stale = False
+    staleness_message = ""
+    
+    if last_download:
+        # Check if schedule has been updated since the last download
+        if schedule.updated_at > last_download.schedule_updated_at_snapshot:
+            is_stale = True
+            actor = last_download.downloaded_by.username if last_download.downloaded_by else 'Unknown'
+            time_str = last_download.downloaded_at.strftime("%Y-%m-%d %H:%M")
+            staleness_message = f"This list has changed since the last backup download (by {actor} at {time_str})."
+
     return render(request, 'distribution/review_beneficiaries.html', {
         'schedule': schedule,
         'has_claims': has_claims,
@@ -1195,6 +1229,9 @@ def review_beneficiaries(request, schedule_id):
         'available_candidates': available_candidates,
         'is_family': is_family,
         'just_generated_count': just_generated_count,
+        'last_download': last_download,
+        'is_stale': is_stale,
+        'staleness_message': staleness_message,
     })
 
 @login_required
@@ -1745,3 +1782,365 @@ def venue_activate(request, venue_id):
         return redirect('venue_list')
     
     return HttpResponseForbidden("Invalid Method")
+
+
+# ----------------- Offline Sync Views -----------------
+
+@login_required
+@session_protected
+def download_beneficiary_backup(request, schedule_id):
+    """
+    Download beneficiary list as .xlsx for offline backup.
+    Available to Admin (any schedule) and Staff (assigned schedules only).
+    """
+    schedule = get_object_or_404(AidSchedule, id=schedule_id)
+    
+    if not hasattr(schedule, 'beneficiary_list'):
+        messages.error(request, "This schedule has no beneficiary list to download.")
+        return redirect('review_beneficiaries', schedule_id=schedule_id)
+    
+    # Staff access control: must be assigned to this schedule
+    if request.user.role == 'MSWDO_STAFF':
+        if not is_staff_assigned_to_scan(request.user, schedule):
+            log_action(request.user, 'ACCESS_DENIED_BENEFICIARY', target=schedule, 
+                      description=f"Access denied to download beneficiary backup for schedule {schedule.id} - user not assigned")
+            messages.error(request, "Access Denied — You are not assigned to this schedule.")
+            return redirect('staff_dashboard')
+    
+    try:
+        filename, xlsx_bytes = export_beneficiary_list(schedule)
+        
+        # Log the download
+        BeneficiaryBackupDownload.objects.create(
+            schedule=schedule,
+            downloaded_by=request.user,
+            schedule_updated_at_snapshot=schedule.updated_at
+        )
+        
+        log_action(request.user, 'BENEFICIARY_BACKUP_DOWNLOADED', target=schedule,
+                  description=f"Downloaded beneficiary backup for schedule {schedule.id}")
+        
+        response = HttpResponse(xlsx_bytes, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+        
+    except Exception as e:
+        messages.error(request, f"Error generating backup: {str(e)}")
+        return redirect('review_beneficiaries', schedule_id=schedule_id)
+
+
+@login_required
+@session_protected
+def skip_beneficiary_backup(request, schedule_id):
+    """
+    Skip the beneficiary backup download (Admin only).
+    Logs the skip action for audit trail.
+    """
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+    
+    schedule = get_object_or_404(AidSchedule, id=schedule_id)
+    
+    log_action(request.user, 'BENEFICIARY_BACKUP_SKIPPED', target=schedule,
+              description=f"Skipped beneficiary backup download for schedule {schedule.id}")
+    
+    messages.info(request, "Backup download skipped. You can download it later from the review page.")
+    return redirect('review_beneficiaries', schedule_id=schedule_id)
+
+
+@login_required
+@session_protected
+def prepare_offline_kit(request):
+    """
+    Export full municipal-wide data for offline sync (Admin + Staff).
+    Creates a zip file with households, programs, and claims data.
+    """
+    if request.user.role not in ('MSWDO', 'MSWDO_STAFF'):
+        return HttpResponseForbidden("Access Denied")
+    
+    try:
+        filename, zip_bytes = export_full_offline_sync()
+        
+        log_action(request.user, 'OFFLINE_SYNC_EXPORTED', 
+                  description=f"Exported full offline sync kit: {filename}")
+        
+        response = HttpResponse(zip_bytes, content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+        
+    except Exception as e:
+        messages.error(request, f"Error generating offline kit: {str(e)}")
+        return redirect('mswdo_dashboard' if request.user.role == 'MSWDO' else 'staff_dashboard')
+
+
+@login_required
+@session_protected
+def import_beneficiary_list_view(request):
+    """
+    Import a beneficiary list from .xlsx on the offline instance.
+    Creates the AidSchedule and beneficiary list/entries.
+    """
+    
+    if not getattr(settings, 'OFFLINE_MODE', False):
+        return HttpResponseForbidden("This operation is only permitted in offline mode.")
+    
+    if request.user.role != 'MSWDO_STAFF':
+        return HttpResponseForbidden("Access Denied")
+    
+    if request.method == 'POST':
+        xlsx_file = request.FILES.get('xlsx_file')
+        if not xlsx_file:
+            messages.error(request, "Please select a file to upload.")
+            return redirect('import_beneficiary_list')
+        
+        if not xlsx_file.name.endswith('.xlsx'):
+            messages.error(request, "Please upload an .xlsx file.")
+            return redirect('import_beneficiary_list')
+        
+        try:
+            schedule = import_beneficiary_list(xlsx_file, request.user)
+            log_action(request.user, 'BENEFICIARY_LIST_IMPORTED', target=schedule,
+                      description=f"Imported beneficiary list for schedule {schedule.id} from offline backup")
+            messages.success(request, f"Beneficiary list imported successfully. Schedule ID: {schedule.id}")
+            return redirect('review_beneficiaries', schedule_id=schedule.id)
+            
+        except Exception as e:
+            messages.error(request, f"Error importing file: {str(e)}")
+            return redirect('import_beneficiary_list')
+    
+    return render(request, 'distribution/import_beneficiary_list.html')
+
+
+@login_required
+@session_protected
+def import_full_sync_view(request):
+    """
+    Import full municipal-wide data from zip on the offline instance.
+    """
+    
+    if not getattr(settings, 'OFFLINE_MODE', False):
+        return HttpResponseForbidden("This operation is only permitted in offline mode.")
+    
+    if request.user.role != 'MSWDO_STAFF':
+        return HttpResponseForbidden("Access Denied")
+    
+    if request.method == 'POST':
+        zip_file = request.FILES.get('zip_file')
+        if not zip_file:
+            messages.error(request, "Please select a file to upload.")
+            return redirect('import_full_sync')
+        
+        if not zip_file.name.endswith('.zip'):
+            messages.error(request, "Please upload a .zip file.")
+            return redirect('import_full_sync')
+        
+        try:
+            stats = import_full_offline_sync(zip_file, request.user)
+            log_action(request.user, 'OFFLINE_SYNC_IMPORTED',
+                      description=f"Imported full offline sync: {stats}")
+            messages.success(request, f"Offline sync imported successfully. Households: {stats['households_imported']}, Families: {stats['families_imported']}, Members: {stats['members_imported']}, Programs: {stats['programs_imported']}, Claims: {stats['claims_imported']}")
+            return redirect('staff_dashboard')
+            
+        except Exception as e:
+            messages.error(request, f"Error importing file: {str(e)}")
+            return redirect('import_full_sync')
+    
+    return render(request, 'distribution/import_full_sync.html')
+
+
+@login_required
+@session_protected
+def export_offline_claims_view(request, schedule_id=None):
+    """
+    Export claims from offline instance for reconciliation.
+    Available for scheduled distribution or walk-in claims.
+    """
+    if request.user.role != 'MSWDO_STAFF':
+        return HttpResponseForbidden("Access Denied")
+    
+    walkin_only = request.GET.get('walkin_only') == 'true'
+    
+    try:
+        filename, json_bytes = export_offline_claims(schedule_id, walkin_only)
+        
+        log_action(request.user, 'OFFLINE_CLAIMS_EXPORTED',
+                  description=f"Exported offline claims: {filename}")
+        
+        response = HttpResponse(json_bytes, content_type='application/json')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+        
+    except Exception as e:
+        messages.error(request, f"Error exporting claims: {str(e)}")
+        if schedule_id:
+            return redirect('review_beneficiaries', schedule_id=schedule_id)
+        else:
+            return redirect('staff_dashboard')
+
+
+@login_required
+@session_protected
+def reconcile_claims_import(request):
+    """
+    Import reconciled claims from offline instance to online system.
+    Staff-only access with preview-before-commit, duplicate detection, and unresolved-ID flagging.
+    """
+    
+    if not getattr(settings, 'OFFLINE_MODE', False):
+        return HttpResponseForbidden("This operation is only permitted in offline mode.")
+    
+    if request.user.role != 'MSWDO_STAFF':
+        return HttpResponseForbidden("Access Denied")
+    
+    if request.method == 'POST':
+        json_file = request.FILES.get('json_file')
+        commit = request.POST.get('commit') == 'true'
+        
+        if not json_file:
+            messages.error(request, "Please select a file to upload.")
+            return redirect('reconcile_claims_import')
+        
+        if not json_file.name.endswith('.json'):
+            messages.error(request, "Please upload a .json file.")
+            return redirect('reconcile_claims_import')
+        
+        try:
+            import json
+            claims_data = json.loads(json_file.read().decode('utf-8'))
+            
+            if not commit:
+                # Preview mode - count what would happen
+                to_create = 0
+                skipped_duplicates = 0
+                unresolved_ids = []
+                
+                for claim_data in claims_data:
+                    # Resolve identity
+                    try:
+                        family = Family.objects.get(id=claim_data['family_id'])
+                    except Family.DoesNotExist:
+                        unresolved_ids.append({
+                            'offline_claim_id': claim_data['offline_claim_id'],
+                            'family_id': claim_data['family_id'],
+                            'reason': 'Family ID not found'
+                        })
+                        continue
+                    
+                    # Check for duplicates
+                    existing_claim = AidClaim.objects.filter(
+                        family=family,
+                        assistance_id=claim_data.get('assistance_id'),
+                        schedule_id=claim_data.get('schedule_id'),
+                        family_member_id=claim_data.get('family_member_id')
+                    ).first()
+                    
+                    if existing_claim:
+                        skipped_duplicates += 1
+                    else:
+                        to_create += 1
+                
+                return render(request, 'distribution/reconcile_claims_preview.html', {
+                    'to_create': to_create,
+                    'skipped_duplicates': skipped_duplicates,
+                    'unresolved_count': len(unresolved_ids),
+                    'unresolved_ids': unresolved_ids[:10],  # Show first 10
+                    'total_unresolved': len(unresolved_ids),
+                    'claims_data_json': json.dumps(claims_data),
+                })
+            
+            else:
+                # Commit mode - actually create the claims
+                created = 0
+                skipped = 0
+                unresolved = 0
+                
+                for claim_data in claims_data:
+                    try:
+                        family = Family.objects.get(id=claim_data['family_id'])
+                    except Family.DoesNotExist:
+                        unresolved += 1
+                        continue
+                    
+                    family_member = None
+                    if claim_data.get('family_member_id'):
+                        try:
+                            family_member = FamilyMember.objects.get(id=claim_data['family_member_id'])
+                        except FamilyMember.DoesNotExist:
+                            pass
+                    
+                    assistance = None
+                    if claim_data.get('assistance_id'):
+                        try:
+                            assistance = Assistance.objects.get(id=claim_data['assistance_id'])
+                        except Assistance.DoesNotExist:
+                            pass
+                    
+                    schedule = None
+                    if claim_data.get('schedule_id'):
+                        try:
+                            schedule = AidSchedule.objects.get(id=claim_data['schedule_id'])
+                        except AidSchedule.DoesNotExist:
+                            pass
+                    
+                    # Check for duplicates
+                    existing_claim = AidClaim.objects.filter(
+                        family=family,
+                        assistance=assistance,
+                        schedule=schedule,
+                        family_member=family_member
+                    ).first()
+                    
+                    if existing_claim:
+                        skipped += 1
+                    else:
+                        # Parse the original claimed_at timestamp
+                        from datetime import datetime
+                        claimed_at = datetime.fromisoformat(claim_data['claimed_at'])
+                        if timezone.is_naive(claimed_at):
+                            claimed_at = timezone.make_aware(claimed_at)
+                        
+                        AidClaim.objects.create(
+                            family=family,
+                            family_member=family_member,
+                            assistance=assistance,
+                            schedule=schedule,
+                            claim_type='OFFLINE_IMPORT',
+                            claimed_at=claimed_at,
+                            amount=Decimal(claim_data['amount']) if claim_data.get('amount') else None,
+                            is_late_scheduled_claim=claim_data.get('is_late_scheduled_claim', False),
+                            created_by=request.user
+                        )
+                        created += 1
+                
+                log_action(request.user, 'OFFLINE_CLAIM_RECONCILIATION_IMPORT',
+                          description=f"Imported {created} claims, skipped {skipped} duplicates, {unresolved} unresolved")
+                messages.success(request, f"Reconciliation complete: {created} claims imported, {skipped} skipped as duplicates, {unresolved} unresolved IDs.")
+                return redirect('staff_dashboard')
+                
+        except Exception as e:
+            messages.error(request, f"Error processing file: {str(e)}")
+            return redirect('reconcile_claims_import')
+    
+    return render(request, 'distribution/reconcile_claims_import.html')
+
+
+@login_required
+@session_protected
+def staff_assigned_schedules(request):
+    """
+    Display schedules assigned to the current staff member.
+    Allows staff to access beneficiary lists for their assigned distributions.
+    """
+    if request.user.role != 'MSWDO_STAFF':
+        return HttpResponseForbidden("Access Denied")
+    
+    # Get schedules where staff is assigned or schedules with no assignments (open access)
+    assigned_schedules = AidSchedule.objects.filter(
+        Q(assignments__staff=request.user) | ~Q(assignments__exists=True)
+    ).distinct().select_related(
+        'assistance__program', 'assistance__aid_category'
+    ).prefetch_related('assignments').order_by('-schedule_datetime')
+    
+    return render(request, 'distribution/staff_assigned_schedules.html', {
+        'assigned_schedules': assigned_schedules,
+    })

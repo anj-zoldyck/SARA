@@ -255,7 +255,6 @@
 {% endblock %}
 
 {% block js %}
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
   // ── Zone Cascade Logic ──────────────────────────────────────────────────
   const brgySelect  = document.getElementById('filter-barangay');
@@ -348,12 +347,11 @@
     .then(data => {
       if (data.status === 'success') {
         hideReactivationModal();
-        Swal.fire({
-          icon: 'success',
+        showConfirmModal(data.message, null, {
+          mode: 'alert',
+          type: 'success',
           title: 'Family Reactivated',
-          text: data.message,
-          timer: 1500,
-          showConfirmButton: false
+          autoClose: 1500
         });
         // Re-trigger RFID lookup with the same UID
         if (currentRfidUid) {
@@ -381,21 +379,37 @@
                 });
                 showRfidModal();
               } else {
-                Swal.fire('Error', data.message, 'error');
+                showConfirmModal(data.message, null, {
+                  mode: 'alert',
+                  type: 'error',
+                  title: 'Error'
+                });
               }
             })
             .catch(err => {
-              Swal.fire('Error', 'Failed to reload family data.', 'error');
+              showConfirmModal('Failed to reload family data.', null, {
+                mode: 'alert',
+                type: 'error',
+                title: 'Error'
+              });
             });
         }
       } else {
-        Swal.fire('Error', data.message, 'error');
+        showConfirmModal(data.message, null, {
+          mode: 'alert',
+          type: 'error',
+          title: 'Error'
+        });
         btn.innerHTML = originalText;
         btn.disabled = false;
       }
     })
     .catch(err => {
-      Swal.fire('Error', 'An unexpected error occurred.', 'error');
+      showConfirmModal('An unexpected error occurred.', null, {
+        mode: 'alert',
+        type: 'error',
+        title: 'Error'
+      });
       btn.innerHTML = originalText;
       btn.disabled = false;
     });
@@ -502,21 +516,28 @@
       .then(data => {
         if (data.status === 'success') {
           hideWalkinModal();
-          Swal.fire({
-            icon: 'success',
+          showConfirmModal(data.message, null, {
+            mode: 'alert',
+            type: 'success',
             title: 'Claim Recorded',
-            text: data.message,
-            timer: 2000,
-            showConfirmButton: false
+            autoClose: 2000
           });
         } else {
-          Swal.fire('Error', data.message, 'error');
+          showConfirmModal(data.message, null, {
+            mode: 'alert',
+            type: 'error',
+            title: 'Error'
+          });
           btn.innerHTML = originalText;
           btn.disabled = false;
         }
       })
       .catch(err => {
-        Swal.fire('Error', 'An unexpected error occurred.', 'error');
+        showConfirmModal('An unexpected error occurred.', null, {
+          mode: 'alert',
+          type: 'error',
+          title: 'Error'
+        });
         btn.innerHTML = originalText;
         btn.disabled = false;
       });
@@ -659,7 +680,11 @@
       walkinClaimForm.addEventListener('submit', function(e) {
         if (!assistanceSelectedId.value) {
           e.preventDefault();
-          Swal.fire('Missing Assistance', 'Please select an assistance type before submitting.', 'warning');
+          showConfirmModal('Please select an assistance type before submitting.', null, {
+            mode: 'alert',
+            type: 'warning',
+            title: 'Missing Assistance'
+          });
           assistanceSearchInput.focus();
         }
       });
@@ -740,11 +765,19 @@
             showReactivationModal();
             hideWalkinModal();
           } else {
-            Swal.fire('Not Found', data.message, 'warning');
+            showConfirmModal(data.message, null, {
+              mode: 'alert',
+              type: 'warning',
+              title: 'Not Found'
+            });
           }
         })
         .catch(err => {
-          Swal.fire('Error', 'Failed to read RFID card.', 'error');
+          showConfirmModal('Failed to read RFID card.', null, {
+            mode: 'alert',
+            type: 'error',
+            title: 'Error'
+          });
         });
     }
   });

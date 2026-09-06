@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Distributions — SARA{% endblock %}
+
+{% block navbar_title %}MY DISTRIBUTIONS{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- ── Django Messages ────────────────────────────────────── -->
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+      <i class="bi bi-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<!-- ======================================================
+     PAGE HEADER
+====================================================== -->
+<div class="dash-page-header">
+  <div>
+    <h1 class="dash-page-title">My Distributions</h1>
+    <p class="dash-page-sub">
+      &nbsp;·&nbsp; Assigned schedules and beneficiary lists
+    </p>
+  </div>
+</div>
+
+<!-- ======================================================
+     ASSIGNED SCHEDULES
+====================================================== -->
+<div class="dash-panel">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-calendar-check dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Assigned Schedules</h2>
+        <p class="dash-panel__sub">Distributions you are assigned to (or open access)</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-panel__body">
+    {% if assigned_schedules %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Program / Category</th>
+            <th>Date & Time</th>
+            <th>Location</th>
+            <th>Status</th>
+            <th>Beneficiary List</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for schedule in assigned_schedules %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ schedule.assistance.program.name }}</div>
+              <div class="text-muted small">{{ schedule.assistance.aid_category.name }}</div>
+            </td>
+            <td>
+              <div>{{ schedule.schedule_datetime|date:"M d, Y" }}</div>
+              <div class="text-muted small">{{ schedule.schedule_datetime|date:"h:i A" }}</div>
+            </td>
+            <td>{{ schedule.location }}</td>
+            <td>
+              {% if schedule.is_finished %}
+                <span class="badge bg-success">Finished</span>
+              {% elif schedule.is_cancelled %}
+                <span class="badge bg-danger">Cancelled</span>
+              {% else %}
+                <span class="badge bg-primary">Active</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if hasattr schedule 'beneficiary_list' %}
+                <span class="text-success"><i class="bi bi-check-circle-fill"></i> Generated</span>
+              {% else %}
+                <span class="text-muted">Not generated</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="btn-group btn-group-sm">
+                {% if hasattr schedule 'beneficiary_list' %}
+                  <a href="{% url 'review_beneficiaries' schedule.id %}" class="btn btn-dash-outline">
+                    <i class="bi bi-list-ul"></i> View List
+                  </a>
+                  <a href="{% url 'download_beneficiary_backup' schedule.id %}" class="btn btn-dash-outline" title="Download backup">
+                    <i class="bi bi-download"></i>
+                  </a>
+                {% endif %}
+                {% if not schedule.is_finished and not schedule.is_cancelled %}
+                  <a href="{% url 'scan_rfid' schedule.id %}" class="btn btn-dash-primary">
+                    <i class="bi bi-upc-scan"></i> Distribute
+                  </a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+      <i class="bi bi-calendar-x" style="font-size: 3rem; color: #cbd5e1;"></i>
+      <p class="text-muted mt-3">No assigned schedules found.</p>
+      <p class="text-muted small">You will see schedules here when you are assigned to a distribution or when schedules have open access.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+  // No additional JavaScript needed for this page
+</script>
+{% endblock %}

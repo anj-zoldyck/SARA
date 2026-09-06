@@ -3,6 +3,7 @@ from django.conf import settings
 from accounts.models import Barangay
 from households.models import Family, FamilyMember
 from programs.models import Assistance
+from django.utils import timezone
 
 # ----------------- DistributionVenue Model -----------------
 class DistributionVenue(models.Model):
@@ -55,6 +56,7 @@ class AidClaim(models.Model):
     CLAIM_TYPE_CHOICES = (
         ('DISTRIBUTION', 'Distribution Event'),
         ('WALK_IN', 'Walk-in / Office Visit'),
+        ('OFFLINE_IMPORT', 'Offline Reconciliation Import'),
     )
     claim_type = models.CharField(
         max_length=20,
@@ -89,6 +91,10 @@ class AidClaim(models.Model):
         on_delete=models.SET_NULL,
         related_name='late_claims',
         help_text="If is_late_scheduled_claim=True, links to the original missed schedule this claim fulfills"
+    )
+    is_exported = models.BooleanField(
+        default=False,
+        help_text="True if this claim has been exported for offline reconciliation (prevents duplicate exports)"
     )
 
     def __str__(self):
@@ -262,3 +268,50 @@ class AssignedTo(models.Model):
     class Meta:
         # A staff member shouldn't be assigned to the exact same schedule+barangay+zone combo twice
         unique_together = ('schedule', 'staff', 'barangay', 'zone')
+
+# ----------------- BeneficiaryBackupDownload Model -----------------
+class BeneficiaryBackupDownload(models.Model):
+    """
+    Tracks beneficiary list backup downloads for staleness detection.
+    Multiple downloads can be logged per schedule (different users, different times).
+    """
+    schedule = models.ForeignKey('AidSchedule', on_delete=models.CASCADE, related_name='backup_downloads')
+    downloaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    downloaded_at = models.DateTimeField(auto_now_add=True)
+    # Track the schedule's updated_at at download time to detect if the list changed since then
+    schedule_updated_at_snapshot = models.DateTimeField()
+    
+    class Meta:
+        ordering = ['-downloaded_at']
+        verbose_name = 'Beneficiary Backup Download'
+        verbose_name_plural = 'Beneficiary Backup Downloads'
+    
+    def __str__(self):
+        actor = self.downloaded_by.username if self.downloaded_by else 'Unknown'
+        return f"{actor} downloaded backup for schedule {self.schedule.id} at {self.downloaded_at}"
+
+
+# ----------------- OfflineSyncMetadata Model -----------------
+class OfflineSyncMetadata(models.Model):
+    """
+    Tracks the last full municipal sync timestamp for the offline instance.
+    This is used to display a persistent banner showing when data was last synced.
+    """
+    synced_at = models.DateTimeField(default=timezone.now)
+    synced_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    households_count = models.PositiveIntegerField(default=0)
+    programs_count = models.PositiveIntegerField(default=0)
+    claims_count = models.PositiveIntegerField(default=0)
+    
+    class Meta:
+        verbose_name = 'Offline Sync Metadata'
+        verbose_name_plural = 'Offline Sync Metadata'
+    
+    def __str__(self):
+        actor = self.synced_by.username if self.synced_by else 'Unknown'
+        return f"Last sync by {actor} at {self.synced_at}"
+    
+    @classmethod
+    def get_latest_sync(cls):
+        """Get the most recent sync record, or None if no sync has occurred."""
+        return cls.objects.order_by('-synced_at').first()

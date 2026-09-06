@@ -116,9 +116,11 @@
     </p>
   </div>
   <div class="dash-header-actions">
+    {% if is_mswdo %}
     <button class="btn-dash-outline" data-bs-toggle="modal" data-bs-target="#addProgramModal">
       <i class="bi bi-plus-lg"></i> Add Program
     </button>
+    {% endif %}
   </div>
 </div>
 
@@ -164,6 +166,7 @@
       </div>
 
       <!-- Program Actions -->
+      {% if is_mswdo %}
       <div class="acct-actions">
         <button
           class="btn-dash-outline"
@@ -200,6 +203,7 @@
           <span>{% if program.is_active %}Deactivate{% else %}Activate{% endif %}</span>
         </button>
       </div>
+      {% endif %}
     </div>
 
     <!-- Assistance Table -->
@@ -237,7 +241,6 @@
               <td class="acct-td">
                 {% if a.eligibility_badges %}
                   <div class="eligibility-badges">
-                    <span class="d-block text-muted mb-1" style="font-size:12px;">Only available to:</span>
                     {% for badge in a.eligibility_badges %}
                       <span class="acct-badge {{ badge.class }}">{{ badge.label }}</span>
                     {% endfor %}
@@ -258,6 +261,7 @@
                 {% endif %}
               </td>
               <td class="acct-td acct-td--actions">
+                {% if is_mswdo %}
                 <div class="acct-actions">
                   <!-- Edit Assistance -->
                   <button
@@ -291,6 +295,7 @@
                     <span>{% if a.is_active %}Deactivate{% else %}Activate{% endif %}</span>
                   </button>
                 </div>
+                {% endif %}
               </td>
             </tr>
             {% empty %}
@@ -299,11 +304,13 @@
                 <div class="acct-empty-state" style="padding: 28px 24px;">
                   <i class="bi bi-tag" style="font-size:28px;"></i>
                   <p style="margin-bottom:10px;">No assistance entries for this program.</p>
+                  {% if is_mswdo %}
                   <a href="{% url 'add_assistance' %}"
                      class="prog-empty-btn"
                      style="text-decoration:none; display:inline-block;">
                     <i class="bi bi-plus-lg"></i> Add Assistance
                   </a>
+                  {% endif %}
                 </div>
               </td>
             </tr>
@@ -323,6 +330,7 @@
       <div class="acct-empty-state" style="padding: 52px 24px;">
         <i class="bi bi-gift"></i>
         <p>No aid programs found.</p>
+        {% if is_mswdo %}
         <button
           class="btn-dash-primary"
           style="border:none; cursor:pointer;"
@@ -330,6 +338,7 @@
           data-bs-target="#addProgramModal">
           <i class="bi bi-plus-lg"></i> Add First Program
         </button>
+        {% endif %}
       </div>
     </div>
   </div>

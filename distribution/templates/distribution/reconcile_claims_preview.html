@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Reconcile Claims Preview — SARA{% endblock %}
+
+{% block navbar_title %}RECONCILE CLAIMS PREVIEW{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- ── Django Messages ────────────────────────────────────── -->
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+      <i class="bi bi-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<!-- ======================================================
+     PAGE HEADER
+====================================================== -->
+<div class="dash-page-header">
+  <div>
+    <h1 class="dash-page-title">Reconcile Claims Preview</h1>
+    <p class="dash-page-sub">
+      &nbsp;·&nbsp; Review before importing offline claims
+    </p>
+  </div>
+</div>
+
+<!-- ======================================================
+     PREVIEW SUMMARY
+====================================================== -->
+<div class="dash-panel mb-4">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-eye dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Import Summary</h2>
+        <p class="dash-panel__sub">Review what will be imported</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-panel__body">
+    <div class="row">
+      <div class="col-md-3">
+        <div class="stat-card stat-card--green" style="--card-color: #10b981;">
+          <div class="stat-card__icon">
+            <i class="bi bi-check-circle"></i>
+          </div>
+          <div class="stat-card__body">
+            <span class="stat-card__label">New Claims</span>
+            <span class="stat-card__value">{{ to_create }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-card stat-card--orange" style="--card-color: #f97316;">
+          <div class="stat-card__icon">
+            <i class="bi bi-skip-forward"></i>
+          </div>
+          <div class="stat-card__body">
+            <span class="stat-card__label">Skipped (Duplicates)</span>
+            <span class="stat-card__value">{{ skipped_duplicates }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-card stat-card--red" style="--card-color: #ef4444;">
+          <div class="stat-card__icon">
+            <i class="bi bi-exclamation-triangle"></i>
+          </div>
+          <div class="stat-card__body">
+            <span class="stat-card__label">Unresolved IDs</span>
+            <span class="stat-card__value">{{ total_unresolved }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================
+     UNRESOLVED IDs (if any)
+====================================================== -->
+{% if unresolved_ids %}
+<div class="dash-panel mb-4">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-exclamation-triangle-fill text-danger dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Unresolved IDs</h2>
+        <p class="dash-panel__sub">These claims cannot be imported (showing first 10)</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-panel__body">
+    <div class="alert alert-danger">
+      <i class="bi bi-exclamation-triangle-fill me-2"></i>
+      <strong>{{ total_unresolved }} claims have unresolved IDs.</strong> These will be skipped during import. Please verify that the offline data matches the online system's records.
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Offline Claim ID</th>
+            <th>Family ID</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in unresolved_ids %}
+          <tr>
+            <td>{{ item.offline_claim_id }}</td>
+            <td>{{ item.family_id }}</td>
+            <td class="text-danger">{{ item.reason }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if total_unresolved > 10 %}
+    <p class="text-muted small mt-2">... and {{ total_unresolved|add:"-10" }} more unresolved IDs</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ======================================================
+     CONFIRM IMPORT
+====================================================== -->
+<div class="dash-panel">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-check2-circle dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Confirm Import</h2>
+        <p class="dash-panel__sub">Proceed with importing {{ to_create }} new claims</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-panel__body">
+    <div class="alert alert-warning">
+      <i class="bi bi-exclamation-triangle-fill me-2"></i>
+      <strong>This action cannot be undone.</strong> Once imported, claims will be permanently added to the system with the OFFLINE_IMPORT claim type.
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="commit" value="true">
+      <input type="hidden" name="json_file" value="{{ claims_data_json }}">
+      
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn-dash-primary">
+          <i class="bi bi-check-lg me-1"></i> Confirm Import
+        </button>
+        <a href="{% url 'reconcile_claims_import' %}" class="btn-dash-outline">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+  // No additional JavaScript needed for this page
+</script>
+{% endblock %}

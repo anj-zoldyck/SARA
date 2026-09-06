@@ -390,8 +390,6 @@
 {% endblock %}
 
 {% block js %}
-<!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <!-- Leaflet -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <!-- Leaflet Routing Machine -->
@@ -564,7 +562,11 @@
     document.querySelector('.sched-form').addEventListener('submit', function(e) {
       if (!assistanceSelectedId.value) {
         e.preventDefault();
-        Swal.fire('Missing Assistance', 'Please select an assistance type before submitting.', 'warning');
+        showConfirmModal('Please select an assistance type before submitting.', null, {
+          mode: 'alert',
+          type: 'warning',
+          title: 'Missing Assistance'
+        });
         assistanceSearchInput.focus();
       }
     });
@@ -615,11 +617,10 @@
             assistanceSearchInput.readOnly = false;
             clearAssistanceBtn.classList.add('d-none');
             
-            Swal.fire({
-              icon: 'warning',
-              title: 'Assistance Incompatible',
-              text: 'The previously selected assistance is not compatible with Special Category strategy. Please select a PWD, Senior, or Solo Parent assistance.',
-              confirmButtonColor: '#134ed5'
+            showConfirmModal('The previously selected assistance is not compatible with Special Category strategy. Please select a PWD, Senior, or Solo Parent assistance.', null, {
+              mode: 'alert',
+              type: 'warning',
+              title: 'Assistance Incompatible'
             });
           }
         }

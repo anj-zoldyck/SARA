@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Reconcile Claims Import — SARA{% endblock %}
+
+{% block navbar_title %}RECONCILE CLAIMS IMPORT{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- ── Django Messages ────────────────────────────────────── -->
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+      <i class="bi bi-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<!-- ======================================================
+     PAGE HEADER
+====================================================== -->
+<div class="dash-page-header">
+  <div>
+    <h1 class="dash-page-title">Reconcile Offline Claims</h1>
+    <p class="dash-page-sub">
+      &nbsp;·&nbsp; Import claims processed offline into the online system
+    </p>
+  </div>
+</div>
+
+<!-- ======================================================
+     IMPORT FORM
+====================================================== -->
+<div class="dash-panel">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-arrow-repeat dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Upload Offline Claims</h2>
+        <p class="dash-panel__sub">Import a .json file exported from the offline instance</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-panel__body">
+    <div class="alert alert-info">
+      <i class="bi bi-info-circle-fill me-2"></i>
+      This will import claims processed offline into the online system. The system will:
+      <ul class="mb-0 mt-2">
+        <li>Resolve identities via RFID UID / Family ID / Member ID</li>
+        <li>Skip duplicate claims (same schedule + assistance + family/member)</li>
+        <li>Flag unresolved IDs as errors</li>
+        <li>Tag reconciled claims with OFFLINE_IMPORT claim type</li>
+        <li>Preserve original offline timestamps</li>
+      </ul>
+    </div>
+
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      
+      <div class="mb-4">
+        <label for="json_file" class="form-label fw-semibold">Offline Claims Export (.json)</label>
+        <input type="file" class="form-control" id="json_file" name="json_file" accept=".json" required>
+        <div class="form-text">Select the .json file exported from the offline instance.</div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn-dash-primary">
+          <i class="bi bi-eye me-1"></i> Preview Import
+        </button>
+        <a href="{% url 'staff_dashboard' %}" class="btn-dash-outline">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+  // No additional JavaScript needed for this page
+</script>
+{% endblock %}

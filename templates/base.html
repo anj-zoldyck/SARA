@@ -178,14 +178,14 @@
 
           <!-- Household Profiling (accordion) -->
           <li class="sidebar-item sidebar-item--accordion">
-            <button class="sidebar-link sidebar-accordion-btn" data-target="householdSubmenu" aria-expanded="false">
+            <button class="sidebar-link sidebar-accordion-btn {% if request.resolver_match.url_name == 'residents_overview' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' or request.resolver_match.url_name == 'register_rfid' %}accordion-active{% endif %}" data-target="householdSubmenu" aria-expanded="{% if request.resolver_match.url_name == 'residents_overview' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' or request.resolver_match.url_name == 'register_rfid' %}true{% else %}false{% endif %}">
               <i class="bi bi-house-door"></i>
               <span>Household Profiling</span>
-              <i class="bi bi-chevron-down sidebar-arrow"></i>
+              <i class="bi bi-chevron-down sidebar-arrow" style="{% if request.resolver_match.url_name == 'residents_overview' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' or request.resolver_match.url_name == 'register_rfid' %}transform: rotate(180deg);{% endif %}"></i>
             </button>
-            <ul class="sidebar-submenu" id="householdSubmenu">
+            <ul class="sidebar-submenu {% if request.resolver_match.url_name == 'residents_overview' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' or request.resolver_match.url_name == 'register_rfid' %}submenu--open{% endif %}" id="householdSubmenu"{% if request.resolver_match.url_name == 'residents_overview' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' or request.resolver_match.url_name == 'register_rfid' %} style="max-height: 1000px;"{% endif %}>
               <li>
-                <a href="{% url 'residents_overview' %}" class="sidebar-sublink">
+                <a href="{% url 'residents_overview' %}" class="sidebar-sublink {% if request.resolver_match.url_name == 'residents_overview' %}active{% endif %}">
                   <i class="bi bi-person-lines-fill"></i>
                   <span>Residents</span>
                 </a>
@@ -205,7 +205,7 @@
                 </a>
               </li>
               <li>
-                <a href="{% url 'register_rfid' %}" class="sidebar-sublink">
+                <a href="{% url 'register_rfid' %}" class="sidebar-sublink {% if request.resolver_match.url_name == 'register_rfid' %}active{% endif %}">
                   <i class="bi bi-credit-card-2-front"></i>
                   <span>RFID Registration</span>
                 </a>
@@ -215,12 +215,12 @@
 
           <!-- Aid Programs (accordion) -->
           <li class="sidebar-item sidebar-item--accordion">
-            <button class="sidebar-link sidebar-accordion-btn" data-target="aidSubmenu" aria-expanded="false">
+            <button class="sidebar-link sidebar-accordion-btn {% if request.resolver_match.url_name == 'schedule_distribution' or request.resolver_match.url_name == 'beneficiary_selection_landing' or request.resolver_match.url_name == 'program_list' %}accordion-active{% endif %}" data-target="aidSubmenu" aria-expanded="{% if request.resolver_match.url_name == 'schedule_distribution' or request.resolver_match.url_name == 'beneficiary_selection_landing' or request.resolver_match.url_name == 'program_list' %}true{% else %}false{% endif %}">
               <i class="bi bi-gift"></i>
               <span>Aid Programs</span>
-              <i class="bi bi-chevron-down sidebar-arrow"></i>
+              <i class="bi bi-chevron-down sidebar-arrow"{% if request.resolver_match.url_name == 'schedule_distribution' or request.resolver_match.url_name == 'beneficiary_selection_landing' or request.resolver_match.url_name == 'program_list' %} style="transform: rotate(180deg);"{% endif %}></i>
             </button>
-            <ul class="sidebar-submenu" id="aidSubmenu">
+            <ul class="sidebar-submenu {% if request.resolver_match.url_name == 'schedule_distribution' or request.resolver_match.url_name == 'beneficiary_selection_landing' or request.resolver_match.url_name == 'program_list' %}submenu--open{% endif %}" id="aidSubmenu"{% if request.resolver_match.url_name == 'schedule_distribution' or request.resolver_match.url_name == 'beneficiary_selection_landing' or request.resolver_match.url_name == 'program_list' %} style="max-height: 1000px;"{% endif %}>
               <li>
                 <a href="{% url 'schedule_distribution' %}"
                   class="sidebar-sublink {% if request.resolver_match.url_name == 'schedule_distribution' %}active{% endif %}">
@@ -233,6 +233,13 @@
                   class="sidebar-sublink {% if request.resolver_match.url_name == 'beneficiary_selection_landing' %}active{% endif %}">
                   <i class="bi bi-person-check"></i>
                   <span>Beneficiary Selection</span>
+                </a>
+              </li>
+              <li>
+                <a href="{% url 'program_list' %}"
+                  class="sidebar-sublink {% if request.resolver_match.url_name == 'program_list' %}active{% endif %}">
+                  <i class="bi bi-box-seam"></i>
+                  <span>Manage Programs</span>
                 </a>
               </li>
             </ul>
@@ -260,7 +267,7 @@
 
           <!-- Barangays -->
           <li class="sidebar-item">
-            <a href="{% url 'barangay_list' %}" class="sidebar-link">
+            <a href="{% url 'barangay_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'barangay_list' %}active{% endif %}">
               <i class="bi bi-geo-alt"></i>
               <span>Barangays</span>
             </a>
@@ -270,15 +277,23 @@
 
           <!-- User Management -->
           <li class="sidebar-item">
-            <a href="{% url 'user_accounts' %}" class="sidebar-link">
+            <a href="{% url 'user_accounts' %}" class="sidebar-link {% if request.resolver_match.url_name == 'user_accounts' %}active{% endif %}">
               <i class="bi bi-people"></i>
               <span>User Management</span>
             </a>
           </li>
 
+          <!-- Audit Logs -->
+          <li class="sidebar-item">
+            <a href="{% url 'audit_log' %}" class="sidebar-link {% if request.resolver_match.url_name == 'audit_log' %}active{% endif %}">
+              <i class="bi bi-journal-text"></i>
+              <span>Audit Logs</span>
+            </a>
+          </li>
+
           <!-- Settings -->
           <li class="sidebar-item">
-            <a href="{% url 'settings' %}" class="sidebar-link">
+            <a href="{% url 'settings' %}" class="sidebar-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
               <i class="bi bi-gear"></i>
               <span>Settings</span>
             </a>
@@ -310,15 +325,14 @@
           </li>
           <!-- Household Profiling (accordion) -->
           <li class="sidebar-item sidebar-item--accordion">
-            <button class="sidebar-link sidebar-accordion-btn" data-target="staffHouseholdSubmenu"
-              aria-expanded="false">
+            <button class="sidebar-link sidebar-accordion-btn {% if request.resolver_match.url_name == 'residents_overview' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' or request.resolver_match.url_name == 'register_rfid' %}accordion-active{% endif %}" data-target="staffHouseholdSubmenu" aria-expanded="{% if request.resolver_match.url_name == 'residents_overview' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' or request.resolver_match.url_name == 'register_rfid' %}true{% else %}false{% endif %}">
               <i class="bi bi-house-door"></i>
               <span>Household Profiling</span>
-              <i class="bi bi-chevron-down sidebar-arrow"></i>
+              <i class="bi bi-chevron-down sidebar-arrow" style="{% if request.resolver_match.url_name == 'residents_overview' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' or request.resolver_match.url_name == 'register_rfid' %}transform: rotate(180deg);{% endif %}"></i>
             </button>
-            <ul class="sidebar-submenu" id="staffHouseholdSubmenu">
+            <ul class="sidebar-submenu {% if request.resolver_match.url_name == 'residents_overview' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' or request.resolver_match.url_name == 'register_rfid' %}submenu--open{% endif %}" id="staffHouseholdSubmenu"{% if request.resolver_match.url_name == 'residents_overview' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' or request.resolver_match.url_name == 'register_rfid' %} style="max-height: 1000px;"{% endif %}>
               <li>
-                <a href="{% url 'residents_overview' %}" class="sidebar-sublink">
+                <a href="{% url 'residents_overview' %}" class="sidebar-sublink {% if request.resolver_match.url_name == 'residents_overview' %}active{% endif %}">
                   <i class="bi bi-person-lines-fill"></i>
                   <span>Residents</span>
                 </a>
@@ -338,7 +352,7 @@
                 </a>
               </li>
               <li>
-                <a href="{% url 'register_rfid' %}" class="sidebar-sublink">
+                <a href="{% url 'register_rfid' %}" class="sidebar-sublink {% if request.resolver_match.url_name == 'register_rfid' %}active{% endif %}">
                   <i class="bi bi-credit-card-2-front"></i>
                   <span>RFID Registration</span>
                 </a>
@@ -348,14 +362,20 @@
 
           <!-- Aid Programs (accordion) -->
           <li class="sidebar-item sidebar-item--accordion">
-            <button class="sidebar-link sidebar-accordion-btn" data-target="staffAidSubmenu" aria-expanded="false">
+            <button class="sidebar-link sidebar-accordion-btn {% if request.resolver_match.url_name == 'staff_assigned_schedules' or request.resolver_match.url_name == 'analytics' or request.resolver_match.url_name == 'aid_reports' or request.resolver_match.url_name == 'program_list' %}accordion-active{% endif %}" data-target="staffAidSubmenu" aria-expanded="{% if request.resolver_match.url_name == 'staff_assigned_schedules' or request.resolver_match.url_name == 'analytics' or request.resolver_match.url_name == 'aid_reports' or request.resolver_match.url_name == 'program_list' %}true{% else %}false{% endif %}">
               <i class="bi bi-gift"></i>
               <span>Aid Programs</span>
-              <i class="bi bi-chevron-down sidebar-arrow"></i>
+              <i class="bi bi-chevron-down sidebar-arrow" style="{% if request.resolver_match.url_name == 'staff_assigned_schedules' or request.resolver_match.url_name == 'analytics' or request.resolver_match.url_name == 'aid_reports' or request.resolver_match.url_name == 'program_list' %}transform: rotate(180deg);{% endif %}"></i>
             </button>
-            <ul class="sidebar-submenu" id="staffAidSubmenu">
+            <ul class="sidebar-submenu {% if request.resolver_match.url_name == 'staff_assigned_schedules' or request.resolver_match.url_name == 'analytics' or request.resolver_match.url_name == 'aid_reports' or request.resolver_match.url_name == 'program_list' %}submenu--open{% endif %}" id="staffAidSubmenu"{% if request.resolver_match.url_name == 'staff_assigned_schedules' or request.resolver_match.url_name == 'analytics' or request.resolver_match.url_name == 'aid_reports' or request.resolver_match.url_name == 'program_list' %} style="max-height: 1000px;"{% endif %}>
               <li>
-                <a href="{% url 'analytics' %}" class="sidebar-sublink">
+                <a href="{% url 'staff_assigned_schedules' %}" class="sidebar-sublink {% if request.resolver_match.url_name == 'staff_assigned_schedules' %}active{% endif %}">
+                  <i class="bi bi-calendar-check"></i>
+                  <span>My Distributions</span>
+                </a>
+              </li>
+              <li>
+                <a href="{% url 'analytics' %}" class="sidebar-sublink {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}">
                   <i class="bi bi-graph-up"></i>
                   <span>Analytics Overview</span>
                 </a>
@@ -367,7 +387,24 @@
                   <span>Reports</span>
                 </a>
               </li>
+              <li>
+                <a href="{% url 'program_list' %}"
+                  class="sidebar-sublink {% if request.resolver_match.url_name == 'program_list' %}active{% endif %}">
+                  <i class="bi bi-box-seam"></i>
+                  <span>Programs</span>
+                </a>
+              </li>
             </ul>
+          </li>
+
+          <li class="sidebar-section-label">System</li>
+
+          <!-- Settings -->
+          <li class="sidebar-item">
+            <a href="{% url 'settings' %}" class="sidebar-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
+              <i class="bi bi-gear"></i>
+              <span>Settings</span>
+            </a>
           </li>
 
           {% endif %}
@@ -412,6 +449,16 @@
             </a>
           </li>
 
+          <li class="sidebar-section-label">System</li>
+
+          <!-- Settings -->
+          <li class="sidebar-item">
+            <a href="{% url 'settings' %}" class="sidebar-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
+              <i class="bi bi-gear"></i>
+              <span>Settings</span>
+            </a>
+          </li>
+
           {% endif %}
 
         </ul>
@@ -430,6 +477,20 @@
 
     <!-- ==================== MAIN CONTENT ==================== -->
     <main class="{% if user.is_authenticated and not hide_sidebar %}main-content{% endif %}">
+      
+      <!-- ── Offline Sync Timestamp Banner (Staff only) ──────────────────────────── -->
+      {% if user.role == 'MSWDO_STAFF' and latest_sync %}
+      <div class="alert alert-info alert-dismissible fade show m-3" role="alert" style="background-color: #e3f2fd; border-color: #2196f3;">
+        <i class="bi bi-cloud-arrow-down me-2"></i>
+        <strong>Last Sync:</strong> {{ latest_sync.synced_at|date:"F j, Y, g:i A" }}
+        <span class="text-muted">by {{ latest_sync.synced_by.username|default:"Unknown" }}</span>
+        <span class="ms-3 text-muted">
+          ({{ latest_sync.households_count }} households, {{ latest_sync.programs_count }} programs, {{ latest_sync.claims_count }} claims)
+        </span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+      {% endif %}
+      
       <!-- ── Django Messages (global) ──────────────────────────── 
       {% if messages %}
         <div style="padding: 1rem 1rem 0;">
@@ -588,18 +649,79 @@
       });
     });
 
+    // ── Sidebar Scroll Position Preservation ─────────────────────────────────
+    // Store sidebar scroll position before navigation
+    document.querySelectorAll('.sidebar-link:not(.sidebar-accordion-btn), .sidebar-sublink').forEach(link => {
+      link.addEventListener('click', () => {
+        if (sidebar) {
+          sessionStorage.setItem('sidebarScrollTop', sidebar.scrollTop);
+        }
+      });
+    });
+
+    // Restore sidebar scroll position on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      if (sidebar) {
+        const savedScrollTop = sessionStorage.getItem('sidebarScrollTop');
+        if (savedScrollTop !== null) {
+          sidebar.scrollTop = parseInt(savedScrollTop, 10);
+          sessionStorage.removeItem('sidebarScrollTop');
+        }
+      }
+    });
+
     // ── Generic Confirmation Modal ───────────────────────────────────────────
     function showConfirmModal(message, onConfirm, options = {}) {
-      // options: { title: string, confirmText: string }
+      // options: { 
+      //   title: string, 
+      //   confirmText: string,
+      //   mode: 'confirm' | 'alert',  // 'alert' = single OK button, no callback
+      //   type: 'success' | 'error' | 'warning' | 'danger',  // icon/color styling
+      //   autoClose: number  // auto-dismiss after N ms (alert mode only)
+      // }
       const overlay = document.getElementById('genericConfirmModalOverlay');
       const messageEl = document.getElementById('genericConfirmMessage');
       const titleEl = document.getElementById('genericConfirmTitleText');
+      const titleContainer = document.getElementById('genericConfirmTitle');
+      const iconEl = document.getElementById('genericConfirmIcon');
       const proceedBtn = document.getElementById('genericConfirmProceedBtn');
       const cancelBtn = document.getElementById('genericConfirmCancelBtn');
 
+      const mode = options.mode || 'confirm';
+      const type = options.type || 'danger';
+
       messageEl.textContent = message;
-      titleEl.textContent = options.title || 'Confirm Action';
-      proceedBtn.textContent = options.confirmText || 'Confirm';
+      titleEl.textContent = options.title || (mode === 'alert' ? 'Notice' : 'Confirm Action');
+
+      // Set icon and color based on type
+      const typeConfig = {
+        success: { icon: 'bi-check-circle-fill', color: 'text-success', btnClass: 'btn-success' },
+        error: { icon: 'bi-exclamation-triangle-fill', color: 'text-danger', btnClass: 'btn-danger' },
+        warning: { icon: 'bi-exclamation-triangle-fill', color: 'text-warning', btnClass: 'btn-warning' },
+        danger: { icon: 'bi-exclamation-triangle', color: 'text-danger', btnClass: 'btn-danger' }
+      };
+      const config = typeConfig[type] || typeConfig.danger;
+      
+      iconEl.className = `bi ${config.icon}`;
+      titleContainer.className = `kiosk-modal-title ${config.color}`;
+
+      // Configure buttons based on mode
+      if (mode === 'alert') {
+        cancelBtn.style.display = 'none';
+        proceedBtn.textContent = options.confirmText || 'OK';
+        proceedBtn.className = `btn ${config.btnClass}`;
+        proceedBtn.style.fontWeight = '500';
+        proceedBtn.style.padding = '10px 16px';
+        proceedBtn.style.borderRadius = '6px';
+      } else {
+        // Confirm mode (existing behavior)
+        cancelBtn.style.display = '';
+        proceedBtn.textContent = options.confirmText || 'Confirm';
+        proceedBtn.className = 'btn btn-danger';
+        proceedBtn.style.fontWeight = '500';
+        proceedBtn.style.padding = '10px 16px';
+        proceedBtn.style.borderRadius = '6px';
+      }
 
       overlay.classList.add('active');
 
@@ -612,7 +734,9 @@
 
       newProceedBtn.addEventListener('click', function () {
         overlay.classList.remove('active');
-        onConfirm();
+        if (mode === 'confirm' && onConfirm) {
+          onConfirm();
+        }
       });
 
       cancelBtn.addEventListener('click', function () {
@@ -622,6 +746,15 @@
       overlay.addEventListener('click', function (e) {
         if (e.target === overlay) overlay.classList.remove('active');
       });
+
+      // Auto-dismiss for alert mode
+      if (mode === 'alert' && options.autoClose) {
+        setTimeout(() => {
+          if (overlay.classList.contains('active')) {
+            overlay.classList.remove('active');
+          }
+        }, options.autoClose);
+      }
     }
 
     // ── Global Loading Modal ──────────────────────────────────────────────────

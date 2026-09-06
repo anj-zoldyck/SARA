@@ -35,7 +35,7 @@ User = get_user_model()
 @login_required
 @session_protected
 def program_list(request):
-    if request.user.role != 'MSWDO':
+    if request.user.role not in ['MSWDO', 'MSWDO_STAFF']:
         return HttpResponseForbidden("Access Denied")
 
     programs = Program.objects.prefetch_related(
@@ -45,6 +45,7 @@ def program_list(request):
 
     return render(request, 'programs/program_list.html', {
         'programs': programs,
+        'is_mswdo': request.user.role == 'MSWDO',
     })
 
 

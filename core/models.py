@@ -43,6 +43,11 @@ class AuditLog(models.Model):
         ('ACCESS_DENIED_FINISH', 'Access Denied - Finish Distribution'),
         # Report generation
         ('REPORT_GENERATED', 'Report Generated'),
+        # Offline/sync features
+        ('BENEFICIARY_BACKUP_DOWNLOADED', 'Beneficiary List Backup Downloaded'),
+        ('BENEFICIARY_BACKUP_SKIPPED', 'Beneficiary List Backup Skipped'),
+        ('OFFLINE_SYNC_EXPORTED', 'Offline Kit Sync Exported'),
+        ('OFFLINE_CLAIM_RECONCILIATION_IMPORT', 'Offline Claim Reconciliation Import'),
     )
 
     actor = models.ForeignKey(

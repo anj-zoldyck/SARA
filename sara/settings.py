@@ -35,6 +35,19 @@ OTP_ENABLED = os.getenv('OTP_ENABLED', 'True') == 'True'
 if not OTP_ENABLED:
     logging.warning("⚠️ OTP IS DISABLED — this should never be true in production. This setting is for offline local development only.")
 
+# ═══════════════════════════════════════════════════════════════
+# OFFLINE MODE CONFIGURATION
+# ═══════════════════════════════════════════════════════════════
+# IMPORTANT: OFFLINE_MODE must be explicitly set to True ONLY on the offline field deployment.
+# This flag enables destructive import operations that overwrite municipal data.
+# If this is False (default), import views will refuse to run to protect production data.
+# Set via environment variable: OFFLINE_MODE=True
+# ═══════════════════════════════════════════════════════════════
+OFFLINE_MODE = os.getenv('OFFLINE_MODE', 'False') == 'True'
+
+if OFFLINE_MODE:
+    logging.warning("⚠️ OFFLINE MODE IS ENABLED — destructive import operations are permitted. This should only be true on the offline field deployment.")
+
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
@@ -100,6 +113,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'accounts.context_processors.auth_required',
+                'accounts.context_processors.offline_sync_metadata',
             ],
         },
     },
@@ -181,6 +195,9 @@ DEFAULT_FROM_EMAIL = 'SRC Capstone System<dizonjelo50@gmail.com>'
 #OTP_EMAIL_SUBJECT = 'Your login verification code'
 OTP_EMAIL_TOKEN_VALIDITY = 300  # 5 minutes
 OTP_EMAIL_BODY_HTML_TEMPLATE_PATH = 'otp/otp_email.html'
+
+# Password reset config
+PASSWORD_RESET_TIMEOUT = 900  # 15 minutes (in seconds)
 
 # Session settings for idle-based auto-logout
 SESSION_COOKIE_AGE = 1800  # 30 minutes - global fallback/hard ceiling

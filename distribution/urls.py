@@ -34,4 +34,17 @@ urlpatterns = [
     path('mswdo/venues/<int:venue_id>/edit/', views.venue_edit, name='venue_edit'),
     path('mswdo/venues/<int:venue_id>/deactivate/', views.venue_deactivate, name='venue_deactivate'),
     path('mswdo/venues/<int:venue_id>/activate/', views.venue_activate, name='venue_activate'),
+
+    # Offline Sync Features
+    path('schedule/<int:schedule_id>/download-backup/', views.download_beneficiary_backup, name='download_beneficiary_backup'),
+    path('mswdo/schedule/<int:schedule_id>/skip-backup/', views.skip_beneficiary_backup, name='skip_beneficiary_backup'),
+    path('prepare-offline-kit/', views.prepare_offline_kit, name='prepare_offline_kit'),
+    path('import/beneficiary-list/', views.import_beneficiary_list_view, name='import_beneficiary_list'),
+    path('import/full-sync/', views.import_full_sync_view, name='import_full_sync'),
+    path('export/offline-claims/', views.export_offline_claims_view, name='export_offline_claims'),
+    path('export/offline-claims/<int:schedule_id>/', views.export_offline_claims_view, name='export_offline_claims_schedule'),
+    path('reconcile/claims-import/', views.reconcile_claims_import, name='reconcile_claims_import'),
+    
+    # Staff assigned schedules
+    path('staff/assigned-schedules/', views.staff_assigned_schedules, name='staff_assigned_schedules'),
 ]

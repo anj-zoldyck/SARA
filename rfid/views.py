@@ -183,8 +183,6 @@ def register_rfid(request, family_id=None):
         brgy.rfid_registered = row['registered']
         filtered_barangays.append(brgy)
 
-    import json
-
     context = {
         'barangays':         all_barangays,       # for the filter dropdown
         'all_zones':         all_zones,            # for the zone dropdown

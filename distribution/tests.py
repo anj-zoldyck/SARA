@@ -4,12 +4,14 @@ from datetime import timedelta
 from accounts.models import User, Barangay
 from households.models import Zone, Household, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
-from distribution.models import AidSchedule, AssignedTo, AidClaim, GeneratedBeneficiaryList, GeneratedBeneficiary, DistributionVenue
+from distribution.models import AidSchedule, AssignedTo, AidClaim, GeneratedBeneficiaryList, GeneratedBeneficiary, DistributionVenue, BeneficiaryBackupDownload
 from distribution.services import is_staff_assigned_to_scan
 from distribution.views import scan_rfid, staff_walkin, search_eligible_candidates, finish_distribution
+from distribution.offline_sync import export_beneficiary_list, import_beneficiary_list
 from django.contrib.messages.storage.fallback import FallbackStorage
 from decimal import Decimal
 import json
+import io
 
 def add_messages(request):
     setattr(request, 'session', 'session')
@@ -1724,6 +1726,351 @@ class WalkinReactivateFamilyTestCase(TestCase):
         
         data = response.json()
         self.assertEqual(data.get('status'), 'success')
+
+
+class OfflineSyncTestCase(TestCase):
+    """
+    Test offline sync functionality: beneficiary list export/import, staleness tracking.
+    """
+
+    def setUp(self):
+        self.barangay = Barangay.objects.create(name='Test Barangay')
+        self.zone = Zone.objects.create(name='Zone 1', barangay=self.barangay)
+
+        self.mswdo = User.objects.create_user(
+            username='mswdo',
+            email='mswdo@test.com',
+            role='MSWDO',
+            password='pwd'
+        )
+
+        self.staff = User.objects.create_user(
+            username='staff',
+            email='staff@test.com',
+            role='MSWDO_STAFF',
+            password='pwd'
+        )
+
+        self.program = Program.objects.create(name='Test Program')
+        self.category = AidCategory.objects.create(program=self.program, name='Test Category')
+
+        self.assistance = Assistance.objects.create(
+            program=self.program,
+            aid_category=self.category,
+            beneficiary_type='family',
+            aid_type='CASH'
+        )
+
+        self.schedule = AidSchedule.objects.create(
+            assistance=self.assistance,
+            schedule_datetime=timezone.now(),
+            location='Plaza',
+            is_active=True,
+            is_finished=False
+        )
+
+        # Create household and family
+        self.household = Household.objects.create(
+            barangay=self.barangay,
+            zone=self.zone,
+            house_number='123',
+            land_use='RESIDENTIAL',
+            hazard_exposure='NONE'
+        )
+        self.family = Family.objects.create(
+            household=self.household,
+            family_name='Test Family',
+            rfid_uid='TEST_RFID',
+            is_active=True
+        )
+        FamilyMember.objects.create(
+            family=self.family,
+            first_name='John',
+            last_name='Doe'
+        )
+
+        # Generate beneficiary list
+        self.ben_list = GeneratedBeneficiaryList.objects.create(
+            schedule=self.schedule,
+            generated_by=self.mswdo,
+            prioritization_strategy_used='RANDOM'
+        )
+        GeneratedBeneficiary.objects.create(
+            beneficiary_list=self.ben_list,
+            family=self.family
+        )
+
+    def test_export_beneficiary_list(self):
+        """Test that beneficiary list can be exported to XLSX."""
+        filename, content = export_beneficiary_list(self.schedule, self.mswdo)
+
+        # Check that a file was returned
+        self.assertTrue(filename.endswith('.xlsx'))
+        self.assertTrue(len(content) > 0)
+
+        # Check that a BeneficiaryBackupDownload record was created
+        self.assertTrue(BeneficiaryBackupDownload.objects.filter(
+            schedule=self.schedule,
+            downloaded_by=self.mswdo
+        ).exists())
+
+    def test_staleness_detection(self):
+        """Test that staleness is detected when schedule is updated after download."""
+        # First download
+        export_beneficiary_list(self.schedule, self.mswdo)
+
+        # Update the schedule
+        self.schedule.location = 'Updated Location'
+        self.schedule.save()
+
+        # Check staleness
+        last_download = BeneficiaryBackupDownload.objects.filter(
+            schedule=self.schedule
+        ).order_by('-downloaded_at').first()
+
+        self.assertIsNotNone(last_download)
+        self.assertTrue(self.schedule.updated_at > last_download.schedule_updated_at_snapshot)
+
+    def test_import_beneficiary_list(self):
+        """Test that beneficiary list can be imported from XLSX."""
+        # Export first
+        filename, content = export_beneficiary_list(self.schedule, self.mswdo)
+
+        # Create a new schedule for import
+        new_schedule = AidSchedule.objects.create(
+            assistance=self.assistance,
+            schedule_datetime=timezone.now() + timedelta(days=1),
+            location='New Plaza',
+            is_active=True,
+            is_finished=False
+        )
+
+        # Import
+        xlsx_file = io.BytesIO(content)
+        imported_schedule = import_beneficiary_list(xlsx_file, self.mswdo)
+
+        # Verify import
+        self.assertEqual(imported_schedule.assistance, self.assistance)
+        self.assertTrue(GeneratedBeneficiaryList.objects.filter(
+            schedule=imported_schedule
+        ).exists())
+
+    def test_skip_backup_download(self):
+        """Test that skipping backup creates a BeneficiaryBackupDownload record."""
+        from distribution.views import skip_beneficiary_backup
+
+        # Create a request
+        factory = RequestFactory()
+        request = factory.post(f'/mswdo/schedule/{self.schedule.id}/skip-backup/')
+        add_messages(request)
+        request.user = self.mswdo
+
+        response = skip_beneficiary_backup(request, self.schedule.id)
+
+        # Check that a skip record was created
+        self.assertTrue(BeneficiaryBackupDownload.objects.filter(
+            schedule=self.schedule,
+            downloaded_by=self.mswdo,
+            was_skipped=True
+        ).exists())
+
+    def test_staff_assigned_schedules_view(self):
+        """Test that staff can view their assigned schedules."""
+        from distribution.views import staff_assigned_schedules
+
+        # Assign staff to schedule
+        AssignedTo.objects.create(
+            schedule=self.schedule,
+            staff=self.staff,
+            barangay=self.barangay,
+            zone=self.zone
+        )
+
+        # Create request
+        factory = RequestFactory()
+        request = factory.get('/staff/assigned-schedules/')
+        request.user = self.staff
+
+        response = staff_assigned_schedules(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, str(self.schedule.id))
+
+    def test_staff_assigned_schedules_open_access(self):
+        """Test that schedules with no assignments are visible to all staff."""
+        from distribution.views import staff_assigned_schedules
+
+        # No assignments created - should be open access
+
+        # Create request
+        factory = RequestFactory()
+        request = factory.get('/staff/assigned-schedules/')
+        request.user = self.staff
+
+        response = staff_assigned_schedules(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, str(self.schedule.id))
+
+    def test_staff_assigned_schedules_unassigned_blocked(self):
+        """Test that unassigned staff cannot see schedules with assignments."""
+        from distribution.views import staff_assigned_schedules
+
+        # Assign another staff to schedule
+        other_staff = User.objects.create_user(
+            username='other_staff',
+            email='other@test.com',
+            role='MSWDO_STAFF',
+            password='pwd'
+        )
+        AssignedTo.objects.create(
+            schedule=self.schedule,
+            staff=other_staff,
+            barangay=self.barangay,
+            zone=self.zone
+        )
+
+        # Create request for unassigned staff
+        factory = RequestFactory()
+        request = factory.get('/staff/assigned-schedules/')
+        request.user = self.staff
+
+        response = staff_assigned_schedules(request)
+
+        self.assertEqual(response.status_code, 200)
+        # Schedule should NOT be in the response
+        self.assertNotContains(response, str(self.schedule.id))
         
         self.family.refresh_from_db()
         self.assertFalse(self.family.is_archived)
+
+    def test_rotation_cooldown_rejection_on_offline_walkin(self):
+        """Test that a resident in active rotation/cooldown window is rejected by offline walk-in."""
+        from distribution.views import staff_walkin_claim
+        from programs.models import EligibilityRule
+
+        # Create a DAYS_SINCE_LAST_ASSISTANCE rule with 30-day cooldown
+        cooldown_rule = EligibilityRule.objects.create(
+            assistance=self.assistance,
+            rule_type='DAYS_SINCE_LAST_ASSISTANCE',
+            config={'min_days': 30},
+            is_active=True
+        )
+
+        # Create a recent claim for the member (within 30-day window)
+        recent_claim = AidClaim.objects.create(
+            family=self.family,
+            family_member=self.family.members.first(),
+            assistance=self.assistance,
+            schedule=self.schedule,
+            claim_type='RFID',
+            claimed_at=timezone.now() - timedelta(days=10),
+            amount=Decimal('1000')
+        )
+
+        # Attempt walk-in claim
+        factory = RequestFactory()
+        request = factory.post('/staff/walkin/claim/', {
+            'member_id': self.family.members.first().id,
+            'assistance_id': self.assistance.id,
+            'amount': '1000'
+        })
+        add_messages(request)
+        request.user = self.staff
+
+        response = staff_walkin_claim(request)
+        data = response.json()
+
+        # Should be rejected due to cooldown
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(data['status'], 'error')
+        self.assertIn('cooldown', data['message'].lower())
+
+    def test_reconciliation_import_skips_conflicting_rows(self):
+        """Test that reconciliation import correctly skips rows that conflict with existing AidClaim."""
+        from distribution.views import reconcile_claims_import
+        import json
+
+        # Create an existing claim
+        existing_claim = AidClaim.objects.create(
+            family=self.family,
+            family_member=self.family.members.first(),
+            assistance=self.assistance,
+            schedule=self.schedule,
+            claim_type='RFID',
+            claimed_at=timezone.now(),
+            amount=Decimal('1000')
+        )
+
+        # Create import data with a conflicting claim
+        claims_data = [{
+            'offline_claim_id': 999,
+            'family_id': self.family.id,
+            'family_member_id': self.family.members.first().id,
+            'assistance_id': self.assistance.id,
+            'schedule_id': self.schedule.id,
+            'claim_type': 'WALK_IN',
+            'claimed_at': timezone.now().isoformat(),
+            'amount': '1000',
+            'is_late_scheduled_claim': False,
+        }]
+
+        # Create mock file
+        import io
+        json_file = io.BytesIO(json.dumps(claims_data).encode('utf-8'))
+        json_file.name = 'test.json'
+
+        # Preview mode
+        factory = RequestFactory()
+        request = factory.post('/staff/reconcile/import/', {
+            'json_file': json_file,
+            'commit': 'false'
+        })
+        add_messages(request)
+        request.user = self.staff
+
+        response = reconcile_claims_import(request)
+
+        # Should skip the duplicate
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'skipped_duplicates')
+        self.assertContains(response, '1')  # One duplicate skipped
+
+    def test_unresolved_rfid_uid_flagged_in_import(self):
+        """Test that rows with unresolved RFID UID are flagged rather than silently dropped."""
+        from distribution.views import reconcile_claims_import
+        import json
+
+        # Create import data with non-existent family ID
+        claims_data = [{
+            'offline_claim_id': 999,
+            'family_id': 99999,  # Non-existent
+            'family_member_id': None,
+            'assistance_id': self.assistance.id,
+            'schedule_id': self.schedule.id,
+            'claim_type': 'WALK_IN',
+            'claimed_at': timezone.now().isoformat(),
+            'amount': '1000',
+            'is_late_scheduled_claim': False,
+        }]
+
+        # Create mock file
+        import io
+        json_file = io.BytesIO(json.dumps(claims_data).encode('utf-8'))
+        json_file.name = 'test.json'
+
+        # Preview mode
+        factory = RequestFactory()
+        request = factory.post('/staff/reconcile/import/', {
+            'json_file': json_file,
+            'commit': 'false'
+        })
+        add_messages(request)
+        request.user = self.staff
+
+        response = reconcile_claims_import(request)
+
+        # Should flag as unresolved
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'unresolved')
+        self.assertContains(response, 'Family ID not found')

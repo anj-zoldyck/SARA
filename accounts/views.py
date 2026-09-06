@@ -337,11 +337,19 @@ def verify_otp(request):
             response.set_cookie('sara_auth', '1', samesite='Lax')
             return response
         else:
-            # Increment failed attempts, expire after 60 seconds
-            cache.set(otp_attempts_key, otp_attempts + 1, timeout=60)
-            user = get_user_model().objects.filter(pk=user_id).first()
-            log_action(user, 'OTP_FAILURE', description=f"Failed OTP verification for user_id: {user_id}", ip_address=ip)
-            return render(request, 'accounts/verify_otp.html', {'error': 'Invalid OTP'})
+            # Check if OTP has expired (no valid token or token expired)
+            if not device or not device.token or device.valid_until < timezone.now():
+                # OTP expired - clear session and redirect to login with message
+                if 'pre_2fa_user_id' in request.session:
+                    del request.session['pre_2fa_user_id']
+                messages.error(request, 'Your verification code has expired. Please log in again to receive a new code.')
+                return redirect('login')
+            else:
+                # Invalid OTP - increment failed attempts
+                cache.set(otp_attempts_key, otp_attempts + 1, timeout=60)
+                user = get_user_model().objects.filter(pk=user_id).first()
+                log_action(user, 'OTP_FAILURE', description=f"Failed OTP verification for user_id: {user_id}", ip_address=ip)
+                return render(request, 'accounts/verify_otp.html', {'error': 'Invalid OTP'})
 
     return render(request, 'accounts/verify_otp.html')
 
