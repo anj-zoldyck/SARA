@@ -2136,7 +2136,7 @@ def staff_assigned_schedules(request):
     
     # Get schedules where staff is assigned or schedules with no assignments (open access)
     assigned_schedules = AidSchedule.objects.filter(
-        Q(assignments__staff=request.user) | ~Q(assignments__exists=True)
+        Q(assignments__staff=request.user) | Q(assignments__isnull=True)
     ).distinct().select_related(
         'assistance__program', 'assistance__aid_category'
     ).prefetch_related('assignments').order_by('-schedule_datetime')
