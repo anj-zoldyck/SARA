@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Distribution Report — SARA{% endblock %}
+{% block navbar_title %}DISTRIBUTION REPORT{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/aid_reports.css' %}">
+<link rel="stylesheet" href="{% static 'css/barangay_accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/program_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- ======================================================
+     PAGE HEADER
+====================================================== -->
+<div class="dash-page-header">
+  <div>
+    <div class="page-breadcrumb">
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'staff_assigned_schedules' %}" class="breadcrumb-link">
+        My Distributions
+      </a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <span class="breadcrumb-current">Distribution Report</span>
+    </div>
+    <h1 class="dash-page-title">Distribution Report</h1>
+    <p class="dash-page-sub">
+      {{ schedule.assistance.program.name }} — {{ schedule.assistance.aid_category.name }}
+    </p>
+  </div>
+  <div class="dash-header-actions">
+    {% if schedule.is_finished %}
+      <span class="badge bg-success me-2">Finished</span>
+    {% else %}
+      <span class="badge bg-warning text-dark me-2">Ongoing</span>
+    {% endif %}
+    {% if schedule.finish_reason == 'OFFLINE' %}
+      <span class="badge bg-info me-2">Offline Mode</span>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ======================================================
+     SCHEDULE SUMMARY
+====================================================== -->
+<div class="dash-panel mb-4">
+  <div class="dash-panel__header">
+    <h2 class="dash-panel__title">Schedule Summary</h2>
+  </div>
+  <div class="dash-panel__body">
+    <div class="row g-4">
+      <div class="col-md-6">
+        <div class="summary-card">
+          <div class="summary-label">Date & Time</div>
+          <div class="summary-value">{{ schedule.schedule_datetime|date:"F d, Y" }} at {{ schedule.schedule_datetime|date:"g:i A" }}</div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="summary-card">
+          <div class="summary-label">Location</div>
+          <div class="summary-value">{{ schedule.location }}</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="summary-card">
+          <div class="summary-label">Budget</div>
+          <div class="summary-value">₱{{ schedule.budget|floatformat:2 }}</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="summary-card">
+          <div class="summary-label">Per Beneficiary</div>
+          <div class="summary-value">₱{{ schedule.per_beneficiary_amount|floatformat:2 }}</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="summary-card">
+          <div class="summary-label">Total Beneficiaries</div>
+          <div class="summary-value">{{ total_beneficiaries }}</div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="summary-card success">
+          <div class="summary-label">Claimed</div>
+          <div class="summary-value">{{ claimed_count }}</div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="summary-card warning">
+          <div class="summary-label">Not Claimed</div>
+          <div class="summary-value">{{ unclaimed_count }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================
+     CLAIMED BENEFICIARIES
+====================================================== -->
+<div class="dash-panel mb-4">
+  <div class="dash-panel__header">
+    <h2 class="dash-panel__title">Claimed Beneficiaries</h2>
+    <span class="badge bg-primary">{{ claimed_count }}</span>
+  </div>
+  <div class="dash-panel__body p-0">
+    <div class="table-responsive">
+      <table class="table mb-0">
+        <thead>
+          <tr>
+            <th>Family Name</th>
+            <th>Member Name</th>
+            <th>RFID UID</th>
+            <th>Claimed At</th>
+            <th>Amount</th>
+            <th>Processed By</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for claim in claimed_beneficiaries %}
+          <tr>
+            <td>{{ claim.family.family_name }}</td>
+            <td>
+              {% if claim.family_member %}
+                {{ claim.family_member.first_name }} {{ claim.family_member.last_name }}
+              {% else %}
+                N/A
+              {% endif %}
+            </td>
+            <td>{{ claim.family.rfid_uid|default:"N/A" }}</td>
+            <td>{{ claim.claimed_at|date:"M d, Y g:i A" }}</td>
+            <td>₱{{ claim.amount|floatformat:2 }}</td>
+            <td>{{ claim.created_by.username|default:"System" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center py-4 text-muted">No claims recorded</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================
+     UNCLAIMED BENEFICIARIES
+====================================================== -->
+<div class="dash-panel mb-4">
+  <div class="dash-panel__header">
+    <h2 class="dash-panel__title">Unclaimed Beneficiaries</h2>
+    <span class="badge bg-warning text-dark">{{ unclaimed_count }}</span>
+  </div>
+  <div class="dash-panel__body p-0">
+    <div class="table-responsive">
+      <table class="table mb-0">
+        <thead>
+          <tr>
+            <th>Family Name</th>
+            <th>Member Name</th>
+            <th>RFID UID</th>
+            <th>Address</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in unclaimed_beneficiaries %}
+          <tr>
+            <td>
+              {% if entry.family %}
+                {{ entry.family.family_name }}
+              {% elif entry.family_member %}
+                {{ entry.family_member.family.family_name }}
+              {% else %}
+                N/A
+              {% endif %}
+            </td>
+            <td>
+              {% if entry.family_member %}
+                {{ entry.family_member.first_name }} {{ entry.family_member.last_name }}
+              {% elif entry.family %}
+                N/A (Family-based)
+              {% else %}
+                N/A
+              {% endif %}
+            </td>
+            <td>
+              {% if entry.family %}
+                {{ entry.family.rfid_uid|default:"N/A" }}
+              {% elif entry.family_member %}
+                {{ entry.family_member.family.rfid_uid|default:"N/A" }}
+              {% else %}
+                N/A
+              {% endif %}
+            </td>
+            <td>
+              {% if entry.family %}
+                {{ entry.family.household.address|default:"N/A" }}
+              {% elif entry.family_member %}
+                {{ entry.family_member.family.household.address|default:"N/A" }}
+              {% else %}
+                N/A
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="text-center py-4 text-muted">All beneficiaries have claimed</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================
+     ACTIONS
+====================================================== -->
+<div class="dash-panel">
+  <div class="dash-panel__body">
+    <div class="d-flex gap-3 justify-content-end">
+      {% if request.user.role == 'MSWDO' %}
+        <a href="{% url 'beneficiary_selection_landing' %}" class="btn-dash-outline">
+          <i class="bi bi-arrow-left me-1"></i> Back to Manage Schedules
+        </a>
+      {% else %}
+        <a href="{% url 'staff_assigned_schedules' %}" class="btn-dash-outline">
+          <i class="bi bi-arrow-left me-1"></i> Back to My Distributions
+        </a>
+      {% endif %}
+      {% if schedule.is_finished %}
+        <a href="{% url 'export_distribution_report' schedule.id %}" class="btn-dash-primary">
+          <i class="bi bi-download me-1"></i> Export Distribution Records
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+<style>
+.summary-card {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #e9ecef;
+}
+.summary-card.success {
+  background: #d1e7dd;
+  border-color: #badbcc;
+}
+.summary-card.warning {
+  background: #fff3cd;
+  border-color: #ffecb5;
+}
+.summary-label {
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+.summary-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #212529;
+}
+</style>

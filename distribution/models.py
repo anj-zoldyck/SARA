@@ -143,7 +143,7 @@ class AidSchedule(models.Model):
     # — useful for future reporting.
     finish_reason = models.CharField(
         max_length=20,
-        choices=(('COMPLETED', 'All Beneficiaries Claimed'), ('FORCED', 'Manually Ended (Incomplete)'), ('CANCELLED', 'Cancelled')),
+        choices=(('COMPLETED', 'All Beneficiaries Claimed'), ('FORCED', 'Manually Ended (Incomplete)'), ('CANCELLED', 'Cancelled'), ('OFFLINE', 'Offline Mode')),
         blank=True
     )
 

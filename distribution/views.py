@@ -129,6 +129,14 @@ def schedule_distribution(request):
             prioritization_strategy=prioritization_strategy if enable_selection else 'LOWEST_INCOME_FIRST',
             created_by=request.user
         )
+        
+        # Auto-calculate per_beneficiary_amount if it's 0 but budget is set
+        # Only calculate if user explicitly left it as 0 - otherwise use the provided value
+        if enable_selection and per_beneficiary_amount == 0 and schedule.budget > 0:
+            # Default to a reasonable per-beneficiary amount if not specified
+            # This will be recalculated when beneficiaries are generated
+            schedule.per_beneficiary_amount = schedule.budget / Decimal('100')  # Default assumption of 100 beneficiaries
+            schedule.save()
         log_action(request.user, 'SCHEDULE_CREATED', target=schedule, description=f"Created schedule for {assistance} at {location}")
 
         if enable_selection and schedule.budget > Decimal('0') and schedule.per_beneficiary_amount > Decimal('0'):
@@ -741,13 +749,14 @@ def staff_walkin_rfid_lookup(request):
     
     for m in members:
         # Check for individual-based missed claims
-        # Exclude both regular scheduled claims AND late walk-in claims (via original_schedule)
+        # Exclude regular scheduled claims, late walk-in claims, AND offline import claims
         missed_claim = GeneratedBeneficiary.objects.filter(
             family_member=m,
             beneficiary_list__schedule__is_finished=True,
             beneficiary_list__schedule__finished_at__gte=seven_days_ago
         ).exclude(
-            beneficiary_list__schedule__claims__family_member=m
+            beneficiary_list__schedule__claims__family_member=m,
+            beneficiary_list__schedule__claims__claim_type__in=['DISTRIBUTION', 'LATE_WALKIN', 'OFFLINE_IMPORT']
         ).exclude(
             beneficiary_list__schedule__late_claims__family_member=m
         ).select_related(
@@ -763,7 +772,8 @@ def staff_walkin_rfid_lookup(request):
                 beneficiary_list__schedule__is_finished=True,
                 beneficiary_list__schedule__finished_at__gte=seven_days_ago
             ).exclude(
-                beneficiary_list__schedule__claims__family=family
+                beneficiary_list__schedule__claims__family=family,
+                beneficiary_list__schedule__claims__claim_type__in=['DISTRIBUTION', 'LATE_WALKIN', 'OFFLINE_IMPORT']
             ).exclude(
                 beneficiary_list__schedule__late_claims__family=family
             ).select_related(
@@ -1045,13 +1055,14 @@ def staff_walkin_member_modal(request, member_id):
     seven_days_ago = timezone.now() - timedelta(days=7)
     
     # Check for individual-based missed claims
-    # Exclude both regular scheduled claims AND late walk-in claims (via original_schedule)
+    # Exclude regular scheduled claims, late walk-in claims, AND offline import claims
     missed_claim = GeneratedBeneficiary.objects.filter(
         family_member=member,
         beneficiary_list__schedule__is_finished=True,
         beneficiary_list__schedule__finished_at__gte=seven_days_ago
     ).exclude(
-        beneficiary_list__schedule__claims__family_member=member
+        beneficiary_list__schedule__claims__family_member=member,
+        beneficiary_list__schedule__claims__claim_type__in=['DISTRIBUTION', 'LATE_WALKIN', 'OFFLINE_IMPORT']
     ).exclude(
         beneficiary_list__schedule__late_claims__family_member=member
     ).select_related(
@@ -1067,7 +1078,8 @@ def staff_walkin_member_modal(request, member_id):
             beneficiary_list__schedule__is_finished=True,
             beneficiary_list__schedule__finished_at__gte=seven_days_ago
         ).exclude(
-            beneficiary_list__schedule__claims__family=member.family
+            beneficiary_list__schedule__claims__family=member.family,
+            beneficiary_list__schedule__claims__claim_type__in=['DISTRIBUTION', 'LATE_WALKIN', 'OFFLINE_IMPORT']
         ).exclude(
             beneficiary_list__schedule__late_claims__family=member.family
         ).select_related(
@@ -1214,7 +1226,7 @@ def review_beneficiaries(request, schedule_id):
         if schedule.updated_at > last_download.schedule_updated_at_snapshot:
             is_stale = True
             actor = last_download.downloaded_by.username if last_download.downloaded_by else 'Unknown'
-            time_str = last_download.downloaded_at.strftime("%Y-%m-%d %H:%M")
+            time_str = timezone.localtime(last_download.downloaded_at).strftime("%Y-%m-%d %H:%M")
             staleness_message = f"This list has changed since the last backup download (by {actor} at {time_str})."
 
     return render(request, 'distribution/review_beneficiaries.html', {
@@ -1884,31 +1896,46 @@ def import_beneficiary_list_view(request):
     if not getattr(settings, 'OFFLINE_MODE', False):
         return HttpResponseForbidden("This operation is only permitted in offline mode.")
     
+    # Defense-in-depth: Prevent writes to production database
+    production_db_name = getattr(settings, 'PRODUCTION_DB_NAME', '')
+    current_db_name = str(settings.DATABASES['default']['NAME'])
+    if production_db_name and current_db_name == production_db_name:
+        return HttpResponseForbidden("This operation is not permitted on the production database.")
+    
     if request.user.role != 'MSWDO_STAFF':
         return HttpResponseForbidden("Access Denied")
     
     if request.method == 'POST':
         xlsx_file = request.FILES.get('xlsx_file')
         if not xlsx_file:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'status': 'error', 'message': 'Please select a file to upload.'}, status=400)
             messages.error(request, "Please select a file to upload.")
-            return redirect('import_beneficiary_list')
+            return redirect('staff_assigned_schedules')
         
         if not xlsx_file.name.endswith('.xlsx'):
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'status': 'error', 'message': 'Please upload an .xlsx file.'}, status=400)
             messages.error(request, "Please upload an .xlsx file.")
-            return redirect('import_beneficiary_list')
+            return redirect('staff_assigned_schedules')
         
         try:
             schedule = import_beneficiary_list(xlsx_file, request.user)
             log_action(request.user, 'BENEFICIARY_LIST_IMPORTED', target=schedule,
                       description=f"Imported beneficiary list for schedule {schedule.id} from offline backup")
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'status': 'success', 'schedule_id': schedule.id, 'redirect_url': f"/mswdo/schedule/{schedule.id}/beneficiaries/"})
             messages.success(request, f"Beneficiary list imported successfully. Schedule ID: {schedule.id}")
             return redirect('review_beneficiaries', schedule_id=schedule.id)
             
         except Exception as e:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'status': 'error', 'message': f"Error importing file: {str(e)}"}, status=400)
             messages.error(request, f"Error importing file: {str(e)}")
-            return redirect('import_beneficiary_list')
+            return redirect('staff_assigned_schedules')
     
-    return render(request, 'distribution/import_beneficiary_list.html')
+    # GET requests redirect to staff assigned schedules (modal-based import is preferred)
+    return redirect('staff_assigned_schedules')
 
 
 @login_required
@@ -1920,6 +1947,12 @@ def import_full_sync_view(request):
     
     if not getattr(settings, 'OFFLINE_MODE', False):
         return HttpResponseForbidden("This operation is only permitted in offline mode.")
+    
+    # Defense-in-depth: Prevent writes to production database
+    production_db_name = getattr(settings, 'PRODUCTION_DB_NAME', '')
+    current_db_name = str(settings.DATABASES['default']['NAME'])
+    if production_db_name and current_db_name == production_db_name:
+        return HttpResponseForbidden("This operation is not permitted on the production database.")
     
     if request.user.role != 'MSWDO_STAFF':
         return HttpResponseForbidden("Access Denied")
@@ -1988,6 +2021,12 @@ def reconcile_claims_import(request):
     
     if not getattr(settings, 'OFFLINE_MODE', False):
         return HttpResponseForbidden("This operation is only permitted in offline mode.")
+    
+    # Defense-in-depth: Prevent writes to production database
+    production_db_name = getattr(settings, 'PRODUCTION_DB_NAME', '')
+    current_db_name = str(settings.DATABASES['default']['NAME'])
+    if production_db_name and current_db_name == production_db_name:
+        return HttpResponseForbidden("This operation is not permitted on the production database.")
     
     if request.user.role != 'MSWDO_STAFF':
         return HttpResponseForbidden("Access Denied")
@@ -2125,7 +2164,6 @@ def reconcile_claims_import(request):
 
 
 @login_required
-@session_protected
 def staff_assigned_schedules(request):
     """
     Display schedules assigned to the current staff member.

@@ -14,7 +14,7 @@ from accounts.decorators import session_protected, mswdo_or_staff_required
 from accounts.models import User, Barangay
 from households.models import Household, Zone, Family, FamilyMember
 from programs.models import Program, AidCategory, Assistance
-from distribution.models import AidSchedule, AidClaim
+from distribution.models import AidSchedule, AidClaim, GeneratedBeneficiaryList, GeneratedBeneficiary
 from .models import ReportGenerationLog
 from .analytics_utils import get_quarterly_report_data, get_beneficiary_list_data
 from xhtml2pdf import pisa
@@ -28,11 +28,10 @@ from django.utils.safestring import mark_safe
 from distribution.services import get_active_aid_schedule, get_active_schedule
 from django.utils.dateparse import parse_datetime
 from django_otp.plugins.otp_email.models import EmailDevice
+from core.audit_utils import log_action
 from django.urls import reverse
 from django.core.cache import cache
 import json
-
-from core.audit_utils import log_action
 
 User = get_user_model()
 
@@ -605,3 +604,127 @@ def generate_walkin_beneficiary_list_report(request):
     log_action(request.user, 'REPORT_GENERATED', target=report_log, description=f"Generated WALKIN_BENEFICIARY_LIST report for {period_label}")
     
     return response
+
+
+@login_required
+@session_protected
+@mswdo_or_staff_required
+def distribution_report(request, schedule_id):
+    """
+    Display distribution report for a specific schedule.
+    Shows claimed and unclaimed beneficiaries.
+    """
+    schedule = get_object_or_404(
+        AidSchedule.objects.select_related(
+            'assistance', 'assistance__program', 'assistance__aid_category'
+        ),
+        id=schedule_id
+    )
+    
+    # Get beneficiary list if exists
+    total_beneficiaries = 0
+    unclaimed_beneficiaries = []
+    
+    if hasattr(schedule, 'beneficiary_list'):
+        ben_list = schedule.beneficiary_list
+        total_beneficiaries = ben_list.entries.count()
+        
+        # Get claimed beneficiaries (including OFFLINE_IMPORT type)
+        claimed_family_ids = AidClaim.objects.filter(
+            schedule=schedule,
+            claim_type__in=['DISTRIBUTION', 'OFFLINE_IMPORT']
+        ).values_list('family_id', flat=True)
+        
+        # Get unclaimed beneficiaries - handle both family-based and individual-based
+        if schedule.assistance.beneficiary_type == 'family':
+            # Family-based assistance: filter by family_id
+            unclaimed_beneficiaries = ben_list.entries.filter(
+                Q(family_id__isnull=False) & ~Q(family_id__in=claimed_family_ids)
+            ).select_related(
+                'family', 'family__household'
+            ).all()
+        else:
+            # Individual-based assistance: filter by family_member
+            claimed_member_ids = AidClaim.objects.filter(
+                schedule=schedule,
+                claim_type__in=['DISTRIBUTION', 'OFFLINE_IMPORT']
+            ).values_list('family_member_id', flat=True)
+            unclaimed_beneficiaries = ben_list.entries.filter(
+                Q(family_member_id__isnull=False) & ~Q(family_member_id__in=claimed_member_ids)
+            ).select_related(
+                'family_member', 'family_member__family', 'family_member__family__household'
+            ).prefetch_related(
+                'family_member__family'
+            ).all()
+    else:
+        # No beneficiary list, count from claims only
+        total_beneficiaries = schedule.claims.filter(claim_type__in=['DISTRIBUTION', 'OFFLINE_IMPORT']).count()
+    
+    # Get claimed beneficiaries with details (including OFFLINE_IMPORT)
+    claimed_beneficiaries = AidClaim.objects.filter(
+        schedule=schedule,
+        claim_type__in=['DISTRIBUTION', 'OFFLINE_IMPORT']
+    ).select_related(
+        'family', 'family_member', 'created_by'
+    ).order_by('claimed_at')
+    
+    claimed_count = claimed_beneficiaries.count()
+    unclaimed_count = total_beneficiaries - claimed_count
+    
+    return render(request, 'reports/distribution_report.html', {
+        'schedule': schedule,
+        'total_beneficiaries': total_beneficiaries,
+        'claimed_beneficiaries': claimed_beneficiaries,
+        'unclaimed_beneficiaries': unclaimed_beneficiaries,
+        'claimed_count': claimed_count,
+        'unclaimed_count': unclaimed_count,
+    })
+
+
+@login_required
+@session_protected
+@mswdo_or_staff_required
+def export_distribution_report(request, schedule_id):
+    """
+    Export distribution claims data to .xlsx file.
+    """
+    from distribution.offline_sync import export_distribution_claims
+    
+    schedule = get_object_or_404(AidSchedule, id=schedule_id)
+    
+    filename, xlsx_bytes = export_distribution_claims(schedule)
+    
+    from django.http import HttpResponse
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.write(xlsx_bytes.getvalue())
+    
+    log_action(request.user, 'EXPORT_DISTRIBUTION_CLAIMS', target=schedule, description=f"Exported distribution claims for schedule {schedule.id}")
+    
+    return response
+
+
+@login_required
+@session_protected
+@mswdo_or_staff_required
+def import_distribution_claims_view(request):
+    """
+    Import distribution claims data from .xlsx file (offline reconciliation).
+    """
+    from distribution.offline_sync import import_distribution_claims
+    
+    if request.method == 'POST':
+        xlsx_file = request.FILES.get('xlsx_file')
+        if not xlsx_file:
+            messages.error(request, "Please select a file to upload.")
+            return redirect('staff_assigned_schedules')
+        
+        try:
+            schedule = import_distribution_claims(xlsx_file, request.user)
+            messages.success(request, f"Successfully imported distribution claims for schedule {schedule.id}. The schedule has been marked as finished (Offline Mode).")
+            return redirect('distribution_report', schedule_id=schedule.id)
+        except Exception as e:
+            messages.error(request, f"Error importing file: {str(e)}")
+            return redirect('staff_assigned_schedules')
+    
+    return HttpResponseForbidden("Invalid Method")

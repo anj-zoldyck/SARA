@@ -1,9 +1,10 @@
 from django.db import models
 from accounts.models import Barangay
 from accounts.utils import resident_profile_image_path
-import datetime
+from django.utils import timezone
 from django.core.validators import RegexValidator
 from django.conf import settings
+import datetime
 
 # ----------------- Zone Model -----------------
 class Zone(models.Model):
@@ -397,4 +398,4 @@ class WeatherSnapshot(models.Model):
     fetch_successful = models.BooleanField(default=True)
     
     def __str__(self):
-        return f"Weather Snapshot - {self.fetched_at.strftime('%Y-%m-%d %H:%M:%S')} - Success: {self.fetch_successful}"
+        return f"Weather Snapshot - {timezone.localtime(self.fetched_at).strftime('%Y-%m-%d %H:%M:%S')} - Success: {self.fetch_successful}"

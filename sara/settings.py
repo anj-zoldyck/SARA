@@ -48,6 +48,16 @@ OFFLINE_MODE = os.getenv('OFFLINE_MODE', 'False') == 'True'
 if OFFLINE_MODE:
     logging.warning("⚠️ OFFLINE MODE IS ENABLED — destructive import operations are permitted. This should only be true on the offline field deployment.")
 
+# ═══════════════════════════════════════════════════════════════
+# PRODUCTION DATABASE PROTECTION
+# ═══════════════════════════════════════════════════════════════
+# IMPORTANT: PRODUCTION_DB_NAME should be set to the known production database name.
+# Import views will refuse to run if the current database matches this name, even if OFFLINE_MODE=True.
+# This provides defense-in-depth protection against accidental production database writes.
+# Set via environment variable: PRODUCTION_DB_NAME=db.sqlite3 (or your production database name)
+# ═══════════════════════════════════════════════════════════════
+PRODUCTION_DB_NAME = os.getenv('PRODUCTION_DB_NAME', '')
+
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
@@ -56,10 +66,15 @@ STATICFILES_DIRS = [
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-tp#n=ywpr!4=ho!7^i3vs68lqm2@m_o&&m)!o+(u_wy-8lt9ui'
+# Allow override via environment variable for multi-instance deployments
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-tp#n=ywpr!4=ho!7^i3vs68lqm2@m_o&&m)!o+(u_wy-8lt9ui')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+
+# Session and CSRF cookie names - allow override for multi-instance deployments
+SESSION_COOKIE_NAME = os.environ.get('SESSION_COOKIE_NAME', 'sessionid')
+CSRF_COOKIE_NAME = os.environ.get('CSRF_COOKIE_NAME', 'csrftoken')
 
 ALLOWED_HOSTS = [ '192.168.100.130', '10.230.245.161', '10.64.151.161', 'localhost', '127.0.0.1', '10.64.151.242', '192.168.1.17']
 
@@ -206,4 +221,4 @@ SESSION_COOKIE_SECURE = not DEBUG  # True in production, False for local HTTP de
 SESSION_COOKIE_HTTPONLY = True
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
-CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to access CSRF token

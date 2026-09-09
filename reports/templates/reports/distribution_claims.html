@@ -30,6 +30,14 @@
     </p>
   </div>
   <div class="dash-header-actions">
+    <form method="post" action="{% url 'import_distribution_claims' %}" enctype="multipart/form-data" class="d-inline">
+      {% csrf_token %}
+      <input type="file" name="xlsx_file" accept=".xlsx" id="importFile" style="display: none;" required>
+      <button type="button" class="btn-dash-outline" onclick="document.getElementById('importFile').click()">
+        <i class="bi bi-upload"></i> Import Offline Claims
+      </button>
+      <button type="submit" id="submitImport" style="display: none;"></button>
+    </form>
     <a href="{% url 'aid_reports' %}" class="btn-dash-outline">
       <i class="bi bi-arrow-left"></i> Back to Programs
     </a>
@@ -118,6 +126,10 @@
               <span class="rpt-status rpt-status--expired" style="background-color: #fef2f2; color: #dc2626; border-color: #fecaca;">
                 <i class="bi bi-x-circle-fill"></i> Cancelled
               </span>
+              {% elif sched.finish_reason == 'OFFLINE' %}
+              <span class="rpt-status rpt-status--expired" style="background-color: #e0f2fe; color: #0284c7; border-color: #bae6fd;">
+                <i class="bi bi-cloud-arrow-down"></i> Offline
+              </span>
               {% else %}
               <span class="rpt-status rpt-status--expired">
                 <i class="bi bi-circle-fill"></i> Finished
@@ -163,6 +175,13 @@
       <div class="rpt-card__claims-count">
         <span class="rpt-card__claims-val">{{ paginator.count }}</span>
         <span class="rpt-card__claims-label">Total Claim{{ paginator.count|pluralize }}</span>
+      </div>
+      
+      <!-- View Report Button -->
+      <div class="rpt-card__actions">
+        <a href="{% url 'distribution_report' sched.id %}" class="btn-dash-outline btn-sm">
+          <i class="bi bi-file-earmark-bar-graph"></i> View Report
+        </a>
       </div>
     </div>
 
@@ -369,15 +388,18 @@
             btn.addEventListener('click', function(e) {
               e.preventDefault();
               const newUrl = this.getAttribute('href');
-              const newScheduleId = this.closest('nav').getAttribute('data-schedule-id');
-              loadPage(newUrl, newScheduleId);
+              loadPage(newUrl, scheduleId);
             });
           });
         }
-      })
-      .catch(err => {
-        console.error('Error loading page:', err);
       });
   }
+
+  // ── Import File Handler ───────────────────────────────────────
+  document.getElementById('importFile').addEventListener('change', function() {
+    if (this.files.length > 0) {
+      document.getElementById('submitImport').click();
+    }
+  });
 </script>
 {% endblock %}

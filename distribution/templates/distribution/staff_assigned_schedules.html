@@ -7,6 +7,19 @@
 
 {% block css %}
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
+<style>
+  /* Prevent layout shift when modals are open */
+  .modal {
+    transition: opacity 0.15s linear;
+  }
+  .modal-backdrop {
+    transition: opacity 0.15s linear;
+  }
+  body.modal-open {
+    overflow: hidden;
+    padding-right: 0 !important;
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -58,12 +71,12 @@
       <table class="table table-hover align-middle">
         <thead class="table-light">
           <tr>
-            <th>Program / Category</th>
-            <th>Date & Time</th>
-            <th>Location</th>
-            <th>Status</th>
-            <th>Beneficiary List</th>
-            <th>Actions</th>
+            <th style="width: 20%;">Program / Category</th>
+            <th style="width: 15%;">Date & Time</th>
+            <th style="width: 20%;">Location</th>
+            <th style="width: 10%;">Status</th>
+            <th style="width: 15%;">Beneficiary List</th>
+            <th style="width: 20%;">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -97,16 +110,16 @@
             <td>
               <div class="d-flex flex-column flex-sm-row gap-1 align-items-center">
                 {% if schedule.beneficiary_list %}
-                  <a href="{% url 'review_beneficiaries' schedule.id %}" class="btn btn-sm btn-dash-outline">
-                    <i class="bi bi-list-ul"></i> View List
+                  <a href="{% url 'review_beneficiaries' schedule.id %}?from=staff_assigned_schedules" class="btn btn-sm btn-dash-outline text-nowrap">
+                    <i class="bi bi-list-ul me-1"></i> View List
                   </a>
-                  <a href="{% url 'download_beneficiary_backup' schedule.id %}" class="btn btn-sm btn-dash-outline" title="Download backup">
-                    <i class="bi bi-download"></i> Download
+                  <a href="{% url 'download_beneficiary_backup' schedule.id %}" class="btn btn-sm btn-dash-outline text-nowrap" title="Download backup">
+                    <i class="bi bi-download me-1"></i> Download
                   </a>
                 {% endif %}
-                {% if not schedule.is_finished and not schedule.is_cancelled %}
-                  <a href="{% url 'scan_rfid' schedule.id %}" class="btn btn-sm btn-dash-primary">
-                    <i class="bi bi-upc-scan"></i> Distribute
+                {% if schedule.is_finished %}
+                  <a href="{% url 'distribution_report' schedule.id %}" class="btn btn-sm btn-dash-primary text-nowrap">
+                    <i class="bi bi-file-earmark-bar-graph me-1"></i> Report
                   </a>
                 {% endif %}
               </div>
@@ -127,28 +140,32 @@
 </div>
 
 <!-- Import Beneficiary List Modal -->
-<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true" style="z-index: 1055;">
+  <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="importModalLabel">Import Beneficiary List</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <form method="post" action="{% url 'import_beneficiary_list' %}" enctype="multipart/form-data">
+        <form id="importForm" method="post" action="{% url 'import_beneficiary_list' %}" enctype="multipart/form-data">
           {% csrf_token %}
           <div class="mb-3">
             <label for="xlsx_file" class="form-label">Select .xlsx file</label>
             <input type="file" class="form-control" id="xlsx_file" name="xlsx_file" accept=".xlsx" required>
             <div class="form-text">Upload the beneficiary list backup file (.xlsx) exported from the online system.</div>
           </div>
-          <div class="alert alert-info">
+          <div class="alert alert-info" id="importAlert" style="display: none;">
             <i class="bi bi-info-circle me-2"></i>
-            This will create a new schedule and beneficiary list from the imported file.
+            <span id="importAlertMessage"></span>
+          </div>
+          <div class="alert alert-danger" id="importError" style="display: none;">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <span id="importErrorMessage"></span>
           </div>
           <div class="d-flex justify-content-end gap-2">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-primary">Import</button>
+            <button type="button" class="btn btn-dash-outline" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-dash-primary" id="importSubmitBtn">Import</button>
           </div>
         </form>
       </div>
@@ -160,6 +177,65 @@
 
 {% block js %}
 <script>
-  // No additional JavaScript needed for this page
+document.addEventListener('DOMContentLoaded', function() {
+    const importForm = document.getElementById('importForm');
+    const importAlert = document.getElementById('importAlert');
+    const importAlertMessage = document.getElementById('importAlertMessage');
+    const importError = document.getElementById('importError');
+    const importErrorMessage = document.getElementById('importErrorMessage');
+    const importSubmitBtn = document.getElementById('importSubmitBtn');
+    const importModal = new bootstrap.Modal(document.getElementById('importModal'));
+
+    importForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Hide previous alerts
+        importAlert.style.display = 'none';
+        importError.style.display = 'none';
+        
+        // Disable submit button
+        importSubmitBtn.disabled = true;
+        importSubmitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Importing...';
+        
+        const formData = new FormData(importForm);
+        
+        fetch(importForm.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Show success message
+                importAlertMessage.textContent = 'Beneficiary list imported successfully! Redirecting...';
+                importAlert.style.display = 'block';
+                
+                // Redirect after short delay
+                setTimeout(() => {
+                    window.location.href = data.redirect_url;
+                }, 1000);
+            } else {
+                // Show error message
+                importErrorMessage.textContent = data.message;
+                importError.style.display = 'block';
+                
+                // Re-enable submit button
+                importSubmitBtn.disabled = false;
+                importSubmitBtn.innerHTML = 'Import';
+            }
+        })
+        .catch(error => {
+            importErrorMessage.textContent = 'An error occurred during import. Please try again.';
+            importError.style.display = 'block';
+            
+            // Re-enable submit button
+            importSubmitBtn.disabled = false;
+            importSubmitBtn.innerHTML = 'Import';
+        });
+    });
+});
 </script>
 {% endblock %}

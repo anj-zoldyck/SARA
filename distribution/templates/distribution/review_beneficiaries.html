@@ -114,9 +114,15 @@
 <div class="dash-page-header">
     <div>
         <div class="page-breadcrumb">
-            {% if request.user.role == 'MSWDO_STAFF' %}
-              <a href="{% url 'staff_dashboard' %}" class="breadcrumb-link">
+            {% if request.user.role == 'MSWDO' %}
+              <a href="{% url 'beneficiary_selection_landing' %}" class="breadcrumb-link">
                   <i class="bi bi-speedometer2"></i> Dashboard
+              </a>
+              <i class="bi bi-chevron-right breadcrumb-sep"></i>
+              <span class="breadcrumb-current">Review List</span>
+            {% elif request.GET.from == 'staff_assigned_schedules' %}
+              <a href="{% url 'staff_assigned_schedules' %}" class="breadcrumb-link">
+                  <i class="bi bi-speedometer2"></i> My Distributions
               </a>
               <i class="bi bi-chevron-right breadcrumb-sep"></i>
               <span class="breadcrumb-current">Review List</span>
@@ -149,9 +155,15 @@
     </div>
     <div class="dash-header-actions">
       {% if request.user.role == 'MSWDO_STAFF' %}
-        <a href="{% url 'staff_dashboard' %}" class="btn-dash-outline">
-          <i class="bi bi-arrow-left"></i> Back to Dashboard
-        </a>
+        {% if request.GET.from == 'staff_assigned_schedules' %}
+          <a href="{% url 'staff_assigned_schedules' %}" class="btn-dash-outline">
+            <i class="bi bi-arrow-left"></i> Back to My Distributions
+          </a>
+        {% else %}
+          <a href="{% url 'staff_dashboard' %}" class="btn-dash-outline">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+          </a>
+        {% endif %}
       {% else %}
         <a href="{% url 'beneficiary_selection_landing' %}" class="btn-dash-outline">
           <i class="bi bi-arrow-left"></i> Back to Manage Schedules
@@ -175,13 +187,13 @@
 <div class="alert alert-warning mt-3" role="alert">
     <i class="bi bi-exclamation-triangle-fill me-2"></i>
     <strong>Stale Backup:</strong> {{ staleness_message }}
-    <a href="{% url 'download_beneficiary_backup' schedule.id %}" class="btn btn-sm btn-warning ms-2">
+    <a href="{% url 'download_beneficiary_backup' schedule.id %}" class="btn btn-sm btn-dash-primary ms-2">
         <i class="bi bi-download me-1"></i> Download Updated Backup
     </a>
 </div>
 {% endif %}
 
-<div class="dash-panel">
+<div class="dash-panel mb-4">
     <div class="dash-panel__header d-flex justify-content-between align-items-center">
         <div class="dash-panel__header-left">
             <i class="bi bi-info-circle dash-panel__icon"></i>
@@ -256,7 +268,7 @@
 </div>
 </div>
 
-<div class="dash-panel">
+<div class="dash-panel mb-4">
     <div class="dash-panel__header">
         <div class="dash-panel__header-left">
             <i class="bi bi-geo-alt dash-panel__icon"></i>
@@ -289,7 +301,7 @@
     </div>
 </div>
 
-<div class="dash-panel">
+<div class="dash-panel mb-4">
     <div class="dash-panel__header d-flex justify-content-between align-items-center">
         <div class="dash-panel__header-left">
             <i class="bi bi-list-check dash-panel__icon"></i>
@@ -533,9 +545,9 @@
       </div>
       <div class="modal-footer border-top-0 pt-0 pb-4 px-4">
         <button type="button" class="btn-dash-outline" data-bs-dismiss="modal">Skip for now</button>
-        <a href="{% url 'download_beneficiary_backup' schedule.id %}" class="btn-dash-primary">
+        <button type="button" class="btn-dash-primary" id="downloadBackupBtn">
           <i class="bi bi-download me-1"></i> Download
-        </a>
+        </button>
       </div>
     </div>
   </div>
@@ -552,6 +564,20 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // Handle backup download button - close modal after download
+        const downloadBackupBtn = document.getElementById('downloadBackupBtn');
+        if (downloadBackupBtn) {
+            downloadBackupBtn.addEventListener('click', function() {
+                // Trigger download
+                window.location.href = "{% url 'download_beneficiary_backup' schedule.id %}";
+                // Close modal after a short delay
+                const modal = bootstrap.Modal.getInstance(document.getElementById('backupDownloadModal'));
+                if (modal) {
+                    setTimeout(() => modal.hide(), 500);
+                }
+            });
+        }
+
         // Initialize read-only location map if coordinates are available
         {% if schedule.location_lat and schedule.location_lng %}
         const locationLat = {{ schedule.location_lat }};

@@ -47,6 +47,11 @@ def login_view(request):
         else:
             return redirect('barangay_dashboard')
 
+    # Ensure CSRF token is set for GET requests
+    if request.method == "GET":
+        from django.middleware.csrf import get_token
+        get_token(request)
+
     if request.method == "POST":
         # Rate limiting — max 5 attempts per IP per minute
         ip = request.META.get('REMOTE_ADDR')

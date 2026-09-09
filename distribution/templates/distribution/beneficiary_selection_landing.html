@@ -66,10 +66,10 @@
         <thead>
           <tr>
             <th class="acct-th" style="width: 25%;">Assistance / Program</th>
-            <th class="acct-th">Schedule Date</th>
-            <th class="acct-th">Location</th>
-            <th class="acct-th">Barangay Scope</th>
-            <th class="acct-th text-end pe-4">Action</th>
+            <th class="acct-th" style="width: 15%;">Schedule Date</th>
+            <th class="acct-th" style="width: 20%;">Location</th>
+            <th class="acct-th" style="width: 15%;">Barangay Scope</th>
+            <th class="acct-th text-end pe-4" style="width: 25%;">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -109,9 +109,6 @@
                 {% else %}
                   <span class="badge bg-light text-muted" style="font-size: 0.75rem;" title="No budget allocated for beneficiary generation">Not yet generated</span>
                 {% endif %}
-                <a href="{% url 'assign_staff' sched.id %}" class="acct-btn acct-btn--activate">
-                  <i class="bi bi-person-badge"></i><span>Assign Staff</span>
-                </a>
                 {% if request.user.role == 'MSWDO' %}
                   <a href="{% url 'edit_schedule' sched.id %}" class="acct-btn acct-btn--edit" title="Edit Schedule">
                     <i class="bi bi-pencil"></i><span>Edit</span>

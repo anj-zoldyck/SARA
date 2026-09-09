@@ -20,7 +20,8 @@ from io import BytesIO
 from .models import AidSchedule, GeneratedBeneficiaryList, GeneratedBeneficiary, AidClaim, BeneficiaryBackupDownload, OfflineSyncMetadata
 from households.models import Household, Family, FamilyMember, Zone
 from programs.models import Program, AidCategory, Assistance, EligibilityRule
-from accounts.models import Barangay
+from accounts.models import Barangay, User
+from core.audit_utils import log_action
 
 
 def export_beneficiary_list(schedule):
@@ -51,12 +52,15 @@ def export_beneficiary_list(schedule):
         ["Schedule ID", schedule.id],
         ["Program", schedule.assistance.program.name if schedule.assistance else "N/A"],
         ["Aid Category", schedule.assistance.aid_category.name if schedule.assistance else "N/A"],
-        ["Date/Time", schedule.schedule_datetime.strftime("%Y-%m-%d %H:%M")],
+        ["Beneficiary Type", schedule.assistance.beneficiary_type if schedule.assistance else "N/A"],
+        ["Date/Time", timezone.localtime(schedule.schedule_datetime).strftime("%Y-%m-%d %H:%M")],
         ["Location", schedule.location],
+        ["Location Lat", str(schedule.location_lat) if schedule.location_lat else ""],
+        ["Location Lng", str(schedule.location_lng) if schedule.location_lng else ""],
         ["Prioritization Strategy", ben_list.prioritization_strategy_used],
         ["Budget", str(schedule.budget)],
         ["Per Beneficiary Amount", str(schedule.per_beneficiary_amount)],
-        ["Generated At", ben_list.generated_at.strftime("%Y-%m-%d %H:%M")],
+        ["Generated At", timezone.localtime(ben_list.generated_at).strftime("%Y-%m-%d %H:%M")],
         ["", ""],  # Empty row separator
         ["Family ID", "Member ID", "Full Name", "RFID UID", "Address", "Eligibility Criteria Met"]
     ]
@@ -65,12 +69,15 @@ def export_beneficiary_list(schedule):
     for row_idx, row_data in enumerate(metadata_data, start=1):
         for col_idx, value in enumerate(row_data, start=1):
             cell = ws.cell(row=row_idx, column=col_idx, value=value)
-            if row_idx <= 10:  # Metadata rows
+            if row_idx <= 12:  # Metadata rows (including empty separator)
                 cell.font = Font(bold=True)
                 cell.fill = PatternFill(start_color="E7F3FF", end_color="E7F3FF", fill_type="solid")
+            elif row_idx == 14:  # Header row
+                cell.font = Font(bold=True)
+                cell.fill = PatternFill(start_color="D1E8FF", end_color="D1E8FF", fill_type="solid")
     
     # Write beneficiary entries
-    row_idx = 12
+    row_idx = 15
     for entry in entries:
         if entry.family:
             family_id = entry.family.id
@@ -138,7 +145,7 @@ def export_beneficiary_list(schedule):
         ws.column_dimensions[column].width = adjusted_width
     
     # Generate filename
-    date_str = schedule.schedule_datetime.strftime("%m-%d-%Y")
+    date_str = timezone.localtime(schedule.schedule_datetime).strftime("%m-%d-%Y")
     program_name = schedule.assistance.program.name if schedule.assistance else "Unknown"
     aid_category = schedule.assistance.aid_category.name if schedule.assistance else "Unknown"
     filename = f"{date_str}_{program_name}_{aid_category}_Sched{schedule.id}.xlsx"
@@ -355,11 +362,18 @@ def import_beneficiary_list(xlsx_file, user):
     # Parse schedule data
     program_name = metadata.get("Program", "")
     aid_category_name = metadata.get("Aid Category", "")
+    beneficiary_type = metadata.get("Beneficiary Type", "family")  # Read beneficiary type from metadata
     schedule_datetime_str = metadata.get("Date/Time", "")
     location = metadata.get("Location", "")
+    location_lat_str = metadata.get("Location Lat", "")
+    location_lng_str = metadata.get("Location Lng", "")
     prioritization_strategy = metadata.get("Prioritization Strategy", "LOWEST_INCOME_FIRST")
     budget = Decimal(metadata.get("Budget", "0"))
     per_beneficiary_amount = Decimal(metadata.get("Per Beneficiary Amount", "0"))
+    
+    # Parse location coordinates
+    location_lat = float(location_lat_str) if location_lat_str else None
+    location_lng = float(location_lng_str) if location_lng_str else None
     
     # Find or create Program, AidCategory, Assistance
     program, _ = Program.objects.get_or_create(
@@ -376,7 +390,7 @@ def import_beneficiary_list(xlsx_file, user):
     assistance, _ = Assistance.objects.get_or_create(
         program=program,
         aid_category=aid_category,
-        beneficiary_type='family',  # Default to family for simplicity
+        beneficiary_type=beneficiary_type,  # Use the beneficiary type from metadata
         defaults={'is_active': True}
     )
     
@@ -391,11 +405,38 @@ def import_beneficiary_list(xlsx_file, user):
         assistance=assistance,
         schedule_datetime=schedule_datetime,
         location=location,
+        location_lat=location_lat,
+        location_lng=location_lng,
         budget=budget,
         per_beneficiary_amount=per_beneficiary_amount,
         prioritization_strategy=prioritization_strategy,
         created_by=user
     )
+    
+    # Calculate per_beneficiary_amount ONLY if it's 0 but budget is set
+    # This ensures we use the value from Excel file if provided
+    # DO NOT calculate if per_beneficiary_amount is already set (> 0)
+    if per_beneficiary_amount == 0 and budget > 0:
+        # Count beneficiaries from the Excel file
+        beneficiary_count = 0
+        row_idx = 15
+        while True:
+            family_id = ws.cell(row=row_idx, column=1).value
+            if not family_id or str(family_id).strip() == "":
+                break
+            if str(family_id) != "Family ID":
+                beneficiary_count += 1
+            row_idx += 1
+        
+        if beneficiary_count > 0:
+            schedule.per_beneficiary_amount = budget / Decimal(beneficiary_count)
+        else:
+            # Fallback to a reasonable default if counting fails
+            schedule.per_beneficiary_amount = budget / Decimal('100')
+        schedule.save()
+    elif per_beneficiary_amount > 0:
+        # Ensure the provided value is saved
+        schedule.save()
     
     # Create beneficiary list
     ben_list = GeneratedBeneficiaryList.objects.create(
@@ -404,11 +445,11 @@ def import_beneficiary_list(xlsx_file, user):
         prioritization_strategy_used=prioritization_strategy
     )
     
-    # Read beneficiary entries (starting from row 12)
-    row_idx = 12
+    # Read beneficiary entries (starting from row 15, after header row)
+    row_idx = 15
     while True:
         family_id = ws.cell(row=row_idx, column=1).value
-        if not family_id:
+        if not family_id or str(family_id).strip() == "":
             break
         
         member_id = ws.cell(row=row_idx, column=2).value
@@ -417,6 +458,11 @@ def import_beneficiary_list(xlsx_file, user):
         address = ws.cell(row=row_idx, column=5).value
         criteria = ws.cell(row=row_idx, column=6).value
         
+        # Skip header row if present
+        if str(family_id) == "Family ID":
+            row_idx += 1
+            continue
+        
         # Try to find family by ID or RFID
         family = None
         family_member = None
@@ -424,7 +470,7 @@ def import_beneficiary_list(xlsx_file, user):
         if family_id:
             try:
                 family = Family.objects.get(id=family_id)
-            except Family.DoesNotExist:
+            except (Family.DoesNotExist, ValueError):
                 pass
         
         if not family and rfid_uid:
@@ -436,7 +482,7 @@ def import_beneficiary_list(xlsx_file, user):
         if family and member_id:
             try:
                 family_member = FamilyMember.objects.get(id=member_id, family=family)
-            except FamilyMember.DoesNotExist:
+            except (FamilyMember.DoesNotExist, ValueError):
                 pass
         
         # Create beneficiary entry
@@ -445,11 +491,380 @@ def import_beneficiary_list(xlsx_file, user):
             beneficiary_list=ben_list,
             family=family,
             family_member=family_member,
+            household=family.household if family else None,
             added_manually=is_manual,
             added_by=user if is_manual else None
         )
         
         row_idx += 1
+    
+    return schedule
+
+
+def export_distribution_claims(schedule):
+    """
+    Export distribution claims data to .xlsx for offline backup.
+    
+    Args:
+        schedule: AidSchedule instance with claims
+        
+    Returns:
+        tuple: (filename, xlsx_bytes)
+    """
+    from distribution.models import AidClaim
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Distribution Claims"
+    
+    # Metadata header
+    metadata_data = [
+        ["Schedule ID", schedule.id],
+        ["Program", schedule.assistance.program.name if schedule.assistance else "N/A"],
+        ["Aid Category", schedule.assistance.aid_category.name if schedule.assistance else "N/A"],
+        ["Beneficiary Type", schedule.assistance.beneficiary_type if schedule.assistance else "N/A"],
+        ["Date/Time", timezone.localtime(schedule.schedule_datetime).strftime("%Y-%m-%d %H:%M")],
+        ["Location", schedule.location],
+        ["Location Lat", str(schedule.location_lat) if schedule.location_lat else ""],
+        ["Location Lng", str(schedule.location_lng) if schedule.location_lng else ""],
+        ["Budget", str(schedule.budget)],
+        ["Per Beneficiary Amount", str(schedule.per_beneficiary_amount)],
+        ["Finished At", timezone.localtime(schedule.finished_at).strftime("%Y-%m-%d %H:%M") if schedule.finished_at else ""],
+        ["Finished By", schedule.finished_by.username if schedule.finished_by else ""],
+        ["Finish Reason", schedule.finish_reason if schedule.finish_reason else ""],
+        ["", ""],  # Empty row separator
+        ["Family ID", "Member ID", "Full Name", "RFID UID", "Address", "Claimed At", "Amount", "Processed By"]
+    ]
+    
+    # Write metadata
+    for row_idx, row_data in enumerate(metadata_data, start=1):
+        for col_idx, value in enumerate(row_data, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            if row_idx <= 13:  # Metadata rows
+                cell.font = Font(bold=True)
+                cell.fill = PatternFill(start_color="E7F3FF", end_color="E7F3FF", fill_type="solid")
+            elif row_idx == 15:  # Header row
+                cell.font = Font(bold=True)
+                cell.fill = PatternFill(start_color="D1E8FF", end_color="D1E8FF", fill_type="solid")
+    
+    # Write claims
+    claims = schedule.claims.filter(claim_type='DISTRIBUTION').select_related(
+        'family', 'family_member', 'family__household', 'created_by'
+    ).all()
+    
+    row_idx = 16
+    for claim in claims:
+        family_id = claim.family.id if claim.family else ""
+        member_id = claim.family_member.id if claim.family_member else ""
+        
+        if claim.family_member:
+            full_name = f"{claim.family_member.first_name} {claim.family_member.last_name}"
+        else:
+            full_name = claim.family.family_name if claim.family else ""
+        
+        rfid_uid = claim.family.rfid_uid if claim.family else ""
+        address = claim.family.household.address if claim.family and claim.family.household else ""
+        claimed_at = timezone.localtime(claim.claimed_at).strftime("%Y-%m-%d %H:%M") if claim.claimed_at else ""
+        amount = str(claim.amount) if claim.amount else ""
+        processed_by = claim.created_by.username if claim.created_by else ""
+        
+        ws.cell(row=row_idx, column=1, value=family_id)
+        ws.cell(row=row_idx, column=2, value=member_id)
+        ws.cell(row=row_idx, column=3, value=full_name)
+        ws.cell(row=row_idx, column=4, value=rfid_uid)
+        ws.cell(row=row_idx, column=5, value=address)
+        ws.cell(row=row_idx, column=6, value=claimed_at)
+        ws.cell(row=row_idx, column=7, value=amount)
+        ws.cell(row=row_idx, column=8, value=processed_by)
+        
+        row_idx += 1
+    
+    # Save to bytes
+    from io import BytesIO
+    xlsx_bytes = BytesIO()
+    wb.save(xlsx_bytes)
+    xlsx_bytes.seek(0)
+    
+    # Generate descriptive filename
+    date_str = timezone.now().strftime('%m-%d-%Y')
+    program_name = schedule.assistance.program.name if schedule.assistance else "Unknown"
+    aid_category = schedule.assistance.aid_category.name if schedule.assistance else "Unknown"
+    finish_reason = schedule.finish_reason if schedule.finish_reason else "Online"
+    filename = f"Offline_Claims_{date_str}_{program_name}_{aid_category}_Sched{schedule.id}.xlsx"
+    
+    return filename, xlsx_bytes
+
+
+def import_distribution_claims(xlsx_file, user):
+    """
+    Import distribution claims data from .xlsx file (offline reconciliation).
+    
+    Args:
+        xlsx_file: Uploaded .xlsx file
+        user: User performing the import
+        
+    Returns:
+        AidSchedule instance that was updated
+    """
+    from openpyxl import load_workbook
+    from distribution.models import AidClaim
+    
+    wb = load_workbook(xlsx_file)
+    ws = wb.active
+    
+    # Read metadata (rows 1-13)
+    metadata = {}
+    for row_idx in range(1, 14):
+        cell = ws.cell(row=row_idx, column=1)
+        value_cell = ws.cell(row=row_idx, column=2)
+        if cell.value and value_cell.value:
+            metadata[cell.value] = value_cell.value
+    
+    # Parse schedule data
+    schedule_id = metadata.get("Schedule ID")
+    program_name = metadata.get("Program", "")
+    aid_category_name = metadata.get("Aid Category", "")
+    beneficiary_type = metadata.get("Beneficiary Type", "family")
+    schedule_datetime_str = metadata.get("Date/Time", "")
+    location = metadata.get("Location", "")
+    location_lat_str = metadata.get("Location Lat", "")
+    location_lng_str = metadata.get("Location Lng", "")
+    budget = Decimal(metadata.get("Budget", "0"))
+    per_beneficiary_amount = Decimal(metadata.get("Per Beneficiary Amount", "0"))
+    finish_reason = metadata.get("Finish Reason", "OFFLINE")
+    
+    # Parse location coordinates
+    location_lat = float(location_lat_str) if location_lat_str else None
+    location_lng = float(location_lng_str) if location_lng_str else None
+    
+    # Find or create Program, AidCategory, Assistance
+    program, _ = Program.objects.get_or_create(
+        name=program_name,
+        defaults={'description': 'Imported from offline backup', 'is_active': True}
+    )
+    
+    aid_category, _ = AidCategory.objects.get_or_create(
+        program=program,
+        name=aid_category_name,
+        defaults={'description': 'Imported from offline backup', 'is_active': True}
+    )
+    
+    assistance, _ = Assistance.objects.get_or_create(
+        program=program,
+        aid_category=aid_category,
+        beneficiary_type=beneficiary_type,
+        defaults={'is_active': True}
+    )
+    
+    # Parse datetime
+    from datetime import datetime
+    schedule_datetime = datetime.strptime(schedule_datetime_str, "%Y-%m-%d %H:%M")
+    if timezone.is_naive(schedule_datetime):
+        schedule_datetime = timezone.make_aware(schedule_datetime)
+    
+    # Find or create AidSchedule
+    schedule, created = AidSchedule.objects.get_or_create(
+        id=schedule_id,
+        defaults={
+            'assistance': assistance,
+            'schedule_datetime': schedule_datetime,
+            'location': location,
+            'location_lat': location_lat,
+            'location_lng': location_lng,
+            'budget': budget,
+            'per_beneficiary_amount': per_beneficiary_amount,
+            'created_by': user
+        }
+    )
+    
+    # If schedule already exists, update it
+    if not created:
+        schedule.assistance = assistance
+        schedule.location = location
+        schedule.location_lat = location_lat
+        schedule.location_lng = location_lng
+        schedule.budget = budget
+        # Only update per_beneficiary_amount if Excel has a valid value (> 0)
+        # If Excel has 0, preserve the existing schedule value
+        if per_beneficiary_amount > 0:
+            schedule.per_beneficiary_amount = per_beneficiary_amount
+        schedule.save()
+    
+    # Mark schedule as finished with offline reason
+    # Only mark as finished if it's not already finished to avoid overwriting
+    if not schedule.is_finished:
+        schedule.is_finished = True
+        schedule.finished_at = timezone.now()
+        schedule.finished_by = user
+        schedule.finish_reason = finish_reason
+    
+    # Calculate per_beneficiary_amount if it's 0 but budget is set
+    # Only calculate if both Excel value AND schedule value are 0
+    # This prevents overwriting a valid value with a calculated one
+    if per_beneficiary_amount == 0 and schedule.per_beneficiary_amount == 0 and schedule.budget > 0:
+        # Count beneficiaries from the Excel file
+        beneficiary_count = 0
+        row_idx = 16
+        while True:
+            family_id = ws.cell(row=row_idx, column=1).value
+            if not family_id or str(family_id).strip() == "":
+                break
+            if str(family_id) != "Family ID":
+                beneficiary_count += 1
+            row_idx += 1
+        
+        if beneficiary_count > 0:
+            schedule.per_beneficiary_amount = schedule.budget / Decimal(beneficiary_count)
+        else:
+            # Fallback to a reasonable default if counting fails
+            schedule.per_beneficiary_amount = schedule.budget / Decimal('100')
+        schedule.save()
+    
+    # Read claims (starting from row 16, after header row)
+    row_idx = 16
+    claims_imported = 0
+    
+    while True:
+        family_id = ws.cell(row=row_idx, column=1).value
+        if not family_id or str(family_id).strip() == "":
+            break
+        
+        # Skip header row if present
+        if str(family_id) == "Family ID":
+            row_idx += 1
+            continue
+        
+        member_id = ws.cell(row=row_idx, column=2).value
+        full_name = ws.cell(row=row_idx, column=3).value
+        rfid_uid = ws.cell(row=row_idx, column=4).value
+        address = ws.cell(row=row_idx, column=5).value
+        claimed_at_str = ws.cell(row=row_idx, column=6).value
+        amount_str = ws.cell(row=row_idx, column=7).value
+        processed_by_name = ws.cell(row=row_idx, column=8).value
+        
+        # Try to find family by ID or RFID
+        family = None
+        family_member = None
+        
+        if family_id:
+            try:
+                family = Family.objects.get(id=family_id)
+            except (Family.DoesNotExist, ValueError):
+                pass
+        
+        if not family and rfid_uid:
+            try:
+                family = Family.objects.get(rfid_uid=rfid_uid)
+            except Family.DoesNotExist:
+                pass
+        
+        # If family still not found, try to create it from the data
+        if not family and full_name and address:
+            try:
+                # Parse address to extract barangay and zone if possible
+                # For now, use a default or try to match existing barangay
+                barangay_name = "Unknown"  # Could be parsed from address
+                barangay, _ = Barangay.objects.get_or_create(name=barangay_name)
+                
+                # Create household
+                household, _ = Household.objects.get_or_create(
+                    barangay=barangay,
+                    address=address,
+                    defaults={'zone': None}
+                )
+                
+                # Create family
+                family = Family.objects.create(
+                    household=household,
+                    family_name=full_name.split()[-1] if full_name else "Unknown",
+                    rfid_uid=rfid_uid if rfid_uid else None
+                )
+                print(f"Created new family {family.id} for offline claim import")
+            except Exception as e:
+                print(f"Error creating family for offline import: {str(e)}")
+        
+        if family and member_id:
+            try:
+                family_member = FamilyMember.objects.get(id=member_id, family=family)
+            except (FamilyMember.DoesNotExist, ValueError):
+                # Try to create family member if family exists
+                try:
+                    family_member = FamilyMember.objects.create(
+                        family=family,
+                        first_name=full_name.split()[0] if full_name and len(full_name.split()) > 1 else "Unknown",
+                        last_name=full_name.split()[-1] if full_name else "Unknown",
+                        rfid_uid=rfid_uid if rfid_uid else None
+                    )
+                    print(f"Created new family member {family_member.id} for offline claim import")
+                except Exception as e:
+                    print(f"Error creating family member: {str(e)}")
+        
+        # Skip if family not found - cannot create claim without family
+        if not family:
+            print(f"Warning: Family not found for family_id={family_id}, rfid_uid={rfid_uid}, full_name={full_name}, skipping claim import")
+            row_idx += 1
+            continue
+        
+        # Parse claimed_at
+        claimed_at = None
+        if claimed_at_str:
+            try:
+                claimed_at = datetime.strptime(str(claimed_at_str), "%Y-%m-%d %H:%M")
+                if timezone.is_naive(claimed_at):
+                    claimed_at = timezone.make_aware(claimed_at)
+            except ValueError:
+                claimed_at = timezone.now()
+        else:
+            claimed_at = timezone.now()
+        
+        # Parse amount - use schedule's per_beneficiary_amount if not specified
+        if amount_str and str(amount_str).strip():
+            amount = Decimal(str(amount_str))
+        else:
+            amount = schedule.per_beneficiary_amount
+        
+        # Find or create user for processed_by
+        processed_by = user
+        if processed_by_name:
+            try:
+                processed_by = User.objects.get(username=processed_by_name)
+            except User.DoesNotExist:
+                processed_by = user
+        
+        # Check if claim already exists
+        # For family-based assistance, check by family only
+        # For individual-based assistance, check by family_member
+        if schedule.assistance.beneficiary_type == 'family':
+            existing_claim = AidClaim.objects.filter(
+                schedule=schedule,
+                family=family,
+                claim_type='OFFLINE_IMPORT'
+            ).first()
+        else:
+            existing_claim = AidClaim.objects.filter(
+                schedule=schedule,
+                family=family,
+                family_member=family_member,
+                claim_type='OFFLINE_IMPORT'
+            ).first()
+        
+        if not existing_claim:
+            # Create claim
+            AidClaim.objects.create(
+                family=family,
+                family_member=family_member,
+                assistance=assistance,
+                schedule=schedule,
+                claim_type='OFFLINE_IMPORT',
+                claimed_at=claimed_at,
+                amount=amount,
+                created_by=processed_by
+            )
+            claims_imported += 1
+        
+        row_idx += 1
+    
+    log_action(user, 'IMPORT_DISTRIBUTION_CLAIMS', target=schedule, description=f"Imported {claims_imported} claims from offline backup for schedule {schedule.id}")
     
     return schedule
 

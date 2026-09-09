@@ -109,7 +109,7 @@ def aid_barangay_detail(request, assistance_id, barangay_id):
                 f"{claim.family_member.first_name} {claim.family_member.last_name}"
                 if claim.family_member else "FAMILY (RFID)"
             )
-            status = f"CLAIMED BY: {claimed_by_name} on {claim.claimed_at.strftime('%Y-%m-%d %H:%M:%S')}"
+            status = f"CLAIMED BY: {claimed_by_name} on {timezone.localtime(claim.claimed_at).strftime('%Y-%m-%d %H:%M:%S')}"
         else:
             status = "NOT CLAIMED"
 
@@ -544,7 +544,7 @@ def analytics_api(request):
             'beneficiary': beneficiary_name,
             'aid_type': f"{claim.assistance.program.name} › {claim.assistance.aid_category.name}",
             'barangay': claim.family.household.barangay.name if claim.family.household.barangay else 'N/A',
-            'claimed_at': claim.claimed_at.strftime('%Y-%m-%d %H:%M'),
+            'claimed_at': timezone.localtime(claim.claimed_at).strftime('%Y-%m-%d %H:%M'),
             'amount': float(claim.amount) if claim.amount else None,
             'claim_type': claim.claim_type
         })

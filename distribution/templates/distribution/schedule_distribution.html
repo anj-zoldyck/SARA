@@ -267,13 +267,13 @@
               <div class="col-md-6">
                 <div class="acct-form__group">
                   <label class="acct-form__label" for="perAmountInput">
-                    <i class="bi bi-person"></i> Amount per Beneficiary (₱)
+                    <i class="bi bi-person"></i> Amount per Beneficiary (₱) <span class="acct-form__required">*</span>
                   </label>
                   <div class="acct-form__control-wrap">
-                    <input type="number" step="0.01" min="0" name="per_beneficiary_amount" id="perAmountInput"
-                      class="form-control" placeholder="e.g. 500.00">
+                    <input type="number" step="0.01" min="0.01" name="per_beneficiary_amount" id="perAmountInput"
+                      class="form-control" placeholder="e.g. 500.00" required>
                   </div>
-                  <p class="acct-form__hint">Value each beneficiary receives.</p>
+                  <p class="acct-form__hint">Value each beneficiary receives. Required when budget is set.</p>
                 </div>
               </div>
               <div class="col-12">
