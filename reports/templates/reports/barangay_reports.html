@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Walk-in Assistance Log — SARA{% endblock %}
-{% block navbar_title %}Walk-in Assistance Log{% endblock %}
+{% block title %}Reports — SARA{% endblock %}
+{% block navbar_title %}Reports{% endblock %}
 
 {% block css %}
 <link rel="stylesheet" href="{% static 'css/mswdo_dashboard.css' %}">
@@ -17,21 +17,21 @@
 <div class="dash-page-header">
   <div>
     <div class="page-breadcrumb">
-      <a href="{% url 'aid_reports' %}" class="breadcrumb-link">
-        <i class="bi bi-speedometer2"></i> Aid Reports
+      <a href="{% if request.user.role == 'BARANGAY' %}{% url 'barangay_dashboard' %}{% else %}{% url 'aid_reports' %}{% endif %}" class="breadcrumb-link">
+        <i class="bi bi-speedometer2"></i> {% if request.user.role == 'BARANGAY' %}Dashboard{% else %}Aid Reports{% endif %}
       </a>
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
-      <span class="breadcrumb-current">Walk-in Assistance Log</span>
+      <span class="breadcrumb-current">Reports</span>
     </div>
-    <h1 class="dash-page-title">Walk-in Assistance Log</h1>
+    <h1 class="dash-page-title">Reports</h1>
     <p class="dash-page-sub">
-      <i class="bi bi-person-walking me-1"></i>
-      Walk-in assistance claims and beneficiary records
+      <i class="bi bi-file-earmark-text me-1"></i>
+      Distribution reports and exports
     </p>
   </div>
   <div class="dash-header-actions">
-    <a href="{% url 'aid_reports' %}" class="btn-dash-outline">
-      <i class="bi bi-arrow-left"></i> Back to Reports
+    <a href="{% if request.user.role == 'BARANGAY' %}{% url 'barangay_dashboard' %}{% else %}{% url 'aid_reports' %}{% endif %}" class="btn-dash-outline">
+      <i class="bi bi-arrow-left"></i> {% if request.user.role == 'BARANGAY' %}Back to Dashboard{% else %}Back to Reports{% endif %}
     </a>
   </div>
 </div>
@@ -40,6 +40,7 @@
 <div class="dash-panel rfid-filter-panel">
   <div class="dash-panel__body">
     <div class="rfid-filter-row">
+      {% if not is_barangay %}
       <div class="rfid-filter-group">
         <label class="rfid-filter-label" for="filter-barangay">
           <i class="bi bi-geo-alt"></i> Barangay
@@ -53,6 +54,7 @@
           {% endfor %}
         </select>
       </div>
+      {% endif %}
 
       <div class="rfid-filter-group">
         <label class="rfid-filter-label" for="filter-zone">
@@ -93,7 +95,7 @@
         <button class="btn-dash-primary" id="btn-apply-filter">
           <i class="bi bi-funnel"></i> Apply Filter
         </button>
-        <a href="{% url 'walkin_reports' %}" class="btn-dash-outline">
+        <a href="{% url 'barangay_reports' %}" class="btn-dash-outline">
           <i class="bi bi-x-circle"></i> Clear
         </a>
       </div>
@@ -142,8 +144,18 @@
 </div>
 {% endif %}
 
-<!-- ── Walk-in Claims Table ──────────────────────────────────── -->
+<!-- ── Walk-in Claims Table (MSWDO / MSWDO_STAFF) ───────────────────────────── -->
+{% if request.user.role != 'BARANGAY' %}
 <div class="dash-panel">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-person-walking dash-panel__icon" style="background-color: var(--sara-blue-light); color: var(--sara-blue); padding: 8px; border-radius: 6px;"></i>
+      <div>
+        <h2 class="dash-panel__title">Walk-in Claims</h2>
+        <p class="dash-panel__sub">View and filter walk-in assistance records</p>
+      </div>
+    </div>
+  </div>
   <div class="dash-panel__body">
     {% if claims %}
       <div class="table-responsive">
@@ -170,21 +182,11 @@
                   {{ claim.family.family_name }} Family
                 {% endif %}
               </td>
-              <td class="rpt-td">
-                {{ claim.family.household.barangay.name|default:"N/A" }}
-              </td>
-              <td class="rpt-td">
-                {{ claim.family.household.zone.name|default:"N/A" }}
-              </td>
-              <td class="rpt-td">
-                {{ claim.assistance.program.name }} › {{ claim.assistance.aid_category.name }}
-              </td>
-              <td class="rpt-td">
-                ₱{{ claim.amount|floatformat:2 }}
-              </td>
-              <td class="rpt-td">
-                {{ claim.claimed_at }}
-              </td>
+              <td class="rpt-td">{{ claim.family.household.barangay.name|default:"N/A" }}</td>
+              <td class="rpt-td">{{ claim.family.household.zone.name|default:"N/A" }}</td>
+              <td class="rpt-td">{{ claim.assistance.program.name }} › {{ claim.assistance.aid_category.name }}</td>
+              <td class="rpt-td">₱{{ claim.amount|floatformat:2 }}</td>
+              <td class="rpt-td">{{ claim.claimed_at }}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -197,12 +199,10 @@
         <ul class="pagination justify-content-center" style="gap: 8px;">
           {% if claims.has_previous %}
           <li class="page-item">
-            <a class="page-link pagination-btn"
-               href="?page=1{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_zone %}&zone={{ selected_zone }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&laquo;&laquo;</a>
+            <a class="page-link pagination-btn" href="?page=1{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_zone %}&zone={{ selected_zone }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&laquo;&laquo;</a>
           </li>
           <li class="page-item">
-            <a class="page-link pagination-btn"
-               href="?page={{ claims.previous_page_number }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_zone %}&zone={{ selected_zone }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&laquo;</a>
+            <a class="page-link pagination-btn" href="?page={{ claims.previous_page_number }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_zone %}&zone={{ selected_zone }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&laquo;</a>
           </li>
           {% else %}
           <li class="page-item disabled"><span class="page-link">&laquo;&laquo;</span></li>
@@ -215,12 +215,10 @@
 
           {% if claims.has_next %}
           <li class="page-item">
-            <a class="page-link pagination-btn"
-               href="?page={{ claims.next_page_number }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_zone %}&zone={{ selected_zone }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&raquo;</a>
+            <a class="page-link pagination-btn" href="?page={{ claims.next_page_number }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_zone %}&zone={{ selected_zone }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&raquo;</a>
           </li>
           <li class="page-item">
-            <a class="page-link pagination-btn"
-               href="?page={{ paginator.num_pages }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_zone %}&zone={{ selected_zone }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&raquo;&raquo;</a>
+            <a class="page-link pagination-btn" href="?page={{ paginator.num_pages }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_zone %}&zone={{ selected_zone }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&raquo;&raquo;</a>
           </li>
           {% else %}
           <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
@@ -229,7 +227,6 @@
         </ul>
       </nav>
       {% endif %}
-
     {% else %}
       <div class="rpt-no-claims">
         <i class="bi bi-inbox"></i>
@@ -238,11 +235,118 @@
     {% endif %}
   </div>
 </div>
+{% endif %}
+
+<!-- ── Distribution Reports (Barangay Admin) ───────────────────────────── -->
+{% if request.user.role == 'BARANGAY' %}
+<div class="dash-panel rpt-gen-panel">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-file-earmark-bar-graph dash-panel__icon" style="background-color: var(--sara-amber-light); color: var(--sara-amber); padding: 8px; border-radius: 6px;"></i>
+      <div>
+        <h2 class="dash-panel__title">Distribution Reports</h2>
+        <p class="dash-panel__sub">Export distribution claims for your assigned schedules</p>
+      </div>
+    </div>
+    <div class="dash-panel__header-right">
+      <button type="button" class="btn btn-dash-primary" onclick="openReportModal()">
+        <i class="bi bi-file-earmark-pdf me-1"></i> Generate Summary Report
+      </button>
+    </div>
+  </div>
+  <div class="dash-panel__body">
+    {% if assigned_schedules %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Program / Category</th>
+              <th>Date & Time</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for schedule in assigned_schedules %}
+            <tr>
+              <td>
+                <div class="fw-semibold">{{ schedule.assistance.program.name }}</div>
+                <div class="text-muted small">{{ schedule.assistance.aid_category.name }}</div>
+              </td>
+              <td>
+                <div>{{ schedule.schedule_datetime|date:"M d, Y" }}</div>
+                <div class="text-muted small">{{ schedule.schedule_datetime|date:"h:i A" }}</div>
+              </td>
+              <td>
+                {% if schedule.is_finished %}
+                  <span class="badge bg-success">Finished</span>
+                {% elif schedule.is_cancelled %}
+                  <span class="badge bg-danger">Cancelled</span>
+                {% else %}
+                  <span class="badge bg-primary">Active</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="d-flex flex-wrap gap-2" style="width: 1%; white-space: nowrap;">
+                  <a href="{% url 'distribution_report' schedule.id %}?from=barangay_reports" class="btn btn-sm btn-dash-primary">
+                    <i class="bi bi-file-earmark-bar-graph me-1"></i> View Claims
+                  </a>
+                  {% if OFFLINE_MODE %}
+                  <a href="{% url 'export_distribution_report' schedule.id %}" class="btn btn-sm btn-dash-outline">
+                    <i class="bi bi-download me-1"></i> Export Offline
+                  </a>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="text-center py-5">
+        <i class="bi bi-calendar-x" style="font-size: 3rem; color: #cbd5e1;"></i>
+        <p class="text-muted mt-3">No assigned schedules found.</p>
+        <p class="text-muted small">You will see schedules here when you are assigned to a delegable distribution.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Report Generation Modal -->
+<div class="modal-overlay" id="reportModalOverlay">
+  <div class="kiosk-modal" style="max-width: 500px;">
+    <div class="kiosk-modal-header">
+      <h4 class="kiosk-modal-title">Generate Distribution Report</h4>
+      <button type="button" class="btn-close modal-close-btn" onclick="hideReportModal()"></button>
+    </div>
+    <div class="kiosk-modal-body p-4">
+      <form id="report-generation-form" method="get">
+        <input type="hidden" name="barangay" value="{{ request.user.barangay.id }}">
+        <div class="mb-3">
+          <label class="form-label">Period Start</label>
+          <input type="date" name="start_date" id="report-start-date" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Period End</label>
+          <input type="date" name="end_date" id="report-end-date" class="form-control" required>
+        </div>
+        <div class="d-flex gap-2 mt-4">
+          <button type="submit" formaction="{% url 'generate_summary_report' %}" class="btn btn-dash-primary flex-grow-1">
+            <i class="bi bi-file-pdf me-1"></i> Generate
+          </button>
+          <button type="button" onclick="hideReportModal()" class="btn btn-dash-outline">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <!-- ── Back Link ──────────────────────────────────────────── -->
 <div class="page-back-row">
-  <a href="{% url 'aid_reports' %}" class="btn-dash-outline">
-    <i class="bi bi-arrow-left"></i> Back to Reports
+  <a href="{% if request.user.role == 'BARANGAY' %}{% url 'barangay_dashboard' %}{% else %}{% url 'aid_reports' %}{% endif %}" class="btn-dash-outline">
+    <i class="bi bi-arrow-left"></i> {% if request.user.role == 'BARANGAY' %}Back to Dashboard{% else %}Back to Reports{% endif %}
   </a>
 </div>
 
@@ -250,6 +354,21 @@
 
 {% block js %}
 <script>
+  // ── Report Modal Functions ───────────────────────────────────
+  const reportModalOverlay = document.getElementById('reportModalOverlay');
+
+  function openReportModal() {
+    reportModalOverlay.classList.add('active');
+  }
+  
+  function hideReportModal() {
+    reportModalOverlay.classList.remove('active');
+  }
+  
+  reportModalOverlay.addEventListener('click', function(e) {
+    if (e.target === this) hideReportModal();
+  });
+
   // ── Zone Cascade (client-side filtering) ─────────────────────
   const zoneSelect = document.getElementById('filter-zone');
   const allZoneOpts = Array.from(zoneSelect.options).slice(1); // captured ONCE, before any wiping
@@ -293,7 +412,7 @@
     const searchInput = document.getElementById('search-input');
     if (searchInput.value.trim()) params.set('search', searchInput.value.trim());
     
-    window.location.href = '{% url "walkin_reports" %}?' + params.toString();
+    window.location.href = '{% url "barangay_reports" %}?' + params.toString();
   });
 
   // ── AJAX Pagination ────────────────────────────────────────

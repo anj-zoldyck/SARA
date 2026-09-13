@@ -772,3 +772,43 @@ main:not(.main-content) {
 .zone-card:hover {
   transform: scale(1.03);
 }
+
+/* =============================================================
+   MAP OFFLINE ERROR MESSAGES
+============================================================= */
+.map-offline-error {
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.map-offline-error-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.map-offline-error i {
+  font-size: 1.25rem;
+  color: #856404;
+}
+
+.map-offline-error p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #856404;
+  line-height: 1.4;
+}
+
+/* Route error styling for route info banners */
+.route-error {
+  background-color: #fff3cd !important;
+  border-color: #ffc107 !important;
+  color: #856404 !important;
+}

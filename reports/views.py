@@ -38,12 +38,18 @@ User = get_user_model()
 
 @login_required
 @session_protected
-@mswdo_or_staff_required
 def aid_reports(request):
+    if request.user.role not in ('MSWDO', 'MSWDO_STAFF', 'BARANGAY'):
+        return HttpResponseForbidden("Access Denied")
+    
     # Get all programs with their assistances
     programs = Program.objects.prefetch_related(
         'assistances__aid_category'
     ).filter(is_active=True).order_by('name')
+
+    # For Barangay Admins, only show delegable programs
+    if request.user.role == 'BARANGAY':
+        programs = programs.filter(allows_barangay_delegation=True)
 
     # Group assistances by program
     programs_data = []
@@ -59,8 +65,21 @@ def aid_reports(request):
     # Calculate summary stats
     total_programs = len(programs_data)
     total_assistance_entries = sum(len(pd['assistances']) for pd in programs_data)
-    total_walkin_claims = AidClaim.objects.filter(claim_type='WALK_IN').count()
-    total_claims = AidClaim.objects.count()
+    
+    # Scope walk-in claims for Barangay Admins
+    if request.user.role == 'BARANGAY':
+        total_walkin_claims = AidClaim.objects.filter(
+            claim_type='WALK_IN',
+            family__household__barangay=request.user.barangay,
+            assistance__program__allows_barangay_delegation=True
+        ).count()
+        total_claims = AidClaim.objects.filter(
+            family__household__barangay=request.user.barangay,
+            assistance__program__allows_barangay_delegation=True
+        ).count()
+    else:
+        total_walkin_claims = AidClaim.objects.filter(claim_type='WALK_IN').count()
+        total_claims = AidClaim.objects.count()
 
     return render(request, 'reports/aid_reports.html', {
         'programs_data': programs_data,
@@ -226,8 +245,10 @@ def distribution_claims(request):
 
 @login_required
 @session_protected
-@mswdo_or_staff_required
-def walkin_reports(request):
+def barangay_reports(request):
+    if request.user.role not in ('MSWDO', 'MSWDO_STAFF', 'BARANGAY'):
+        return HttpResponseForbidden("Access Denied")
+    
     selected_barangay = request.GET.get('barangay')
     selected_zone = request.GET.get('zone')
     date_from = request.GET.get('date_from')
@@ -248,8 +269,36 @@ def walkin_reports(request):
         'assistance__aid_category'
     )
     
-    # Filter by barangay
-    if selected_barangay:
+    # Role-based scoping
+    assigned_schedules = None
+    if request.user.role == 'BARANGAY':
+        from distribution.services import is_barangay_delegable, is_staff_assigned_to_scan
+        # Barangay Admin: only see claims for their barangay and delegable programs
+        claims_queryset = claims_queryset.filter(
+            family__household__barangay=request.user.barangay,
+            assistance__program__allows_barangay_delegation=True
+        )
+        selected_barangay = request.user.barangay.id  # Lock filter to their barangay
+        
+        # Get assigned schedules for Distribution Report Export panel
+        assigned_schedules = AidSchedule.objects.filter(
+            assignments__staff=request.user,
+            assistance__program__allows_barangay_delegation=True
+        ).select_related(
+            'assistance__program', 'assistance__aid_category'
+        ).prefetch_related('assignments').order_by('-schedule_datetime')
+    elif request.user.role == 'MSWDO_STAFF':
+        # MSWDO Staff: no automatic scoping (can filter manually)
+        pass
+    # MSWDO: no scoping (can see all)
+    
+    # For Barangay Admins, don't pass claims to template (they don't see walk-in claims table)
+    if request.user.role == 'BARANGAY':
+        claims_page = None
+        paginator = None
+    
+    # Filter by barangay (for MSWDO/MSWDO_STAFF manual filtering)
+    if selected_barangay and request.user.role != 'BARANGAY':
         claims_queryset = claims_queryset.filter(
             family__household__barangay_id=selected_barangay
         )
@@ -300,9 +349,14 @@ def walkin_reports(request):
         claims_page = paginator.page(paginator.num_pages)
     
     barangays = Barangay.objects.all()
-    all_zones = Zone.objects.all()
     
-    return render(request, 'reports/walkin_reports.html', {
+    # For Barangay Admins, scope zones to their barangay only
+    if request.user.role == 'BARANGAY':
+        all_zones = Zone.objects.filter(barangay=request.user.barangay)
+    else:
+        all_zones = Zone.objects.all()
+    
+    return render(request, 'reports/barangay_reports.html', {
         'claims': claims_page,
         'paginator': paginator,
         'barangays': barangays,
@@ -313,14 +367,28 @@ def walkin_reports(request):
         'date_to': date_to,
         'search_query': search_query,
         'now': timezone.now(),
+        'is_barangay': request.user.role == 'BARANGAY',
+        'assigned_schedules': assigned_schedules,
     })
 
 
 @login_required
 @session_protected
 def generate_summary_report(request):
-    if request.user.role != 'MSWDO_STAFF':
-        return HttpResponseForbidden("Only MSWDO Staff can generate this report.")
+    if request.user.role == 'BARANGAY':
+        from distribution.services import is_barangay_delegable, is_staff_assigned_to_scan
+        barangay_id = request.GET.get('barangay')
+        if barangay_id:
+            barangay = get_object_or_404(Barangay, id=barangay_id)
+            if barangay != request.user.barangay:
+                return HttpResponseForbidden("You can only generate reports for your own barangay.")
+        else:
+            barangay = request.user.barangay
+    elif request.user.role in ('MSWDO', 'MSWDO_STAFF'):
+        barangay_id = request.GET.get('barangay')
+        barangay = get_object_or_404(Barangay, id=barangay_id) if barangay_id else None
+    else:
+        return HttpResponseForbidden("Access Denied")
         
     start_date_str = request.GET.get('start_date')
     end_date_str = request.GET.get('end_date')
@@ -332,7 +400,7 @@ def generate_summary_report(request):
     start_date = parse_datetime(start_date_str + "T00:00:00").date()
     end_date = parse_datetime(end_date_str + "T23:59:59").date()
     
-    data = get_quarterly_report_data(start_date, end_date)
+    data = get_quarterly_report_data(start_date, end_date, barangay=barangay)
     
     chart_image = None
     if len(data['months']) > 1:
@@ -608,11 +676,11 @@ def generate_walkin_beneficiary_list_report(request):
 
 @login_required
 @session_protected
-@mswdo_or_staff_required
 def distribution_report(request, schedule_id):
     """
     Display distribution report for a specific schedule.
     Shows claimed and unclaimed beneficiaries.
+    For Barangay Admins, only allows access to their barangay's delegable schedules.
     """
     schedule = get_object_or_404(
         AidSchedule.objects.select_related(
@@ -620,6 +688,19 @@ def distribution_report(request, schedule_id):
         ),
         id=schedule_id
     )
+    
+    # Role-based access control
+    if request.user.role == 'BARANGAY':
+        from distribution.services import is_barangay_delegable, is_staff_assigned_to_scan
+        # Barangay Admins can only view reports for their barangay's delegable schedules they are assigned to
+        if not is_barangay_delegable(schedule):
+            return HttpResponseForbidden("This schedule is not delegable for Barangay Admins.")
+        if schedule.barangay != request.user.barangay:
+            return HttpResponseForbidden("This schedule is not in your barangay.")
+        if not is_staff_assigned_to_scan(request.user, schedule):
+            return HttpResponseForbidden("You are not assigned to this schedule.")
+    elif request.user.role not in ('MSWDO', 'MSWDO_STAFF'):
+        return HttpResponseForbidden("Access Denied")
     
     # Get beneficiary list if exists
     total_beneficiaries = 0
@@ -683,14 +764,27 @@ def distribution_report(request, schedule_id):
 
 @login_required
 @session_protected
-@mswdo_or_staff_required
 def export_distribution_report(request, schedule_id):
     """
     Export distribution claims data to .xlsx file.
+    For Barangay Admins, only allows export for their barangay's delegable schedules they are assigned to.
     """
     from distribution.offline_sync import export_distribution_claims
+    from distribution.services import is_barangay_delegable, is_staff_assigned_to_scan
     
     schedule = get_object_or_404(AidSchedule, id=schedule_id)
+    
+    # Role-based access control
+    if request.user.role == 'BARANGAY':
+        # Barangay Admins can only export reports for their barangay's delegable schedules they are assigned to
+        if not is_barangay_delegable(schedule):
+            return HttpResponseForbidden("This schedule is not delegable for Barangay Admins.")
+        if schedule.barangay != request.user.barangay:
+            return HttpResponseForbidden("This schedule is not in your barangay.")
+        if not is_staff_assigned_to_scan(request.user, schedule):
+            return HttpResponseForbidden("You are not assigned to this schedule.")
+    elif request.user.role not in ('MSWDO', 'MSWDO_STAFF'):
+        return HttpResponseForbidden("Access Denied")
     
     filename, xlsx_bytes = export_distribution_claims(schedule)
     

@@ -40,7 +40,7 @@
   </div>
   <!-- ── Back Link ──────────────────────────────────────────── -->
   <div class="page-back-row">
-    <a href="{% if request.user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="btn-dash-outline">
+    <a href="{% if request.user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% elif request.user.role == 'BARANGAY' %}{% url 'barangay_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="btn-dash-outline">
       <i class="bi bi-arrow-left"></i> Back to Dashboard
     </a>
   </div>

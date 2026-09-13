@@ -129,6 +129,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'accounts.context_processors.auth_required',
                 'accounts.context_processors.offline_sync_metadata',
+                'accounts.context_processors.maptiler_api_key',
             ],
         },
     },
@@ -200,9 +201,12 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp-relay.brevo.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER') 
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = 'SRC Capstone System<dizonjelo50@gmail.com>'
+
+# MapTiler API Key for map tiles
+MAPTILER_API_KEY = os.getenv('MAPTILER_API_KEY', '')
 
 
 # Email OTP config

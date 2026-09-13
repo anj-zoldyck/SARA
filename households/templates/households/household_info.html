@@ -83,6 +83,8 @@
     {% if household.latitude and household.longitude %}
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
       <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+      <script>window.MAPTILER_API_KEY = "{{ maptiler_api_key }}";</script>
+      <script src="{% static 'js/leaflet_common.js' %}"></script>
       <div id="previewMap" style="height: 250px; border-radius: 0.5rem; border: 1px solid #e2e8f0; z-index: 1;"></div>
       <script>
       document.addEventListener('DOMContentLoaded', function() {
@@ -95,10 +97,7 @@
               touchZoom: false
           }).setView([{{ household.latitude }}, {{ household.longitude }}], 18);
 
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-              maxZoom: 19,
-              attribution: '&copy; OpenStreetMap'
-          }).addTo(map);
+          L.tileLayer(LEAFLET_TILE_CONFIG.url, LEAFLET_TILE_CONFIG.options).addTo(map);
 
           L.marker([{{ household.latitude }}, {{ household.longitude }}]).addTo(map);
           

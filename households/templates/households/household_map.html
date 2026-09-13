@@ -251,6 +251,9 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <!-- MarkerCluster -->
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<!-- Leaflet Common Utilities -->
+<script>window.MAPTILER_API_KEY = "{{ maptiler_api_key }}";</script>
+<script src="{% static 'js/leaflet_common.js' %}"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -283,10 +286,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Init Map
     var map = L.map('householdMap').setView(DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
+
+    const tileLayer = L.tileLayer(LEAFLET_TILE_CONFIG.url, LEAFLET_TILE_CONFIG.options);
+
+    // Detect tile loading errors (offline, network failure)
+    tileLayer.on('tileerror', function(error) {
+        console.error('Tile loading error:', error);
+        showMapOfflineError('householdMap');
+    });
+
+    // Hide error if tiles start loading successfully
+    tileLayer.on('load', function() {
+        hideMapOfflineError('householdMap');
+    });
+
+    tileLayer.addTo(map);
 
     var markersCluster = L.markerClusterGroup({
         chunkedLoading: true,

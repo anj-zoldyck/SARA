@@ -11,6 +11,8 @@
 <link rel="stylesheet" href="{% static 'css/scan_rfid.css' %}">
 <!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<!-- Leaflet Routing Machine -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
 <style>
     /* Search Results & Chips Styling */
     .search-results-container {
@@ -164,6 +166,10 @@
             <i class="bi bi-arrow-left"></i> Back to Dashboard
           </a>
         {% endif %}
+      {% elif request.user.role == 'BARANGAY' %}
+        <a href="{% url 'staff_assigned_schedules' %}" class="btn-dash-outline">
+          <i class="bi bi-arrow-left"></i> Back to My Distributions
+        </a>
       {% else %}
         <a href="{% url 'beneficiary_selection_landing' %}" class="btn-dash-outline">
           <i class="bi bi-arrow-left"></i> Back to Manage Schedules
@@ -292,6 +298,9 @@
         </div>
         {% if schedule.location_lat and schedule.location_lng %}
         <div id="locationMap" class="location-map"></div>
+        <div id="routeInfo" class="route-info mt-2" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 10px 12px; font-size: 0.85rem; color: #1e40af; display: none;">
+            <i class="bi bi-signpost"></i> Route preview from MSWDO Office to distribution location
+        </div>
         {% else %}
         <div class="alert alert-light mt-3 mb-0" style="font-size: 0.85rem;">
             <i class="bi bi-info-circle text-muted me-2"></i>
@@ -559,6 +568,9 @@
 {% block js %}
 <!-- Leaflet -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<!-- Leaflet Routing Machine -->
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+<script>window.MAPTILER_API_KEY = "{{ maptiler_api_key }}";</script>
 <!-- Leaflet Common -->
 <script src="{% static 'js/leaflet_common.js' %}"></script>
 
@@ -585,7 +597,9 @@
         const locationMapElement = document.getElementById('locationMap');
         
         if (locationMapElement && locationLat && locationLng) {
-            initReadOnlyMap('locationMap', locationLat, locationLng, 16);
+            const map = initReadOnlyMap('locationMap', locationLat, locationLng, 17);
+            // Add route preview from MSWDO Office to distribution location
+            addRoutePreview(map, locationLat, locationLng, 'routeInfo');
         }
         {% endif %}
 

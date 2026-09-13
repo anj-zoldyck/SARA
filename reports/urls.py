@@ -3,7 +3,7 @@ from . import views
 
 urlpatterns = [
     path('mswdo/reports/', views.aid_reports, name='aid_reports'),
-    path('mswdo/reports/walkin/', views.walkin_reports, name='walkin_reports'),
+    path('mswdo/reports/barangay/', views.barangay_reports, name='barangay_reports'),
     path('mswdo/reports/distribution-claims/', views.distribution_claims, name='distribution_claims'),
     path('mswdo/reports/distribution/<int:schedule_id>/', views.distribution_report, name='distribution_report'),
     path('mswdo/reports/distribution/<int:schedule_id>/export/', views.export_distribution_report, name='export_distribution_report'),

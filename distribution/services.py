@@ -2,6 +2,18 @@ from django.utils import timezone
 from .models import AidSchedule
 from django.db.models import Q
 
+def is_barangay_delegable(schedule):
+    """
+    Check if a schedule is eligible for barangay delegation.
+    A schedule is delegable if:
+    - The program allows barangay delegation
+    - The schedule is scoped to a single barangay (not municipal-wide)
+    """
+    return (
+        schedule.assistance.program.allows_barangay_delegation
+        and schedule.barangay_id is not None
+    )
+
 def get_active_aid_schedule():
     now = timezone.now()
 
@@ -24,38 +36,41 @@ def is_staff_assigned_to_scan(user, schedule, household=None):
     """
     Returns True if `user` is allowed to process claims for `household`
     under `schedule`. Logic:
-    - If the schedule has NO AssignedTo records at all, return True
-      (open access — this feature is additive/optional, matching the
-      same fallback pattern used for the beneficiary-list restriction).
-    - If assignments exist, the user must have an AssignedTo record
-      matching the household's barangay (or have a municipal-wide assignment
-      with barangay=None), AND either matching the household's zone
-      specifically OR have a barangay-wide assignment (zone=None) for that barangay.
+    - MSWDO role: always allowed
+    - MSWDO_STAFF role: if no assignments exist, open access; otherwise must have matching assignment
+    - BARANGAY role: NEVER falls back to open access - must have explicit assignment AND schedule must be delegable
     """
     from .models import AssignedTo
     
-    # 1. If schedule has no assignments at all, it's open to all MSWDO_STAFF
-    if not AssignedTo.objects.filter(schedule=schedule).exists():
+    assignments = AssignedTo.objects.filter(schedule=schedule)
+    
+    if user.role == 'MSWDO':
         return True
-        
-    # 2. If no household is provided, just check if the user has ANY assignment for this schedule.
-    if household is None:
-        return AssignedTo.objects.filter(schedule=schedule, staff=user).exists()
-        
-    # 3. Schedule has assignments, so user must have a matching one
-    # Note: household.zone could be None, which is fine, we check for exact match or zone=None
     
-    barangay = household.barangay
-    zone = household.zone
+    if user.role == 'MSWDO_STAFF':
+        if not assignments.exists():
+            return True  # existing open-access fallback, unchanged
+        if household is None:
+            return assignments.filter(staff=user).exists()
+        
+        barangay = household.barangay
+        zone = household.zone
+        
+        return assignments.filter(
+            schedule=schedule,
+            staff=user
+        ).filter(
+            Q(barangay__isnull=True) | Q(barangay=barangay)
+        ).filter(
+            Q(zone__isnull=True) | Q(zone=zone)
+        ).exists()
     
-    # User must have an assignment for this schedule
-    # AND (assignment.barangay is None OR assignment.barangay == household.barangay)
-    # AND (assignment.zone is None OR assignment.zone == household.zone)
-    return AssignedTo.objects.filter(
-        schedule=schedule,
-        staff=user
-    ).filter(
-        Q(barangay__isnull=True) | Q(barangay=barangay)
-    ).filter(
-        Q(zone__isnull=True) | Q(zone=zone)
-    ).exists()
+    if user.role == 'BARANGAY':
+        # NEVER fall back to open access — must have an explicit row
+        if not is_barangay_delegable(schedule):
+            return False
+        return assignments.filter(
+            staff=user, barangay=user.barangay
+        ).exists()
+    
+    return False

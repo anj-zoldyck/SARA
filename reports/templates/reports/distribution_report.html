@@ -222,19 +222,29 @@
 <div class="dash-panel">
   <div class="dash-panel__body">
     <div class="d-flex gap-3 justify-content-end">
-      {% if request.user.role == 'MSWDO' %}
-        <a href="{% url 'beneficiary_selection_landing' %}" class="btn-dash-outline">
-          <i class="bi bi-arrow-left me-1"></i> Back to Manage Schedules
+      {% if request.GET.from == 'barangay_reports' %}
+        <a href="{% url 'barangay_reports' %}" class="btn-dash-outline">
+          <i class="bi bi-arrow-left me-1"></i> Back to Distribution Reports
         </a>
       {% else %}
-        <a href="{% url 'staff_assigned_schedules' %}" class="btn-dash-outline">
-          <i class="bi bi-arrow-left me-1"></i> Back to My Distributions
-        </a>
-      {% endif %}
-      {% if schedule.is_finished %}
-        <a href="{% url 'export_distribution_report' schedule.id %}" class="btn-dash-primary">
-          <i class="bi bi-download me-1"></i> Export Distribution Records
-        </a>
+        {% if request.user.role == 'MSWDO' %}
+          <a href="{% url 'beneficiary_selection_landing' %}" class="btn-dash-outline">
+            <i class="bi bi-arrow-left me-1"></i> Back to Manage Schedules
+          </a>
+        {% elif request.user.role == 'BARANGAY' %}
+          <a href="{% url 'staff_assigned_schedules' %}" class="btn-dash-outline">
+            <i class="bi bi-arrow-left me-1"></i> Back to My Distributions
+          </a>
+        {% else %}
+          <a href="{% url 'staff_assigned_schedules' %}" class="btn-dash-outline">
+            <i class="bi bi-arrow-left me-1"></i> Back to My Distributions
+          </a>
+        {% endif %}
+        {% if schedule.is_finished and OFFLINE_MODE %}
+          <a href="{% url 'export_distribution_report' schedule.id %}" class="btn-dash-primary">
+            <i class="bi bi-download me-1"></i> Export Distribution Records
+          </a>
+        {% endif %}
       {% endif %}
     </div>
   </div>

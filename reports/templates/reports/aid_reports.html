@@ -31,7 +31,7 @@
     </p>
   </div>
   <div class="dash-header-actions">
-    <a href="{% if request.user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="btn-dash-outline">
+    <a href="{% if request.user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% elif request.user.role == 'BARANGAY' %}{% url 'barangay_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="btn-dash-outline">
       <i class="bi bi-arrow-left"></i> Back to Dashboard
     </a>
   </div>
@@ -123,7 +123,7 @@
 </div>
 <div class="row g-4" style="margin-bottom: 20px;">
   <div class="col-md-6 col-lg-4">
-    <div class="dash-panel prog-card" style="cursor: pointer;" onclick="window.location.href='{% url 'walkin_reports' %}'">
+    <div class="dash-panel prog-card" style="cursor: pointer;" onclick="window.location.href='{% url 'barangay_reports' %}'">
       <div class="dash-panel__header">
         <div class="dash-panel__header-left">
           <div class="dash-panel__icon" style="background-color: var(--sara-blue-light); color: var(--sara-blue);">
@@ -207,7 +207,7 @@
 
 <!-- ── Back Link ──────────────────────────────────────────── -->
 <div class="page-back-row">
-  <a href="{% if request.user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="btn-dash-outline">
+  <a href="{% if request.user.role == 'MSWDO' %}{% url 'mswdo_dashboard' %}{% elif request.user.role == 'BARANGAY' %}{% url 'barangay_dashboard' %}{% else %}{% url 'staff_dashboard' %}{% endif %}" class="btn-dash-outline">
     <i class="bi bi-arrow-left"></i> Back to Dashboard
   </a>
 </div>

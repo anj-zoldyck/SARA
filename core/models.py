@@ -36,6 +36,11 @@ class AuditLog(models.Model):
         # Claims
         ('CLAIM_RFID', 'RFID Claim Processed'),
         ('CLAIM_WALKIN', 'Walk-in Claim Processed'),
+        ('LATE_WALKIN_CLAIM', 'Late Walk-in Claim for Missed Schedule'),
+        ('FAMILY_REACTIVATED_WALKIN', 'Family Reactivated via Walk-in'),
+        # Barangay delegation
+        ('BARANGAY_ADMIN_ASSIGNED', 'Barangay Admin Assigned to Schedule'),
+        ('BARANGAY_ADMIN_UNASSIGNED', 'Barangay Admin Unassigned from Schedule'),
         # Access-denied events
         ('ACCESS_DENIED_SCAN', 'Access Denied - Scan RFID'),
         ('ACCESS_DENIED_BENEFICIARY', 'Access Denied - Beneficiary List'),

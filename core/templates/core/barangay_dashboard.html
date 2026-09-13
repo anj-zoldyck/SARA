@@ -48,6 +48,157 @@
 </div>
 
 <!-- ======================================================
+     UPCOMING DISTRIBUTION
+====================================================== -->
+<div class="dash-panel mb-4">
+  <div class="dash-panel__header">
+    <div class="dash-panel__header-left">
+      <i class="bi bi-calendar-check dash-panel__icon"></i>
+      <div>
+        <h2 class="dash-panel__title">Upcoming Distribution</h2>
+        <p class="dash-panel__sub">Scheduled aid distributions for your barangay</p>
+      </div>
+    </div>
+  </div>
+  <div class="dash-panel__body">
+
+    <!-- ACTIVE SCHEDULES — populated by JS fetch, seeded by server render -->
+    <div id="active-schedules-section">
+      {% if active_schedules %}
+      <p class="sched-list-label"><i class="bi bi-broadcast-pin"></i> Active Now</p>
+      <div class="notif-list">
+        {% for sched, actions in active_schedules_with_actions %}
+        <div class="notif-card" data-schedule-id="{{ sched.id }}" data-lat="{{ sched.location_lat|default:'' }}" data-lng="{{ sched.location_lng|default:'' }}" data-location="{{ sched.location }}">
+          <div class="notif-card__icon notif-card__icon--{% if sched.aid_type == 'RELIEF' %}blue{% else %}amber{% endif %}">
+            {% if sched.aid_type == 'RELIEF' %}
+              <i class="bi bi-box-seam"></i>
+            {% else %}
+              <i class="bi bi-heart-pulse"></i>
+            {% endif %}
+          </div>
+          <div class="notif-card__body">
+            <div class="notif-card__top">
+              <span class="notif-card__type">
+                {% if sched.assistance %}
+                  {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
+                {% else %}
+                  {{ sched.aid_type }} Distribution
+                {% endif %}
+              </span>
+              <span class="notif-card__status" style="color: var(--clr-success);">
+                <i class="bi bi-circle-fill"></i> Active
+              </span>
+            </div>
+            <div class="notif-card__meta">
+              <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
+              <span><i class="bi bi-geo-alt"></i> {{ sched.location }}</span>
+              {% if sched.barangay %}
+                <span class="notif-card__brgy notif-card__brgy--specific">
+                  <i class="bi bi-buildings"></i> {{ sched.barangay }}
+                </span>
+              {% else %}
+                <span class="notif-card__brgy notif-card__brgy--all">
+                  <i class="bi bi-buildings"></i> All Barangays
+                </span>
+              {% endif %}
+            </div>
+            <div class="d-flex gap-2 mt-2 flex-wrap">
+              {% if sched.location_lat and sched.location_lng %}
+              <button type="button" class="btn-dash-outline btn-sm" onclick="openLocationModal(this)" title="View Location"><i class="bi bi-geo-alt me-1"></i> View Location</button>
+              {% endif %}
+              {% if actions.can_view_list %}
+              <a href="{% url 'review_beneficiaries' sched.id %}" class="btn-dash-outline btn-sm"><i class="bi bi-list-ul me-1"></i> View List</a>
+              {% endif %}
+              {% if actions.can_distribute %}
+              <a href="{% url 'scan_rfid' sched.id %}" class="btn-dash-primary btn-sm"><i class="bi bi-upc-scan me-1"></i> Distribute</a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- UPCOMING SCHEDULES — populated by JS fetch, seeded by server render -->
+    <div id="upcoming-schedules-section">
+      {% if upcoming_schedules %}
+      <p class="sched-list-label"><i class="bi bi-calendar-event"></i> Upcoming</p>
+      <div class="notif-list">
+        {% for sched, actions in upcoming_schedules_with_actions %}
+        <div class="notif-card" data-schedule-id="{{ sched.id }}" data-lat="{{ sched.location_lat|default:'' }}" data-lng="{{ sched.location_lng|default:'' }}" data-location="{{ sched.location }}">
+          <div class="notif-card__icon notif-card__icon--{% if sched.aid_type == 'RELIEF' %}blue{% else %}amber{% endif %}">
+            {% if sched.aid_type == 'RELIEF' %}
+              <i class="bi bi-box-seam"></i>
+            {% else %}
+              <i class="bi bi-heart-pulse"></i>
+            {% endif %}
+          </div>
+          <div class="notif-card__body">
+            <div class="notif-card__top">
+              <span class="notif-card__type">
+                {% if sched.assistance %}
+                  {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
+                {% else %}
+                  {{ sched.aid_type }} Distribution
+                {% endif %}
+              </span>
+              <span class="notif-card__status">
+                <i class="bi bi-circle-fill"></i> Upcoming
+              </span>
+            </div>
+            <div class="notif-card__meta">
+              <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
+              <span><i class="bi bi-geo-alt"></i> {{ sched.location }}</span>
+              {% if sched.barangay %}
+                <span class="notif-card__brgy notif-card__brgy--specific">
+                  <i class="bi bi-buildings"></i> {{ sched.barangay }}
+                </span>
+              {% else %}
+                <span class="notif-card__brgy notif-card__brgy--all">
+                  <i class="bi bi-buildings"></i> All Barangays
+                </span>
+              {% endif %}
+            </div>
+            <div class="d-flex gap-2 mt-2 flex-wrap">
+              {% if sched.location_lat and sched.location_lng %}
+              <button type="button" class="btn-dash-outline btn-sm" onclick="openLocationModal(this)" title="View Location"><i class="bi bi-geo-alt me-1"></i> View Location</button>
+              {% endif %}
+              {% if actions.can_view_list %}
+              <a href="{% url 'review_beneficiaries' sched.id %}" class="btn-dash-outline btn-sm"><i class="bi bi-list-ul me-1"></i> View List</a>
+              {% endif %}
+              {% if actions.can_distribute %}
+              <a href="{% url 'scan_rfid' sched.id %}" class="btn-dash-primary btn-sm"><i class="bi bi-upc-scan me-1"></i> Distribute</a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- EMPTY STATE — shown by JS when both lists are empty -->
+    <div id="schedules-empty" style="display: none;">
+      <div class="brgy-empty" style="padding: 32px 0 20px;">
+        <i class="bi bi-calendar-x"></i>
+        <h3>No Upcoming Schedules</h3>
+        <p>There are currently no active or upcoming distributions scheduled for your barangay.</p>
+      </div>
+    </div>
+
+    {% if not active_schedules and not upcoming_schedules %}
+    <div class="brgy-empty" style="padding: 32px 0 20px;" id="schedules-empty-initial">
+      <i class="bi bi-calendar-x"></i>
+      <h3>No Upcoming Schedules</h3>
+      <p>There are currently no active or upcoming distributions scheduled for your barangay.</p>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<!-- ======================================================
      DEMOGRAPHICS & RFID STATS
 ====================================================== -->
 <h3 class="dash-section-title mt-4 mb-3" style="font-size: 1.1rem; color: var(--clr-gray-700); font-weight: 600;">Resident Demographics & Stats</h3>
@@ -162,139 +313,6 @@
   </div>
 </div>
 
-<!-- ── Distribution Schedules ────────────────────────────── -->
-<div class="dash-panel mb-4">
-  <div class="dash-panel__header">
-    <div class="dash-panel__header-left">
-      <i class="bi bi-calendar-check dash-panel__icon"></i>
-      <div>
-        <h2 class="dash-panel__title">Upcoming Distribution</h2>
-        <p class="dash-panel__sub">Scheduled aid distributions for your barangay</p>
-      </div>
-    </div>
-  </div>
-  <div class="dash-panel__body">
-
-    <!-- ACTIVE SCHEDULES — populated by JS fetch, seeded by server render -->
-    <div id="active-schedules-section">
-      {% if active_schedules %}
-      <p class="sched-list-label"><i class="bi bi-broadcast-pin"></i> Active Now</p>
-      <div class="notif-list">
-        {% for sched in active_schedules %}
-        <div class="notif-card" data-schedule-id="{{ sched.id }}" data-lat="{{ sched.location_lat|default:'' }}" data-lng="{{ sched.location_lng|default:'' }}" data-location="{{ sched.location }}">
-          <div class="notif-card__icon notif-card__icon--{% if sched.aid_type == 'RELIEF' %}blue{% else %}amber{% endif %}">
-            {% if sched.aid_type == 'RELIEF' %}
-              <i class="bi bi-box-seam"></i>
-            {% else %}
-              <i class="bi bi-heart-pulse"></i>
-            {% endif %}
-          </div>
-          <div class="notif-card__body">
-            <div class="notif-card__top">
-              <span class="notif-card__type">
-                {% if sched.assistance %}
-                  {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
-                {% else %}
-                  {{ sched.aid_type }} Distribution
-                {% endif %}
-              </span>
-              <span class="notif-card__status" style="color: var(--clr-success);">
-                <i class="bi bi-circle-fill"></i> Active
-              </span>
-            </div>
-            <div class="notif-card__meta">
-              <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
-              <span><i class="bi bi-geo-alt"></i> {{ sched.location }}</span>
-              {% if sched.barangay %}
-                <span class="notif-card__brgy notif-card__brgy--specific">
-                  <i class="bi bi-buildings"></i> {{ sched.barangay }}
-                </span>
-              {% else %}
-                <span class="notif-card__brgy notif-card__brgy--all">
-                  <i class="bi bi-buildings"></i> All Barangays
-                </span>
-              {% endif %}
-            </div>
-            {% if sched.location_lat and sched.location_lng %}
-            <button type="button" class="btn-dash-outline btn-sm mt-2" onclick="openLocationModal(this)" title="View Location"><i class="bi bi-geo-alt me-1"></i> View Location</button>
-            {% endif %}
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
-    </div>
-
-    <!-- UPCOMING SCHEDULES — populated by JS fetch, seeded by server render -->
-    <div id="upcoming-schedules-section">
-      {% if upcoming_schedules %}
-      <p class="sched-list-label"><i class="bi bi-calendar-event"></i> Upcoming</p>
-      <div class="notif-list">
-        {% for sched in upcoming_schedules %}
-        <div class="notif-card" data-schedule-id="{{ sched.id }}" data-lat="{{ sched.location_lat|default:'' }}" data-lng="{{ sched.location_lng|default:'' }}" data-location="{{ sched.location }}">
-          <div class="notif-card__icon notif-card__icon--{% if sched.aid_type == 'RELIEF' %}blue{% else %}amber{% endif %}">
-            {% if sched.aid_type == 'RELIEF' %}
-              <i class="bi bi-box-seam"></i>
-            {% else %}
-              <i class="bi bi-heart-pulse"></i>
-            {% endif %}
-          </div>
-          <div class="notif-card__body">
-            <div class="notif-card__top">
-              <span class="notif-card__type">
-                {% if sched.assistance %}
-                  {{ sched.assistance.program.name }} › {{ sched.assistance.aid_category.name }}
-                {% else %}
-                  {{ sched.aid_type }} Distribution
-                {% endif %}
-              </span>
-              <span class="notif-card__status">
-                <i class="bi bi-circle-fill"></i> Upcoming
-              </span>
-            </div>
-            <div class="notif-card__meta">
-              <span><i class="bi bi-clock"></i> {{ sched.schedule_datetime }}</span>
-              <span><i class="bi bi-geo-alt"></i> {{ sched.location }}</span>
-              {% if sched.barangay %}
-                <span class="notif-card__brgy notif-card__brgy--specific">
-                  <i class="bi bi-buildings"></i> {{ sched.barangay }}
-                </span>
-              {% else %}
-                <span class="notif-card__brgy notif-card__brgy--all">
-                  <i class="bi bi-buildings"></i> All Barangays
-                </span>
-              {% endif %}
-            </div>
-            {% if sched.location_lat and sched.location_lng %}
-            <button type="button" class="btn-dash-outline btn-sm mt-2" onclick="openLocationModal(this)" title="View Location"><i class="bi bi-geo-alt me-1"></i> View Location</button>
-            {% endif %}
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
-    </div>
-
-    <!-- EMPTY STATE — shown by JS when both lists are empty -->
-    <div id="schedules-empty" style="display: none;">
-      <div class="brgy-empty" style="padding: 32px 0 20px;">
-        <i class="bi bi-calendar-x"></i>
-        <h3>No Upcoming Schedules</h3>
-        <p>There are currently no active or upcoming distributions scheduled for your barangay.</p>
-      </div>
-    </div>
-
-    {% if not active_schedules and not upcoming_schedules %}
-    <div class="brgy-empty" style="padding: 32px 0 20px;" id="schedules-empty-initial">
-      <i class="bi bi-calendar-x"></i>
-      <h3>No Upcoming Schedules</h3>
-      <p>There are currently no active or upcoming distributions scheduled for your barangay.</p>
-    </div>
-    {% endif %}
-
-  </div>
-</div>
-
 <!-- Location Map Modal -->
 <div class="modal fade" id="locationModal" tabindex="-1" aria-labelledby="locationModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -332,6 +350,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <!-- Leaflet -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>window.MAPTILER_API_KEY = "{{ maptiler_api_key }}";</script>
 <!-- Leaflet Common -->
 <script src="{% static 'js/leaflet_common.js' %}"></script>
 <script>
@@ -401,6 +420,18 @@
       ? `<button type="button" class="btn-dash-outline btn-sm mt-2" onclick="openLocationModal(this)" title="View Location"><i class="bi bi-geo-alt me-1"></i> View Location</button>`
       : '';
 
+    const viewListBtn = sched.can_view_list
+      ? `<a href="/distribution/review-beneficiaries/${scheduleId}/" class="btn-dash-outline btn-sm mt-2"><i class="bi bi-list-ul me-1"></i> View List</a>`
+      : '';
+
+    const distributeBtn = sched.can_distribute
+      ? `<a href="/distribution/scan-rfid/${scheduleId}/" class="btn-dash-primary btn-sm mt-2"><i class="bi bi-upc-scan me-1"></i> Distribute</a>`
+      : '';
+
+    const actionButtons = (viewLocationBtn || viewListBtn || distributeBtn)
+      ? `<div class="d-flex gap-2 mt-2 flex-wrap">${viewLocationBtn}${viewListBtn}${distributeBtn}</div>`
+      : '';
+
     return `
       <div class="notif-card" data-schedule-id="${scheduleId}" data-lat="${lat}" data-lng="${lng}" data-location="${location}">
         <div class="notif-card__icon notif-card__icon--${iconClass(sched.aid_type)}">
@@ -418,7 +449,7 @@
             <span><i class="bi bi-geo-alt"></i> ${sched.location}</span>
             ${brgyHtml}
           </div>
-          ${viewLocationBtn}
+          ${actionButtons}
         </div>
       </div>`;
   }
@@ -504,7 +535,7 @@
       
       // Initialize map after modal is shown (container has dimensions)
       setTimeout(() => {
-        locationMapInstance = initReadOnlyMap('locationMap', lat, lng, 16);
+        locationMapInstance = initReadOnlyMap('locationMap', lat, lng, 17);
       }, 100);
     } else {
       document.getElementById('locationMapContainer').classList.add('d-none');

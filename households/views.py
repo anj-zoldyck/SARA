@@ -155,10 +155,113 @@ def residents_overview(request):
 
 @login_required
 @session_protected
+def barangay_residents(request):
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+
+    # Get filter parameters
+    selected_zone_id = request.GET.get('zone')
+    search_query = request.GET.get('search', '').strip()
+    filter_senior = request.GET.get('senior')
+    filter_pwd = request.GET.get('pwd')
+    filter_solo_parent = request.GET.get('solo_parent')
+
+    # Zone filter scoped to user's barangay only
+    zones = Zone.objects.filter(barangay=request.user.barangay).order_by('name')
+
+    selected_zone = None
+    if selected_zone_id:
+        selected_zone = get_object_or_404(Zone, id=selected_zone_id, barangay=request.user.barangay)
+
+    # Build queryset of family members - HARD FILTER to user's barangay
+    members_qs = FamilyMember.objects.select_related(
+        'family',
+        'family__household',
+        'family__household__zone',
+        'family__household__zone__barangay'
+    ).filter(family__household__zone__barangay=request.user.barangay)
+
+    # Apply zone filter (scoped to user's barangay)
+    if selected_zone:
+        members_qs = members_qs.filter(family__household__zone=selected_zone)
+
+    # Apply search filter (first name or last name)
+    if search_query:
+        members_qs = members_qs.filter(
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query)
+        )
+
+    # Apply category filters
+    if filter_senior:
+        members_qs = members_qs.filter(is_senior_citizen=True)
+    if filter_pwd:
+        members_qs = members_qs.filter(is_pwd=True)
+    if filter_solo_parent:
+        members_qs = members_qs.filter(is_solo_parent=True)
+
+    # Order by last name, then first name, then id for deterministic pagination
+    members_qs = members_qs.order_by('last_name', 'first_name', 'id')
+
+    # Calculate stats
+    total_members = members_qs.count()
+    total_families = members_qs.values('family').distinct().count()
+    total_households = members_qs.values('family__household').distinct().count()
+    seniors_count = members_qs.filter(is_senior_citizen=True).count()
+    pwd_count = members_qs.filter(is_pwd=True).count()
+    solo_parent_count = members_qs.filter(is_solo_parent=True).count()
+
+    stats = {
+        'total_members': total_members,
+        'total_families': total_families,
+        'total_households': total_households,
+        'seniors_count': seniors_count,
+        'pwd_count': pwd_count,
+        'solo_parent_count': solo_parent_count,
+    }
+
+    # Pagination
+    paginator = Paginator(members_qs, 10)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'zones': zones,
+        'selected_zone': selected_zone,
+        'search_query': search_query,
+        'filter_senior': filter_senior,
+        'filter_pwd': filter_pwd,
+        'filter_solo_parent': filter_solo_parent,
+        'members': page_obj,
+        'page_obj': page_obj,
+        'stats': stats,
+        'requires_auth': True,
+    }
+
+    return render(request, 'households/barangay_residents.html', context)
+
+
+@login_required
+@session_protected
 @mswdo_or_staff_required
 def barangay_zones(request, barangay_id):
 
     barangay = get_object_or_404(Barangay, id=barangay_id)
+    zones = Zone.objects.filter(barangay=barangay).order_by('name')
+
+    return render(request, 'households/barangay_zones.html', {
+        'barangay': barangay,
+        'zones': zones,
+    })
+
+
+@login_required
+@session_protected
+def barangay_zones_own(request):
+    if request.user.role != 'BARANGAY':
+        return HttpResponseForbidden("Access Denied")
+
+    barangay = request.user.barangay
     zones = Zone.objects.filter(barangay=barangay).order_by('name')
 
     return render(request, 'households/barangay_zones.html', {
@@ -312,6 +415,12 @@ def add_household(request, zone_id):
         barangay=request.user.barangay
     )
 
+    # Get barangay boundary info for map scoping
+    db_to_osm = {v: k for k, v in OSM_TO_DB_BARANGAY_NAME.items()}
+    assigned_barangay = None
+    if request.user.barangay:
+        assigned_barangay = db_to_osm.get(request.user.barangay.name, request.user.barangay.name)
+
     if request.method == 'POST':
         form = HouseholdForm(request.POST)
         if form.is_valid():
@@ -326,7 +435,9 @@ def add_household(request, zone_id):
 
     return render(request, 'households/add_household.html', {
         'form': form,
-        'zone': zone
+        'zone': zone,
+        'boundary_mode': 'barangay',
+        'assigned_barangay': assigned_barangay,
     })
 
 
@@ -342,6 +453,12 @@ def edit_household(request, household_id):
         barangay=request.user.barangay
     )
 
+    # Get barangay boundary info for map scoping
+    db_to_osm = {v: k for k, v in OSM_TO_DB_BARANGAY_NAME.items()}
+    assigned_barangay = None
+    if request.user.barangay:
+        assigned_barangay = db_to_osm.get(request.user.barangay.name, request.user.barangay.name)
+
     if request.method == 'POST':
         form = HouseholdForm(request.POST, instance=household)
         if form.is_valid():
@@ -352,7 +469,9 @@ def edit_household(request, household_id):
 
     return render(request, 'households/edit_household.html', {
         'form': form,
-        'household': household
+        'household': household,
+        'boundary_mode': 'barangay',
+        'assigned_barangay': assigned_barangay,
     })
 
 

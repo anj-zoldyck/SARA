@@ -108,7 +108,7 @@
               {% endif %}
             </td>
             <td>
-              <div class="d-flex flex-column flex-sm-row gap-1 align-items-center">
+              <div class="d-flex flex-wrap gap-2 align-items-start" style="min-width: 280px;">
                 {% if schedule.beneficiary_list %}
                   <a href="{% url 'review_beneficiaries' schedule.id %}?from=staff_assigned_schedules" class="btn btn-sm btn-dash-outline text-nowrap">
                     <i class="bi bi-list-ul me-1"></i> View List
@@ -129,6 +129,41 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Pagination -->
+    {% if page_obj.paginator.num_pages > 1 %}
+    <nav aria-label="Page navigation" class="mt-3">
+      <ul class="pagination justify-content-center" style="gap: 8px;">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link pagination-btn" href="?page=1">&laquo;&laquo;</a>
+        </li>
+        <li class="page-item">
+          <a class="page-link pagination-btn" href="?page={{ page_obj.previous_page_number }}">&laquo;</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">&laquo;&laquo;</span></li>
+        <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+        {% endif %}
+
+        <li class="page-item">
+          <span class="page-link" style="background: none; border: 1px solid #dee2e6; color: #212529;">{{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        </li>
+
+        {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link pagination-btn" href="?page={{ page_obj.next_page_number }}">&raquo;</a>
+        </li>
+        <li class="page-item">
+          <a class="page-link pagination-btn" href="?page={{ page_obj.paginator.num_pages }}">&raquo;&raquo;</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+        <li class="page-item disabled"><span class="page-link">&raquo;&raquo;</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% endif %}
     {% else %}
     <div class="text-center py-5">
       <i class="bi bi-calendar-x" style="font-size: 3rem; color: #cbd5e1;"></i>

@@ -11,9 +11,9 @@ def offline_sync_metadata(request):
     """
     from distribution.models import OfflineSyncMetadata
     from django.conf import settings
-    
+
     offline_mode = getattr(settings, 'OFFLINE_MODE', False)
-    
+
     if request.user.is_authenticated and request.user.role == 'MSWDO_STAFF':
         latest_sync = OfflineSyncMetadata.get_latest_sync()
         return {
@@ -22,4 +22,16 @@ def offline_sync_metadata(request):
         }
     return {
         'OFFLINE_MODE': offline_mode,
+    }
+
+
+def maptiler_api_key(request):
+    """
+    Makes the MapTiler API key available in templates for map tile configuration.
+    The key is loaded from environment variables and injected into the frontend.
+    """
+    from django.conf import settings
+
+    return {
+        'maptiler_api_key': getattr(settings, 'MAPTILER_API_KEY', '')
     }

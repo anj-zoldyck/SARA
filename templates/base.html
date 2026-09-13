@@ -424,19 +424,49 @@
 
           <li class="sidebar-section-label">Management</li>
 
-          <li class="sidebar-item">
-            <a href="{% url 'household_map' %}"
-              class="sidebar-link {% if request.resolver_match.url_name == 'household_map' %}active{% endif %}">
-              <i class="bi bi-map"></i>
-              <span>Household Map</span>
-            </a>
+          <!-- Household Profiling (accordion) -->
+          <li class="sidebar-item sidebar-item--accordion">
+            <button class="sidebar-link sidebar-accordion-btn {% if request.resolver_match.url_name == 'barangay_residents' or request.resolver_match.url_name == 'barangay_zones_own' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' %}accordion-active{% endif %}" data-target="barangayHouseholdSubmenu" aria-expanded="{% if request.resolver_match.url_name == 'barangay_residents' or request.resolver_match.url_name == 'barangay_zones_own' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' %}true{% else %}false{% endif %}">
+              <i class="bi bi-house-door"></i>
+              <span>Household Profiling</span>
+              <i class="bi bi-chevron-down sidebar-arrow" style="{% if request.resolver_match.url_name == 'barangay_residents' or request.resolver_match.url_name == 'barangay_zones_own' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' %}transform: rotate(180deg);{% endif %}"></i>
+            </button>
+            <ul class="sidebar-submenu {% if request.resolver_match.url_name == 'barangay_residents' or request.resolver_match.url_name == 'barangay_zones_own' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' %}submenu--open{% endif %}" id="barangayHouseholdSubmenu"{% if request.resolver_match.url_name == 'barangay_residents' or request.resolver_match.url_name == 'barangay_zones_own' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' %} style="max-height: 1000px;"{% endif %}>
+              <li>
+                <a href="{% url 'barangay_residents' %}" class="sidebar-sublink {% if request.resolver_match.url_name == 'barangay_residents' %}active{% endif %}">
+                  <i class="bi bi-person-lines-fill"></i>
+                  <span>Residents</span>
+                </a>
+              </li>
+              <li>
+                <a href="{% url 'barangay_zones_own' %}"
+                  class="sidebar-sublink {% if request.resolver_match.url_name == 'barangay_zones_own' %}active{% endif %}">
+                  <i class="bi bi-map"></i>
+                  <span>Zones</span>
+                </a>
+              </li>
+              <li>
+                <a href="{% url 'household_map' %}"
+                  class="sidebar-sublink {% if request.resolver_match.url_name == 'household_map' %}active{% endif %}">
+                  <i class="bi bi-map"></i>
+                  <span>Household Map</span>
+                </a>
+              </li>
+              <li>
+                <a href="{% url 'household_vulnerability_map' %}"
+                  class="sidebar-sublink {% if request.resolver_match.url_name == 'household_vulnerability_map' %}active{% endif %}">
+                  <i class="bi bi-shield-exclamation"></i>
+                  <span>Vulnerability Map</span>
+                </a>
+              </li>
+            </ul>
           </li>
 
           <li class="sidebar-item">
-            <a href="{% url 'household_vulnerability_map' %}"
-              class="sidebar-link {% if request.resolver_match.url_name == 'household_vulnerability_map' %}active{% endif %}">
-              <i class="bi bi-shield-exclamation"></i>
-              <span>Vulnerability Map</span>
+            <a href="{% url 'staff_assigned_schedules' %}"
+              class="sidebar-link {% if request.resolver_match.url_name == 'staff_assigned_schedules' %}active{% endif %}">
+              <i class="bi bi-calendar-check"></i>
+              <span>My Distributions</span>
             </a>
           </li>
 
@@ -446,6 +476,13 @@
               class="sidebar-link {% if request.resolver_match.url_name == 'barangay_analytics' %}active{% endif %}">
               <i class="bi bi-bar-chart-line"></i>
               <span>Analytics</span>
+            </a>
+          </li>
+          <li class="sidebar-item">
+            <a href="{% url 'barangay_reports' %}"
+              class="sidebar-link {% if request.resolver_match.url_name == 'barangay_reports' %}active{% endif %}">
+              <i class="bi bi-file-earmark-text"></i>
+              <span>Reports</span>
             </a>
           </li>
 

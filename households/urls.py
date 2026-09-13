@@ -7,8 +7,10 @@ def family_members_redirect(request, family_id):
 
 urlpatterns = [
     path('mswdo/residents/', views.residents_overview, name='residents_overview'),
+    path('barangay/residents/', views.barangay_residents, name='barangay_residents'),
     path('mswdo/barangays/', views.barangay_list, name='barangay_list'),
     path('mswdo/barangays/<int:barangay_id>/zones/', views.barangay_zones, name='barangay_zones'),
+    path('barangay/zones/', views.barangay_zones_own, name='barangay_zones_own'),
     path('mswdo/zones/<int:zone_id>/households/', views.zone_households, name='zone_households'),
     path('mswdo/households/<int:household_id>/', views.household_info, name='household_info'),
     path('mswdo/families/<int:family_id>/members/', family_members_redirect, name='family_members'),

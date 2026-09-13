@@ -180,6 +180,8 @@ def barangay_dashboard(request):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
 
+    from distribution.services import is_barangay_delegable, is_staff_assigned_to_scan
+
     barangay_obj = request.user.barangay  # ForeignKey object or name — adjust below
     zones = Zone.objects.filter(barangay=barangay_obj)
 
@@ -192,7 +194,7 @@ def barangay_dashboard(request):
         is_active=True
     ).filter(
         Q(barangay=barangay_obj) | Q(barangay__isnull=True)
-    )
+    ).select_related('assistance__program', 'assistance__aid_category')
 
     # Upcoming: not yet started
     upcoming_schedules = AidSchedule.objects.filter(
@@ -201,7 +203,7 @@ def barangay_dashboard(request):
         is_active=True
     ).filter(
         Q(barangay=barangay_obj) | Q(barangay__isnull=True)
-    )
+    ).select_related('assistance__program', 'assistance__aid_category')
 
     # Local Demographics & Stats
     pwd_count = FamilyMember.objects.filter(family__household__barangay=barangay_obj, is_pwd=True).count()
@@ -218,11 +220,29 @@ def barangay_dashboard(request):
         family__household__barangay=barangay_obj
     ).values('family').distinct().count()
 
+    # Check which schedules are delegable and user is assigned
+    def get_schedule_actions(schedule):
+        if is_barangay_delegable(schedule) and is_staff_assigned_to_scan(request.user, schedule):
+            return {
+                'can_view_list': True,
+                'can_distribute': True,
+            }
+        return {'can_view_list': False, 'can_distribute': False}
+
+    active_schedules_with_actions = [
+        (sched, get_schedule_actions(sched)) for sched in active_schedules
+    ]
+    upcoming_schedules_with_actions = [
+        (sched, get_schedule_actions(sched)) for sched in upcoming_schedules
+    ]
+
     return render(request, 'core/barangay_dashboard.html', {
         'barangay': barangay_obj,
         'zones': zones,
         'active_schedules': active_schedules,
         'upcoming_schedules': upcoming_schedules,
+        'active_schedules_with_actions': active_schedules_with_actions,
+        'upcoming_schedules_with_actions': upcoming_schedules_with_actions,
         'pwd_count': pwd_count,
         'solo_parent_count': solo_parent_count,
         'senior_count': senior_count,

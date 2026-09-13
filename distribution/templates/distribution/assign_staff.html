@@ -101,7 +101,7 @@
     </p>
   </div>
   <div class="dash-header-actions">
-    <a href="{% url 'beneficiary_selection_landing' %}" class="btn-dash-outline">
+    <a href="{% if request.user.role == 'MSWDO' %}{% url 'beneficiary_selection_landing' %}{% elif request.user.role == 'BARANGAY' %}{% url 'staff_assigned_schedules' %}{% else %}{% url 'staff_assigned_schedules' %}{% endif %}" class="btn-dash-outline">
       <i class="bi bi-arrow-left"></i> Back to Manage Schedules
     </a>
   </div>
@@ -137,7 +137,7 @@
           
           <div class="acct-form__group">
             <label class="acct-form__label" for="staffSearch">
-              <i class="bi bi-person"></i> Staff Member <span class="acct-form__required">*</span>
+              <i class="bi bi-person"></i> Staff Member {% if not is_delegable %}<span class="acct-form__required">*</span>{% endif %}
             </label>
             <div class="acct-form__control-wrap position-relative">
               <div class="input-group">
@@ -150,6 +150,9 @@
               <input type="hidden" name="staff" id="staffSelectedId" value="">
               <div id="staffSearchResults" class="search-results-container"></div>
             </div>
+            {% if is_delegable %}
+            <p class="acct-form__hint">Optional — you can assign Staff OR Barangay Admins (or both).</p>
+            {% endif %}
           </div>
           
           <div class="acct-form__group">
@@ -187,13 +190,43 @@
             <div class="acct-form__control-wrap">
               <select name="zone" id="zoneSelect" disabled>
                 <option value="">-- Select a Barangay first --</option>
+                <option value="ALL">🌐 All Zones (Barangay-wide)</option>
                 {% for z in zones %}
                   <option value="{{ z.id }}" data-barangay="{{ z.barangay_id }}">{{ z.name }}</option>
                 {% endfor %}
               </select>
             </div>
-            <p class="acct-form__hint">Leave blank to assign the staff to the entire barangay.</p>
+            <p class="acct-form__hint">Leave blank or select 'All Zones' to assign the staff to the entire barangay.</p>
           </div>
+          
+          {% if is_delegable and schedule.barangay %}
+          <div class="acct-form__group">
+            <label class="acct-form__label">
+              <i class="bi bi-people"></i> Barangay Admins
+              <span class="badge bg-primary ms-2" style="font-size: 10px;">Delegation Enabled</span>
+            </label>
+            <div class="acct-form__control-wrap">
+              <div class="barangay-admin-checkboxes border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto;">
+                {% if barangay_admins %}
+                  {% for admin in barangay_admins %}
+                  <div class="modal-form__check-row">
+                    <input type="checkbox" name="barangay_admins" value="{{ admin.id }}" id="admin_{{ admin.id }}">
+                    <div>
+                      <label class="modal-form__check-label" for="admin_{{ admin.id }}">
+                        <strong>{{ admin.first_name }} {{ admin.last_name }}</strong>
+                      </label>
+                      <p class="modal-form__check-sub">@{{ admin.username }}</p>
+                    </div>
+                  </div>
+                  {% endfor %}
+                {% else %}
+                  <p class="text-muted small mb-0">No active Barangay Admins found for {{ schedule.barangay.name }}.</p>
+                {% endif %}
+              </div>
+            </div>
+            <p class="acct-form__hint">Select Barangay Admins to delegate distribution for this schedule. They will be assigned to {{ schedule.barangay.name }}.</p>
+          </div>
+          {% endif %}
           
           <div class="acct-form__actions">
             <button type="submit" class="btn-dash-primary" id="assignSubmitBtn" disabled>
@@ -301,7 +334,8 @@
   document.addEventListener('DOMContentLoaded', function() {
     const barangaySelect = document.getElementById('barangaySelect');
     const zoneSelect = document.getElementById('zoneSelect');
-    const allZoneOptions = Array.from(zoneSelect.options).slice(1); // keep the default blank option
+    const allZoneOptions = Array.from(zoneSelect.options).slice(2); // keep the default blank and "All Zones" options
+    const allZonesOption = zoneSelect.options[1]; // "All Zones" option
     
     function filterZones() {
       const selectedB = barangaySelect.value;
@@ -313,6 +347,7 @@
         allZoneOptions.forEach(opt => {
           opt.style.display = 'none';
         });
+        allZonesOption.style.display = 'none';
         zoneSelect.disabled = true;
         zoneSelect.title = "Not applicable for municipal-wide assignments";
         zoneSelect.value = '';
@@ -321,6 +356,7 @@
         allZoneOptions.forEach(opt => {
           opt.style.display = 'none';
         });
+        allZonesOption.style.display = 'none';
         zoneSelect.disabled = true;
         zoneSelect.title = "Select a Barangay first";
         zoneSelect.value = '';
@@ -328,6 +364,7 @@
         // Enable and filter zones normally
         zoneSelect.disabled = false;
         zoneSelect.title = "";
+        allZonesOption.style.display = '';
         allZoneOptions.forEach(opt => {
           if (opt.dataset.barangay === selectedB) {
             opt.style.display = '';
@@ -338,8 +375,32 @@
       }
     }
     
-    barangaySelect.addEventListener('change', filterZones);
-    filterZones(); // Initial filter
+    // Handle locked barangay case (hidden input instead of select)
+    const isLockedBarangay = {{ is_locked_barangay_js }};
+    console.log('isLockedBarangay:', isLockedBarangay);
+    if (isLockedBarangay) {
+      // Manually trigger zone filtering with the locked barangay ID
+      const lockedBarangayId = '{{ schedule.barangay.id }}';
+      console.log('lockedBarangayId:', lockedBarangayId);
+      console.log('zoneSelect:', zoneSelect);
+      console.log('allZoneOptions count:', allZoneOptions.length);
+      
+      zoneSelect.disabled = false;
+      zoneSelect.title = "";
+      allZonesOption.style.display = '';
+      
+      allZoneOptions.forEach(opt => {
+        console.log('Zone option:', opt.value, 'data-barangay:', opt.dataset.barangay, 'match:', opt.dataset.barangay === lockedBarangayId);
+        if (String(opt.dataset.barangay) === String(lockedBarangayId)) {
+          opt.style.display = '';
+        } else {
+          opt.style.display = 'none';
+        }
+      });
+    } else {
+      barangaySelect.addEventListener('change', filterZones);
+      filterZones(); // Initial filter
+    }
 
     // Staff Search Functionality
     const staffSearchInput = document.getElementById('staffSearch');
@@ -404,6 +465,19 @@
       staffSearchInput.focus();
       this.classList.add('d-none');
       submitBtn.disabled = true;
+    });
+
+    // Enable submit button if barangay admin checkboxes are selected (for delegable schedules)
+    const barangayAdminCheckboxes = document.querySelectorAll('input[name="barangay_admins"]');
+    barangayAdminCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', function() {
+        const anyChecked = Array.from(barangayAdminCheckboxes).some(cb => cb.checked);
+        if (anyChecked) {
+          submitBtn.disabled = false;
+        } else if (!staffSelectedId.value) {
+          submitBtn.disabled = true;
+        }
+      });
     });
   });
 </script>

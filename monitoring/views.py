@@ -649,6 +649,8 @@ def barangay_schedule_status(request):
     if request.user.role != 'BARANGAY':
         return HttpResponseForbidden("Access Denied")
 
+    from distribution.services import is_barangay_delegable, is_staff_assigned_to_scan
+
     barangay_obj = request.user.barangay
     now = timezone.localtime(timezone.now())
 
@@ -674,17 +676,27 @@ def barangay_schedule_status(request):
         return timezone.localtime(dt).strftime('%B %d, %Y, %I:%M %p') if dt else None
 
     def serialize(qs):
-        return [{
-            'id': s.id,
-            'aid_label': str(s.assistance) if s.assistance else 'N/A',
-            'beneficiary_type': s.assistance.beneficiary_type if s.assistance else None,
-            'schedule_datetime': fmt(s.schedule_datetime),
-            'iso_datetime': s.schedule_datetime.isoformat() if s.schedule_datetime else None,
-            'location': s.location,
-            'location_lat': float(s.location_lat) if s.location_lat else None,
-            'location_lng': float(s.location_lng) if s.location_lng else None,
-            'barangay': str(s.barangay) if s.barangay else 'All Barangays',
-        } for s in qs]
+        result = []
+        for s in qs:
+            # Determine action flags
+            can_view_list = is_barangay_delegable(s) and is_staff_assigned_to_scan(request.user, s)
+            can_distribute = is_barangay_delegable(s) and is_staff_assigned_to_scan(request.user, s)
+            
+            result.append({
+                'id': s.id,
+                'aid_label': str(s.assistance) if s.assistance else 'N/A',
+                'aid_type': s.aid_type,
+                'beneficiary_type': s.assistance.beneficiary_type if s.assistance else None,
+                'schedule_datetime': fmt(s.schedule_datetime),
+                'iso_datetime': s.schedule_datetime.isoformat() if s.schedule_datetime else None,
+                'location': s.location,
+                'location_lat': float(s.location_lat) if s.location_lat else None,
+                'location_lng': float(s.location_lng) if s.location_lng else None,
+                'barangay': str(s.barangay) if s.barangay else 'All Barangays',
+                'can_view_list': can_view_list,
+                'can_distribute': can_distribute,
+            })
+        return result
 
     return JsonResponse({
         'active': serialize(active_schedules),

@@ -394,6 +394,9 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <!-- Leaflet Routing Machine -->
 <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+<!-- Leaflet Common Utilities -->
+<script>window.MAPTILER_API_KEY = "{{ maptiler_api_key }}";</script>
+<script src="{% static 'js/leaflet_common.js' %}"></script>
 
 <script>
   // Venues data rendered from Django
@@ -408,9 +411,6 @@
     }{% if not forloop.last %},{% endif %}
     {% endfor %}
   ];
-
-  // MSWDO Office coordinates
-  const MSWDO_OFFICE_COORDS = [15.000328483552574, 120.61805645102072];
 
   document.addEventListener('DOMContentLoaded', function () {
     const toggle = document.getElementById('enableSelectionToggle');
@@ -646,12 +646,23 @@
     // Initialize map
     const DEFAULT_MAP_CENTER = [14.9993, 120.6117];
     const DEFAULT_MAP_ZOOM = 15;
-    
+
     const map = L.map('locationMap').setView(DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
+
+    const tileLayer = L.tileLayer(LEAFLET_TILE_CONFIG.url, LEAFLET_TILE_CONFIG.options);
+
+    // Detect tile loading errors (offline, network failure)
+    tileLayer.on('tileerror', function(error) {
+        console.error('Tile loading error:', error);
+        showMapOfflineError('locationMap');
+    });
+
+    // Hide error if tiles start loading successfully
+    tileLayer.on('load', function() {
+        hideMapOfflineError('locationMap');
+    });
+
+    tileLayer.addTo(map);
 
     // Custom marker icon
     const markerIcon = L.divIcon({
@@ -667,7 +678,6 @@
     });
 
     let currentMarker = null;
-    let routingControl = null;
 
     // Function to set location
     function setLocation(lat, lng, name) {
@@ -678,62 +688,30 @@
 
         // Add new marker
         currentMarker = L.marker([lat, lng], { icon: markerIcon, draggable: true }).addTo(map);
-        
+
         // Update hidden inputs
         locationLat.value = lat;
         locationLng.value = lng;
-        
+
         // Update text input
         if (name) {
             locationInput.value = name;
         }
 
         // Center map on location
-        map.setView([lat, lng], 16);
+        map.setView([lat, lng], 17);
 
-        // Update route preview
-        updateRoutePreview(lat, lng);
+        // Update route preview using shared function
+        addRoutePreview(map, lat, lng, 'routeInfo');
 
         // Handle marker drag
         currentMarker.on('dragend', function(e) {
             const newPos = e.target.getLatLng();
             locationLat.value = newPos.lat;
             locationLng.value = newPos.lng;
-            updateRoutePreview(newPos.lat, newPos.lng);
+            addRoutePreview(map, newPos.lat, newPos.lng, 'routeInfo');
             reverseGeocode(newPos.lat, newPos.lng);
         });
-    }
-
-    // Function to update route preview
-    function updateRoutePreview(destLat, destLng) {
-        // Remove existing routing control
-        if (routingControl) {
-            map.removeControl(routingControl);
-        }
-
-        // Add new route
-        routingControl = L.Routing.control({
-            waypoints: [
-                L.latLng(MSWDO_OFFICE_COORDS[0], MSWDO_OFFICE_COORDS[1]),
-                L.latLng(destLat, destLng)
-            ],
-            router: L.Routing.osrmv1({
-                serviceUrl: 'https://router.project-osrm.org/route/v1'
-            }),
-            routeWhileDragging: false,
-            addWaypoints: false,
-            draggableWaypoints: false,
-            fitSelectedRoutes: true,
-            showAlternatives: false,
-            lineOptions: {
-                styles: [{ color: '#0d47a1', weight: 5, opacity: 0.7 }]
-            },
-            createMarker: function() { return null; }  // Don't show routing markers
-        }).addTo(map);
-
-        // Show route info
-        routeInfo.classList.add('show');
-        routeInfo.innerHTML = '<i class="bi bi-signpost"></i> Route preview from MSWDO Office to selected location';
     }
 
     // Reverse geocoding

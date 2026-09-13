@@ -82,7 +82,7 @@ def get_unique_beneficiaries_count(start_date, end_date):
     return len(beneficiaries_set)
 
 
-def get_quarterly_report_data(start_date, end_date, claim_type=None):
+def get_quarterly_report_data(start_date, end_date, claim_type=None, barangay=None):
     """
     Returns aggregate counts for the Summary Report.
     Note: "total beneficiaries" represents unique families/individuals served within a month.
@@ -96,6 +96,10 @@ def get_quarterly_report_data(start_date, end_date, claim_type=None):
     # Add claim_type filter if provided
     if claim_type:
         claims = claims.filter(claim_type=claim_type)
+    
+    # Add barangay filter if provided
+    if barangay:
+        claims = claims.filter(family__household__barangay=barangay)
     
     claims = claims.select_related('assistance', 'assistance__aid_category')
     

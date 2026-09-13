@@ -11,6 +11,7 @@ class Program(models.Model):
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     is_emergency_program = models.BooleanField(default=False, help_text="Emergency programs bypass 90-day cooldown and rotation eligibility rules")
+    allows_barangay_delegation = models.BooleanField(default=False, help_text="When enabled, MSWDO Admin can delegate barangay-scoped distributions to Barangay Admins")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
