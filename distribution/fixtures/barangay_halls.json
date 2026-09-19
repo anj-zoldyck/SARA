@@ -1,0 +1,52 @@
+[
+  {
+    "barangay_name": "Dila-Dila",
+    "latitude": 15.014801571675044,
+    "longitude": 120.58405128062687
+  },
+  {
+    "barangay_name": "Becuran",
+    "latitude": 15.009021960137481,
+    "longitude": 120.59322481743874
+  },
+  {
+    "barangay_name": "San Matias",
+    "latitude": 15.004941470528795,
+    "longitude": 120.60390770187675
+  },
+  {
+    "barangay_name": "San Vicente",
+    "latitude": 14.998104882332525, 
+    "longitude": 120.61579412192225
+  },
+  {
+    "barangay_name": "Santa Monica",
+    "latitude": 14.993503883415785,
+    "longitude": 120.61080893978733
+  },
+  {
+    "barangay_name": "San Agustin",
+    "latitude": 14.990140569496562,
+    "longitude": 120.60562885580039
+  },
+  {
+    "barangay_name": "San Jose (Poblacion)",
+    "latitude": 14.9999587253533,
+    "longitude": 120.61813965970889
+  },
+  {
+    "barangay_name": "San Juan",
+    "latitude": 15.002817394212453,
+    "longitude": 120.62066538006651
+  },
+  {
+    "barangay_name": "San Isidro",
+    "latitude": 15.011637560254101,
+    "longitude": 120.60952877590162
+  },
+  {
+    "barangay_name": "San Basilio",
+    "latitude": 15.035816181358449,
+    "longitude": 120.58016136039227
+  }
+]

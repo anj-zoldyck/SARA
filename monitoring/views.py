@@ -327,8 +327,8 @@ def schedule_status(request):
         from distribution.services import is_staff_assigned_to_scan
         return [{
             'id': s.id,
-            # NEW: use assistance label instead of aid_type string
-            'aid_type': str(s.assistance) if s.assistance else (s.aid_type or 'N/A'),
+            # Use assistance label - aid_type is on the Assistance model, not AidSchedule
+            'aid_type': str(s.assistance) if s.assistance else 'N/A',
             'schedule_datetime': fmt(s.schedule_datetime),
             'iso_datetime': s.schedule_datetime.isoformat() if s.schedule_datetime else None,
             'location': s.location,
@@ -685,7 +685,7 @@ def barangay_schedule_status(request):
             result.append({
                 'id': s.id,
                 'aid_label': str(s.assistance) if s.assistance else 'N/A',
-                'aid_type': s.aid_type,
+                'aid_type': s.assistance.aid_type if s.assistance else None,
                 'beneficiary_type': s.assistance.beneficiary_type if s.assistance else None,
                 'schedule_datetime': fmt(s.schedule_datetime),
                 'iso_datetime': s.schedule_datetime.isoformat() if s.schedule_datetime else None,

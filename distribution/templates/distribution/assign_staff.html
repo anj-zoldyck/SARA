@@ -93,6 +93,8 @@
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
       <a href="{% url 'beneficiary_selection_landing' %}" class="breadcrumb-link">Manage Schedules</a>
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
+      <a href="{% url 'review_beneficiaries' schedule.id %}" class="breadcrumb-link">Review List</a>
+      <i class="bi bi-chevron-right breadcrumb-sep"></i>
       <span class="breadcrumb-current">Assign Staff</span>
     </div>
     <h1 class="dash-page-title">Assign Staff</h1>
@@ -101,8 +103,8 @@
     </p>
   </div>
   <div class="dash-header-actions">
-    <a href="{% if request.user.role == 'MSWDO' %}{% url 'beneficiary_selection_landing' %}{% elif request.user.role == 'BARANGAY' %}{% url 'staff_assigned_schedules' %}{% else %}{% url 'staff_assigned_schedules' %}{% endif %}" class="btn-dash-outline">
-      <i class="bi bi-arrow-left"></i> Back to Manage Schedules
+    <a href="{% if request.user.role == 'MSWDO' %}{% url 'review_beneficiaries' schedule.id %}{% elif request.user.role == 'BARANGAY' %}{% url 'staff_assigned_schedules' %}{% else %}{% url 'staff_assigned_schedules' %}{% endif %}" class="btn-dash-outline">
+      <i class="bi bi-arrow-left"></i> Back to Review List
     </a>
   </div>
 </div>
@@ -117,9 +119,9 @@
   {% endfor %}
 {% endif %}
 
-<div class="row g-4 mt-2">
+<div class="row g-4 mt-2 align-items-start">
   <div class="col-md-5">
-    <div class="dash-panel">
+    <div class="dash-panel h-100">
       <div class="dash-panel__header">
         <div class="dash-panel__header-left">
           <i class="bi bi-person-plus dash-panel__icon"></i>

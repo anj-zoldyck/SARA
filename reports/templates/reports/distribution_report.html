@@ -20,9 +20,15 @@
   <div>
     <div class="page-breadcrumb">
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
-      <a href="{% url 'staff_assigned_schedules' %}" class="breadcrumb-link">
-        My Distributions
-      </a>
+      {% if back_url %}
+        <a href="{{ back_url }}" class="breadcrumb-link">
+          Distribution Claims
+        </a>
+      {% else %}
+        <a href="{% url 'staff_assigned_schedules' %}" class="breadcrumb-link">
+          My Distributions
+        </a>
+      {% endif %}
       <i class="bi bi-chevron-right breadcrumb-sep"></i>
       <span class="breadcrumb-current">Distribution Report</span>
     </div>
@@ -226,6 +232,10 @@
         <a href="{% url 'barangay_reports' %}" class="btn-dash-outline">
           <i class="bi bi-arrow-left me-1"></i> Back to Distribution Reports
         </a>
+      {% elif back_url %}
+        <a href="{{ back_url }}" class="btn-dash-outline">
+          <i class="bi bi-arrow-left me-1"></i> Back to Distribution Claims
+        </a>
       {% else %}
         {% if request.user.role == 'MSWDO' %}
           <a href="{% url 'beneficiary_selection_landing' %}" class="btn-dash-outline">
@@ -240,11 +250,11 @@
             <i class="bi bi-arrow-left me-1"></i> Back to My Distributions
           </a>
         {% endif %}
-        {% if schedule.is_finished and OFFLINE_MODE %}
-          <a href="{% url 'export_distribution_report' schedule.id %}" class="btn-dash-primary">
-            <i class="bi bi-download me-1"></i> Export Distribution Records
-          </a>
-        {% endif %}
+      {% endif %}
+      {% if schedule.is_finished and OFFLINE_MODE %}
+        <a href="{% url 'export_distribution_report' schedule.id %}" class="btn-dash-primary">
+          <i class="bi bi-download me-1"></i> Export Distribution Records
+        </a>
       {% endif %}
     </div>
   </div>

@@ -61,6 +61,8 @@
   </div>
 </div>
 
+{% include 'partials/_messages.html' %}
+
 <div class="dash-action-row mb-4">
   {% if user.role == 'BARANGAY' %}
     {% if family.is_archived %}

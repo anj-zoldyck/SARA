@@ -66,6 +66,9 @@ def schedule_distribution(request):
             return redirect('schedule_distribution')
 
         location = request.POST.get('location')
+        if not location or not location.strip():
+            messages.error(request, "Please enter a location before submitting.")
+            return redirect('schedule_distribution')
         location_lat = request.POST.get('location_lat')
         location_lng = request.POST.get('location_lng')
         barangay_id = request.POST.get('barangay')
@@ -102,6 +105,11 @@ def schedule_distribution(request):
             try:
                 budget = Decimal(budget_raw) if budget_raw else Decimal('0')
                 per_beneficiary_amount = Decimal(per_beneficiary_raw) if per_beneficiary_raw else Decimal('0')
+
+                # Validate required fields when automated selection is enabled
+                if not per_beneficiary_raw or not per_beneficiary_raw.strip():
+                    messages.error(request, "Please enter the amount per beneficiary before submitting.")
+                    return redirect('schedule_distribution')
             except InvalidOperation:
                 # Handle invalid/non-numeric input gracefully — show a form error,
                 # do not let a bad input crash the whole request
@@ -142,8 +150,7 @@ def schedule_distribution(request):
         if enable_selection and schedule.budget > Decimal('0') and schedule.per_beneficiary_amount > Decimal('0'):
             return redirect('generate_beneficiaries', schedule_id=schedule.id)
         else:
-            request.session['schedule_just_created'] = True
-            return redirect('schedule_distribution')
+            return redirect('beneficiary_selection_landing')
 
     # GET
     assistances = Assistance.objects.select_related(
@@ -196,6 +203,9 @@ def edit_schedule(request, schedule_id):
             return redirect('edit_schedule', schedule_id=schedule.id)
 
         location = request.POST.get('location')
+        if not location or not location.strip():
+            messages.error(request, "Please enter a location before submitting.")
+            return redirect('edit_schedule', schedule_id=schedule.id)
         location_lat = request.POST.get('location_lat')
         location_lng = request.POST.get('location_lng')
         
@@ -245,6 +255,11 @@ def edit_schedule(request, schedule_id):
                 try:
                     budget = Decimal(budget_raw) if budget_raw else Decimal('0')
                     per_beneficiary_amount = Decimal(per_beneficiary_raw) if per_beneficiary_raw else Decimal('0')
+
+                    # Validate required fields when automated selection is enabled
+                    if not per_beneficiary_raw or not per_beneficiary_raw.strip():
+                        messages.error(request, "Please enter the amount per beneficiary before submitting.")
+                        return redirect('edit_schedule', schedule_id=schedule.id)
                 except InvalidOperation:
                     messages.error(request, "Invalid numeric input for budget or per-beneficiary amount.")
                     return redirect('edit_schedule', schedule_id=schedule.id)
@@ -378,11 +393,22 @@ def scan_rfid(request, schedule_id):
         # Get family by RFID
         try:
             if request.user.role == 'BARANGAY':
-                family = Family.objects.get(
-                    rfid_uid=uid,
-                    is_active=True,
-                    household__barangay=request.user.barangay
-                )
+                # First check if family exists at all (without barangay filter)
+                family_any = Family.objects.filter(rfid_uid=uid, is_active=True).first()
+                if not family_any:
+                    error = "Invalid RFID UID."
+                    if is_ajax:
+                        return JsonResponse({'status': 'error', 'message': error})
+                    return render(request, 'distribution/scan_rfid.html', {'error': error, 'aid_schedule': aid_schedule})
+                
+                # Family exists, check if it's in the admin's barangay
+                if family_any.household.barangay != request.user.barangay:
+                    error = f"This resident is registered under {family_any.household.barangay}, which is outside this distribution's assigned barangay ({request.user.barangay})."
+                    if is_ajax:
+                        return JsonResponse({'status': 'error', 'message': error})
+                    return render(request, 'distribution/scan_rfid.html', {'error': error, 'aid_schedule': aid_schedule})
+                
+                family = family_any
             else:
                 family = Family.objects.get(rfid_uid=uid, is_active=True)
         except Family.DoesNotExist:
@@ -450,19 +476,9 @@ def scan_rfid(request, schedule_id):
                 log_action(request.user, 'CLAIM_RFID', target=claim, description=f"RFID claim processed for {family.family_name} via schedule {aid_schedule.id}")
                 success = f"{family.family_name} successfully claimed {assistance.aid_category.name}."
                 
-                # Completion Check
-                distribution_just_finished = False
-                if hasattr(aid_schedule, 'beneficiary_list'):
-                    ben_list = aid_schedule.beneficiary_list
-                    total_bens = ben_list.entries.filter(family__isnull=False).count()
-                    claimed_families = AidClaim.objects.filter(schedule=aid_schedule).values('family').distinct().count()
-                    if total_bens > 0 and claimed_families >= total_bens:
-                        aid_schedule.is_finished = True
-                        aid_schedule.finished_at = timezone.now()
-                        aid_schedule.finish_reason = 'COMPLETED'
-                        aid_schedule.save()
-                        log_action(request.user, 'SCHEDULE_AUTO_FINISHED', target=aid_schedule, description=f"Auto finished schedule {aid_schedule.id} (all beneficiaries claimed)")
-                        distribution_just_finished = True
+                # Auto-finish check using shared helper
+                from distribution.schedule_utils import check_and_auto_finish_schedule
+                distribution_just_finished = check_and_auto_finish_schedule(aid_schedule, request.user)
                         
                 if is_ajax:
                     return JsonResponse({
@@ -503,23 +519,9 @@ def scan_rfid(request, schedule_id):
                     log_action(request.user, 'CLAIM_RFID', target=claim, description=f"RFID claim processed for {member.first_name} {member.last_name} via schedule {aid_schedule.id}")
                     success = f"{member.first_name} {member.last_name} successfully claimed {assistance.aid_category.name}."
                     
-                    # Completion Check
-                    distribution_just_finished = False
-                    if hasattr(aid_schedule, 'beneficiary_list'):
-                        ben_list = aid_schedule.beneficiary_list
-                        is_finished = True
-                        claimed_member_ids = set(AidClaim.objects.filter(schedule=aid_schedule, family_member__isnull=False).values_list('family_member_id', flat=True))
-                        for entry in ben_list.entries.filter(family_member__isnull=False):
-                            if entry.family_member_id not in claimed_member_ids:
-                                is_finished = False
-                                break
-                        if is_finished and ben_list.entries.filter(family_member__isnull=False).exists():
-                            aid_schedule.is_finished = True
-                            aid_schedule.finished_at = timezone.now()
-                            aid_schedule.finish_reason = 'COMPLETED'
-                            aid_schedule.save()
-                            log_action(request.user, 'SCHEDULE_AUTO_FINISHED', target=aid_schedule, description=f"Auto finished schedule {aid_schedule.id} (all beneficiaries claimed)")
-                            distribution_just_finished = True
+                    # Auto-finish check using shared helper
+                    from distribution.schedule_utils import check_and_auto_finish_schedule
+                    distribution_just_finished = check_and_auto_finish_schedule(aid_schedule, request.user)
 
                     if is_ajax:
                         return JsonResponse({
@@ -744,59 +746,137 @@ def staff_walkin_rfid_lookup(request):
     # Check for missed scheduled claims within 7-day grace period
     from django.utils import timezone
     from datetime import timedelta
-    from distribution.models import GeneratedBeneficiary
+    from distribution.models import GeneratedBeneficiary, AidClaim
     
     seven_days_ago = timezone.now() - timedelta(days=7)
     
+    # Pre-check for family-based missed claim (shared across all members)
+    family_late_claims = AidClaim.objects.filter(
+        family=family,
+        family_member__isnull=True,
+        claim_type='WALK_IN',
+        is_late_scheduled_claim=True
+    ).values_list('original_schedule_id', flat=True)
+    
+    family_missed_claim = GeneratedBeneficiary.objects.filter(
+        family=family,
+        family_member__isnull=True  # Only family-based entries
+    ).filter(
+        # Either: finished schedule within 7-day grace period
+        Q(beneficiary_list__schedule__is_finished=True, 
+          beneficiary_list__schedule__finished_at__gte=seven_days_ago) |
+        # Or: ongoing schedule with datetime in the past (within 7-day window from schedule_datetime)
+        Q(beneficiary_list__schedule__is_finished=False,
+          beneficiary_list__schedule__schedule_datetime__gte=seven_days_ago,
+          beneficiary_list__schedule__schedule_datetime__lte=timezone.now())
+    ).exclude(
+        beneficiary_list__schedule__id__in=family_late_claims
+    ).select_related(
+        'beneficiary_list__schedule__assistance__program',
+        'beneficiary_list__schedule__assistance__aid_category',
+        'beneficiary_list__schedule'
+    ).order_by('-beneficiary_list__schedule__schedule_datetime').first()
+    
+    # Additional check: exclude if family already claimed via OFFLINE_IMPORT for this schedule
+    if family_missed_claim:
+        schedule = family_missed_claim.beneficiary_list.schedule
+        has_offline_claim = AidClaim.objects.filter(
+            family=family,
+            schedule=schedule,
+            claim_type='OFFLINE_IMPORT'
+        ).exists()
+        if has_offline_claim:
+            family_missed_claim = None
+    
+    # Calculate family missed claim info if exists
+    family_missed_claim_info = None
+    if family_missed_claim:
+        schedule = family_missed_claim.beneficiary_list.schedule
+        reference_date = schedule.finished_at if schedule.is_finished else schedule.schedule_datetime
+        expiry_date = reference_date + timedelta(days=7)
+        days_remaining = (expiry_date - timezone.now()).days
+        
+        if days_remaining >= 0:
+            family_missed_claim_info = {
+                'program': schedule.assistance.program.name,
+                'category': schedule.assistance.aid_category.name,
+                'days_remaining': days_remaining,
+                'expiry_date': expiry_date.strftime('%b %d')
+            }
+    
+    # Track which member gets the family-based missed claim (only one member should show it)
+    family_claim_assigned = False
+    
     for m in members:
         # Check for individual-based missed claims
-        # Exclude regular scheduled claims, late walk-in claims, AND offline import claims
-        missed_claim = GeneratedBeneficiary.objects.filter(
+        # Get late walk-in claims for this member to exclude by original_schedule_id
+        member_late_claims = AidClaim.objects.filter(
             family_member=m,
-            beneficiary_list__schedule__is_finished=True,
-            beneficiary_list__schedule__finished_at__gte=seven_days_ago
+            claim_type='WALK_IN',
+            is_late_scheduled_claim=True
+        ).values_list('original_schedule_id', flat=True)
+        
+        print(f"[DEBUG staff_walkin_rfid_lookup] Member {m.id} ({m.first_name} {m.last_name}) - member_late_claims: {list(member_late_claims)}")
+        print(f"[DEBUG staff_walkin_rfid_lookup] seven_days_ago: {seven_days_ago}")
+        
+        # Find schedules where this member is on the beneficiary list but hasn't claimed
+        # Include both finished schedules (within 7-day grace from finished_at) 
+        # and ongoing schedules (within 7-day grace from schedule_datetime)
+        missed_claim = GeneratedBeneficiary.objects.filter(
+            family_member=m
+        ).filter(
+            # Either: finished schedule within 7-day grace period
+            Q(beneficiary_list__schedule__is_finished=True, 
+              beneficiary_list__schedule__finished_at__gte=seven_days_ago) |
+            # Or: ongoing schedule with datetime in the past (within 7-day window from schedule_datetime)
+            Q(beneficiary_list__schedule__is_finished=False,
+              beneficiary_list__schedule__schedule_datetime__gte=seven_days_ago,
+              beneficiary_list__schedule__schedule_datetime__lte=timezone.now())
         ).exclude(
-            beneficiary_list__schedule__claims__family_member=m,
-            beneficiary_list__schedule__claims__claim_type__in=['DISTRIBUTION', 'WALK_IN', 'OFFLINE_IMPORT']
-        ).exclude(
-            beneficiary_list__schedule__late_claims__family_member=m
+            # Exclude if already has a late walk-in claim for the SAME schedule (by original_schedule_id)
+            beneficiary_list__schedule__id__in=member_late_claims
         ).select_related(
             'beneficiary_list__schedule__assistance__program',
             'beneficiary_list__schedule__assistance__aid_category',
             'beneficiary_list__schedule'
-        ).order_by('-beneficiary_list__schedule__finished_at').first()
-
-        # If no individual-based missed claim, check for family-based
-        if not missed_claim:
-            missed_claim = GeneratedBeneficiary.objects.filter(
-                family=family,
-                beneficiary_list__schedule__is_finished=True,
-                beneficiary_list__schedule__finished_at__gte=seven_days_ago
-            ).exclude(
-                beneficiary_list__schedule__claims__family=family,
-                beneficiary_list__schedule__claims__claim_type__in=['DISTRIBUTION', 'WALK_IN', 'OFFLINE_IMPORT']
-            ).exclude(
-                beneficiary_list__schedule__late_claims__family=family
-            ).select_related(
-                'beneficiary_list__schedule__assistance__program',
-                'beneficiary_list__schedule__assistance__aid_category',
-                'beneficiary_list__schedule'
-            ).order_by('-beneficiary_list__schedule__finished_at').first()
+        ).order_by('-beneficiary_list__schedule__schedule_datetime').first()
         
-        # Calculate days remaining if missed claim exists
-        missed_claim_info = None
+        # Additional check: exclude if member already claimed via OFFLINE_IMPORT for this schedule
         if missed_claim:
-            finished_at = missed_claim.beneficiary_list.schedule.finished_at
-            expiry_date = finished_at + timedelta(days=7)
+            schedule = missed_claim.beneficiary_list.schedule
+            has_offline_claim = AidClaim.objects.filter(
+                family_member=m,
+                schedule=schedule,
+                claim_type='OFFLINE_IMPORT'
+            ).exists()
+            if has_offline_claim:
+                missed_claim = None
+        
+        print(f"[DEBUG staff_walkin_rfid_lookup] Member {m.id} - individual missed_claim result: {missed_claim}")
+
+        # If no individual-based missed claim, use family-based (only for first member)
+        if not missed_claim and not family_claim_assigned and family_missed_claim_info:
+            missed_claim_info = family_missed_claim_info
+            family_claim_assigned = True
+            print(f"[DEBUG staff_walkin_rfid_lookup] Member {m.id} - assigned family missed claim")
+        elif missed_claim:
+            # Calculate individual missed claim info
+            schedule = missed_claim.beneficiary_list.schedule
+            reference_date = schedule.finished_at if schedule.is_finished else schedule.schedule_datetime
+            expiry_date = reference_date + timedelta(days=7)
             days_remaining = (expiry_date - timezone.now()).days
             
             if days_remaining >= 0:
                 missed_claim_info = {
-                    'program': missed_claim.beneficiary_list.schedule.assistance.program.name,
-                    'category': missed_claim.beneficiary_list.schedule.assistance.aid_category.name,
+                    'program': schedule.assistance.program.name,
+                    'category': schedule.assistance.aid_category.name,
                     'days_remaining': days_remaining,
                     'expiry_date': expiry_date.strftime('%b %d')
                 }
+            else:
+                missed_claim_info = None
+        else:
+            missed_claim_info = None
         
         member_data.append({
             'id': m.id,
@@ -862,12 +942,8 @@ def staff_walkin_claim(request):
         amount = request.POST.get('amount')
         is_late_scheduled_claim = request.POST.get('is_late_scheduled_claim') == 'true'
         original_schedule_id = request.POST.get('original_schedule_id')
-
-        # DEBUG: Log the received parameters for member 132
-        if int(member_id) == 132:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"DEBUG claim submission for member 132: is_late={is_late_scheduled_claim}, original_schedule_id={original_schedule_id}, assistance_id={assistance_id}")
+        
+        original_schedule = None  # Initialize to prevent UnboundLocalError
 
         member = get_object_or_404(FamilyMember, id=member_id)
         assistance = get_object_or_404(Assistance, id=assistance_id, is_active=True)
@@ -876,55 +952,6 @@ def staff_walkin_claim(request):
             return JsonResponse({
                 'status': 'error',
                 'message': 'This resident is deceased and cannot receive assistance.'
-            }, status=400)
-
-        today = timezone.now().date()
-        existing = AidClaim.objects.filter(
-            family_member=member,
-            assistance=assistance,
-            claimed_at__date=today
-        ).exists()
-        
-        if existing:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'This resident has already received this assistance today.'
-            }, status=400)
-        
-        # Check eligibility against synced data (including all EligibilityRules)
-        from programs.eligibility import check_eligibility
-        is_eligible, reasons = check_eligibility(member, assistance)
-        
-        if not is_eligible:
-            return JsonResponse({
-                'status': 'error',
-                'message': f'Eligibility check failed: {", ".join(reasons)}'
-            }, status=400)
-        
-        # Check for ACTIVE_TYPHOON_SIGNAL rule - block unconditionally for offline walk-in
-        # Offline weather data becomes stale during outages, so we don't evaluate against it
-        typhoon_rule = assistance.eligibility_rules.filter(rule_type='ACTIVE_TYPHOON_SIGNAL', is_active=True).first()
-        if typhoon_rule:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'This assistance is only available during active typhoon conditions. Walk-in requests are not permitted offline for typhoon-gated assistance.'
-            }, status=400)
-        
-        # Validate amount for walk-in claims
-        if not amount:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'Amount is required for walk-in claims.'
-            }, status=400)
-        
-        try:
-            amount_decimal = float(amount)
-            if amount_decimal < 0:
-                raise ValueError("Amount cannot be negative")
-        except (ValueError, TypeError):
-            return JsonResponse({
-                'status': 'error',
-                'message': 'Invalid amount format.'
             }, status=400)
 
         # Server-side validation for late scheduled claims
@@ -942,16 +969,22 @@ def staff_walkin_claim(request):
                     'message': 'Invalid schedule reference for late claim.'
                 }, status=400)
             
-            # Verify the schedule is finished
-            if not original_schedule.is_finished or not original_schedule.finished_at:
-                return JsonResponse({
-                    'status': 'error',
-                    'message': 'Cannot claim late for a schedule that has not finished.'
-                }, status=400)
+            # Verify the schedule is either finished or ongoing
+            # For finished schedules: use finished_at for grace period
+            # For ongoing schedules: use schedule_datetime for grace period
+            if original_schedule.is_finished:
+                if not original_schedule.finished_at:
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': 'Invalid schedule state.'
+                    }, status=400)
+                reference_date = original_schedule.finished_at
+            else:
+                reference_date = original_schedule.schedule_datetime
             
             # Verify within 7-day grace period
             seven_days_ago = timezone.now() - timedelta(days=7)
-            if original_schedule.finished_at < seven_days_ago:
+            if reference_date < seven_days_ago:
                 return JsonResponse({
                     'status': 'error',
                     'message': 'The 7-day grace period for this missed distribution has expired.'
@@ -998,6 +1031,64 @@ def staff_walkin_claim(request):
                     'message': 'Invalid late claim parameters.'
                 }, status=400)
 
+        today = timezone.now().date()
+        existing = AidClaim.objects.filter(
+            family_member=member,
+            assistance=assistance,
+            claimed_at__date=today
+        )
+        
+        print(f"[DEBUG staff_walkin_claim] Checking duplicate claims for member {member.id}, assistance {assistance_id}")
+        print(f"[DEBUG staff_walkin_claim] Existing claims today: {list(existing.values_list('id', 'schedule_id', 'original_schedule_id', 'claim_type'))}")
+        print(f"[DEBUG staff_walkin_claim] is_late_scheduled_claim: {is_late_scheduled_claim}, original_schedule_id: {original_schedule_id}, original_schedule: {original_schedule}")
+        
+        # Allow claiming the same assistance from a different schedule on the same day
+        # Only block if it's the EXACT same schedule (not a different schedule)
+        # This handles the case where a member is on multiple beneficiary lists for the same assistance
+        existing_same_schedule = existing.filter(schedule=original_schedule if original_schedule else None)
+        
+        if existing_same_schedule.exists():
+            return JsonResponse({
+                'status': 'error',
+                'message': 'This resident has already received this assistance today.'
+            }, status=400)
+        
+        # Check eligibility against synced data (including all EligibilityRules)
+        from programs.eligibility import check_eligibility
+        is_eligible, reasons = check_eligibility(member, assistance)
+        
+        if not is_eligible:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'Eligibility check failed: {", ".join(reasons)}'
+            }, status=400)
+        
+        # Check for ACTIVE_TYPHOON_SIGNAL rule - block unconditionally for offline walk-in
+        # Offline weather data becomes stale during outages, so we don't evaluate against it
+        typhoon_rule = assistance.eligibility_rules.filter(rule_type='ACTIVE_TYPHOON_SIGNAL', is_active=True).first()
+        if typhoon_rule:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'This assistance is only available during active typhoon conditions. Walk-in requests are not permitted offline for typhoon-gated assistance.'
+            }, status=400)
+        
+        # Validate amount for walk-in claims
+        if not amount:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Amount is required for walk-in claims.'
+            }, status=400)
+        
+        try:
+            amount_decimal = float(amount)
+            if amount_decimal < 0:
+                raise ValueError("Amount cannot be negative")
+        except (ValueError, TypeError):
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Invalid amount format.'
+            }, status=400)
+
         claim = AidClaim.objects.create(
             family=member.family,
             family_member=member,
@@ -1010,6 +1101,14 @@ def staff_walkin_claim(request):
             original_schedule=original_schedule
         )
         log_action(request.user, 'CLAIM_WALKIN', target=claim, description=f"Walk-in claim processed for {member.first_name} {member.last_name}")
+        
+        # If this was a late scheduled claim, check if the original schedule should now be auto-finished
+        if is_late_scheduled_claim and original_schedule:
+            print(f"[DEBUG staff_walkin_claim] Late claim created for schedule {original_schedule.id}, checking auto-finish...")
+            from distribution.schedule_utils import check_and_auto_finish_schedule
+            was_finished = check_and_auto_finish_schedule(original_schedule, request.user)
+            print(f"[DEBUG staff_walkin_claim] Auto-finish check result: {was_finished}")
+        
         return JsonResponse({'status': 'success', 'message': f'Walk-in claim recorded for {member.first_name} {member.last_name}.'})
         
     return JsonResponse({'status': 'error', 'message': 'Invalid request.'}, status=400)
@@ -1042,13 +1141,23 @@ def beneficiary_selection_landing(request):
 @session_protected
 @mswdo_or_staff_required
 def staff_walkin_member_modal(request, member_id):
+    print(f"[DEBUG staff_walkin_member_modal] Loading member_id={member_id}")
+    
     if request.user.role != 'MSWDO_STAFF':
+        print(f"[DEBUG staff_walkin_member_modal] Access denied for user {request.user.username} with role {request.user.role}")
         return HttpResponseForbidden('Access Denied')
+    
+    from distribution.models import AidClaim
         
-    member = get_object_or_404(
-        FamilyMember.objects.select_related('family', 'family__household', 'family__household__zone', 'family__household__barangay'),
-        id=member_id
-    )
+    try:
+        member = get_object_or_404(
+            FamilyMember.objects.select_related('family', 'family__household', 'family__household__zone', 'family__household__barangay'),
+            id=member_id
+        )
+        print(f"[DEBUG staff_walkin_member_modal] Found member: {member.first_name} {member.last_name}")
+    except Exception as e:
+        print(f"[DEBUG staff_walkin_member_modal] Error loading member: {e}")
+        raise
     
     claims = AidClaim.objects.filter(
         Q(family_member=member) | Q(family=member.family, family_member__isnull=True)
@@ -1062,52 +1171,90 @@ def staff_walkin_member_modal(request, member_id):
     seven_days_ago = timezone.now() - timedelta(days=7)
     
     # Check for individual-based missed claims
-    # Exclude regular scheduled claims, late walk-in claims, AND offline import claims
-    missed_claim = GeneratedBeneficiary.objects.filter(
+    # Get late walk-in claims for this member to exclude by original_schedule_id
+    member_late_claims = AidClaim.objects.filter(
         family_member=member,
-        beneficiary_list__schedule__is_finished=True,
-        beneficiary_list__schedule__finished_at__gte=seven_days_ago
+        claim_type='WALK_IN',
+        is_late_scheduled_claim=True
+    ).values_list('original_schedule_id', flat=True)
+    
+    missed_claim = GeneratedBeneficiary.objects.filter(
+        family_member=member
+    ).filter(
+        # Either: finished schedule within 7-day grace period
+        Q(beneficiary_list__schedule__is_finished=True, 
+          beneficiary_list__schedule__finished_at__gte=seven_days_ago) |
+        # Or: ongoing schedule with datetime in the past (within 7-day window from schedule_datetime)
+        Q(beneficiary_list__schedule__is_finished=False,
+          beneficiary_list__schedule__schedule_datetime__gte=seven_days_ago,
+          beneficiary_list__schedule__schedule_datetime__lte=timezone.now())
     ).exclude(
-        beneficiary_list__schedule__claims__family_member=member,
-        beneficiary_list__schedule__claims__claim_type__in=['DISTRIBUTION', 'WALK_IN', 'OFFLINE_IMPORT']
-    ).exclude(
-        beneficiary_list__schedule__late_claims__family_member=member
+        beneficiary_list__schedule__id__in=member_late_claims
     ).select_related(
         'beneficiary_list__schedule__assistance__program',
         'beneficiary_list__schedule__assistance__aid_category',
         'beneficiary_list__schedule'
-    ).order_by('-beneficiary_list__schedule__finished_at').first()
-
-    # DEBUG: Log which schedule was selected for member 132
-    if member.id == 132 and missed_claim:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"DEBUG member 132 modal: missed_claim schedule_id={missed_claim.beneficiary_list.schedule.id}, finished_at={missed_claim.beneficiary_list.schedule.finished_at}")
+    ).order_by('-beneficiary_list__schedule__schedule_datetime').first()
+    
+    # Additional check: exclude if member already claimed via OFFLINE_IMPORT for this schedule
+    if missed_claim:
+        schedule = missed_claim.beneficiary_list.schedule
+        has_offline_claim = AidClaim.objects.filter(
+            family_member=member,
+            schedule=schedule,
+            claim_type='OFFLINE_IMPORT'
+        ).exists()
+        if has_offline_claim:
+            missed_claim = None
 
     # If no individual-based missed claim, check for family-based
     if not missed_claim:
-        missed_claim = GeneratedBeneficiary.objects.filter(
+        # Get late walk-in claims for this family to exclude by original_schedule_id
+        family_late_claims = AidClaim.objects.filter(
             family=member.family,
-            beneficiary_list__schedule__is_finished=True,
-            beneficiary_list__schedule__finished_at__gte=seven_days_ago
+            family_member__isnull=True,
+            claim_type='WALK_IN',
+            is_late_scheduled_claim=True
+        ).values_list('original_schedule_id', flat=True)
+        
+        missed_claim = GeneratedBeneficiary.objects.filter(
+            family=member.family
+        ).filter(
+            # Either: finished schedule within 7-day grace period
+            Q(beneficiary_list__schedule__is_finished=True, 
+              beneficiary_list__schedule__finished_at__gte=seven_days_ago) |
+            # Or: ongoing schedule with datetime in the past (within 7-day window from schedule_datetime)
+            Q(beneficiary_list__schedule__is_finished=False,
+              beneficiary_list__schedule__schedule_datetime__gte=seven_days_ago,
+              beneficiary_list__schedule__schedule_datetime__lte=timezone.now())
         ).exclude(
-            beneficiary_list__schedule__claims__family=member.family,
-            beneficiary_list__schedule__claims__claim_type__in=['DISTRIBUTION', 'WALK_IN', 'OFFLINE_IMPORT']
-        ).exclude(
-            beneficiary_list__schedule__late_claims__family=member.family
+            beneficiary_list__schedule__id__in=family_late_claims
         ).select_related(
             'beneficiary_list__schedule__assistance__program',
             'beneficiary_list__schedule__assistance__aid_category',
             'beneficiary_list__schedule'
-        ).order_by('-beneficiary_list__schedule__finished_at').first()
+        ).order_by('-beneficiary_list__schedule__schedule_datetime').first()
+        
+        # Additional check: exclude if family already claimed via OFFLINE_IMPORT for this schedule
+        if missed_claim:
+            schedule = missed_claim.beneficiary_list.schedule
+            has_offline_claim = AidClaim.objects.filter(
+                family=member.family,
+                schedule=schedule,
+                claim_type='OFFLINE_IMPORT'
+            ).exists()
+            if has_offline_claim:
+                missed_claim = None
     
     # Calculate days remaining if missed claim exists
     missed_claim_days_remaining = None
     missed_claim_expired = False
     missed_claim_expiry_date = None
     if missed_claim:
-        finished_at = missed_claim.beneficiary_list.schedule.finished_at
-        expiry_date = finished_at + timedelta(days=7)
+        schedule = missed_claim.beneficiary_list.schedule
+        # Use finished_at for finished schedules, schedule_datetime for ongoing
+        reference_date = schedule.finished_at if schedule.is_finished else schedule.schedule_datetime
+        expiry_date = reference_date + timedelta(days=7)
         missed_claim_expiry_date = expiry_date
         days_remaining = (expiry_date - timezone.now()).days
         if days_remaining < 0:
@@ -1182,6 +1329,7 @@ def generate_beneficiaries(request, schedule_id):
     GeneratedBeneficiary.objects.bulk_create(entries)
     
     request.session['just_generated_count'] = len(selected_beneficiaries)
+    messages.success(request, f"Beneficiary list generated successfully with {len(selected_beneficiaries)} beneficiaries.")
     return redirect('review_beneficiaries', schedule_id=schedule.id)
 
 @login_required
@@ -1209,8 +1357,12 @@ def review_beneficiaries(request, schedule_id):
             return HttpResponseForbidden("Access Denied — You are not assigned to this distribution.")
     
     if not hasattr(schedule, 'beneficiary_list'):
-        messages.error(request, "No beneficiary list generated for this schedule yet.")
-        return redirect('mswdo_dashboard')
+        # No beneficiary list exists - render empty state with Assign Staff option
+        return render(request, 'distribution/review_beneficiaries.html', {
+            'schedule': schedule,
+            'has_beneficiary_list': False,
+            'has_claims': has_claims,
+        })
         
     ben_list = schedule.beneficiary_list
     entries = ben_list.entries.select_related('family', 'household', 'family_member', 'family__household__barangay', 'household__barangay')
@@ -1251,6 +1403,7 @@ def review_beneficiaries(request, schedule_id):
 
     return render(request, 'distribution/review_beneficiaries.html', {
         'schedule': schedule,
+        'has_beneficiary_list': True,
         'has_claims': has_claims,
         'ben_list': ben_list,
         'entries': entries,
@@ -1265,6 +1418,7 @@ def review_beneficiaries(request, schedule_id):
         'is_stale': is_stale,
         'staleness_message': staleness_message,
         'is_mswdo': is_mswdo,  # Used in template to hide edit controls
+        'show_backup_prompt': request.user.role in ('MSWDO', 'MSWDO_STAFF') and not last_download,
     })
 
 @login_required
@@ -1693,6 +1847,8 @@ def finish_distribution(request, schedule_id):
         messages.success(request, "Distribution has been manually finished.")
         if request.user.role == 'MSWDO':
             return redirect('mswdo_dashboard')
+        elif request.user.role == 'BARANGAY':
+            return redirect('barangay_dashboard')
         return redirect('staff_dashboard')
 
     return HttpResponseForbidden("Invalid Method")
@@ -2234,6 +2390,11 @@ def reconcile_claims_import(request):
                             created_by=request.user
                         )
                         created += 1
+                
+                # Auto-finish check for each schedule that had claims imported
+                from distribution.schedule_utils import check_and_auto_finish_schedule
+                if schedule:
+                    check_and_auto_finish_schedule(schedule, request.user)
                 
                 log_action(request.user, 'OFFLINE_CLAIM_RECONCILIATION_IMPORT',
                           description=f"Imported {created} claims, skipped {skipped} duplicates, {unresolved} unresolved")

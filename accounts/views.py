@@ -245,12 +245,57 @@ def activate_user_account(request, user_id):
 
 @login_required(login_url='login')
 @session_protected
+def delete_user(request, user_id):
+    if request.user.role != 'MSWDO':
+        return HttpResponseForbidden("Access Denied")
+    
+    from distribution.models import AssignedTo
+    
+    user = get_object_or_404(User, id=user_id, role__in=['BARANGAY', 'MSWDO_STAFF'])
+    
+    # Server-side eligibility check (all three conditions)
+    if user.last_login is not None:
+        messages.error(request, "Cannot delete user with login history.")
+        return redirect('user_accounts')
+    
+    if user.audit_logs.exists():
+        messages.error(request, "Cannot delete user with audit trail entries.")
+        return redirect('user_accounts')
+    
+    if AssignedTo.objects.filter(staff=user).exists():
+        messages.error(request, "Cannot delete user with staff assignments.")
+        return redirect('user_accounts')
+    
+    username = user.username
+    user.delete()
+    
+    log_action(request.user, 'USER_DELETED', description=f"Deleted user account: {username}")
+    messages.success(request, f"User '{username}' has been permanently deleted.")
+    return redirect('user_accounts')
+
+
+@login_required(login_url='login')
+@session_protected
 def user_accounts(request):
     if request.user.role != 'MSWDO':
         return HttpResponseForbidden("Access Denied")
     
+    from core.models import AuditLog
+    from distribution.models import AssignedTo
+    from django.db.models import Exists, OuterRef
+    
     # Base queryset excluding MSWDO Admin
     users = User.objects.filter(role__in=['BARANGAY', 'MSWDO_STAFF']).select_related('barangay')
+    
+    # Annotate with deletion eligibility to avoid N+1 queries
+    users = users.annotate(
+        has_audit_logs=Exists(
+            AuditLog.objects.filter(actor=OuterRef('pk'))
+        ),
+        has_assignments=Exists(
+            AssignedTo.objects.filter(staff=OuterRef('pk'))
+        )
+    )
     
     # Filtering logic
     role_filter = request.GET.get('role', '')

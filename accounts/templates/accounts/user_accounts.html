@@ -196,6 +196,15 @@
                   <i class="bi bi-eye"></i>
                   <span>Details</span>
                 </button>
+                {% if user.last_login is None and not user.has_audit_logs and not user.has_assignments %}
+                <a href="{% url 'delete_user' user.id %}"
+                   class="acct-btn acct-btn--delete"
+                   title="Delete account"
+                   onclick="event.preventDefault(); showConfirmModal('You are about to permanently delete {{ user.username }}\\'s account. This cannot be undone. Are you sure?', function() { window.location.href = '{% url 'delete_user' user.id %}'; }, { title: 'Delete Account', confirmText: 'Yes, Delete Account' });">
+                  <i class="bi bi-trash"></i>
+                  <span>Delete</span>
+                </a>
+                {% endif %}
                 {% if user.is_active %}
                 <a href="{% url 'deactivate_user' user.id %}"
                    class="acct-btn acct-btn--deactivate"

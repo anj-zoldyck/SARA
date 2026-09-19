@@ -344,9 +344,9 @@
 <!-- Chart Interaction Modal -->
 <div id="chartModal" class="modal-overlay" style="display: none;">
   <div class="kiosk-modal">
-    <div class="kiosk-modal-header">
+    <div class="kiosk-modal-header" style="position: relative;">
       <h3 id="modalTitle" class="kiosk-modal-title">Title</h3>
-      <button type="button" class="btn-close" onclick="closeChartModal()" aria-label="Close"></button>
+      <button type="button" class="btn-close modal-close-btn" onclick="closeChartModal()" aria-label="Close" style="position: absolute; right: 20px; top: 20px;"></button>
     </div>
     <div class="kiosk-modal-body">
       <div id="modalContent" class="modal-content-scrollable">
@@ -438,7 +438,7 @@
         </div>
         <div class="d-flex gap-2 ms-auto align-items-center">
           ${userRole === 'MSWDO_STAFF' && s.is_assigned_or_open ? `<a href="${'{% url "review_beneficiaries" 0 %}'.replace('0', s.id)}" class="btn-dash-outline py-1 px-3" style="font-size: 0.85rem;">View List</a>` : ''}
-          ${badgeClass === 'active' && userRole === 'MSWDO_STAFF' && s.is_assigned_or_open ? `<a href="/mswdo/schedule/${s.id}/rfid/scan/" class="btn-dash-primary py-1 px-3" style="font-size: 0.85rem;">Distribute</a>` : ''}
+          ${badgeClass === 'active' && userRole === 'MSWDO_STAFF' && s.is_assigned_or_open ? `<a href="${'{% url "scan_rfid" 0 %}'.replace('0', s.id)}" class="btn-dash-primary py-1 px-3" style="font-size: 0.85rem;">Distribute</a>` : ''}
         </div>
       </div>`;
     }).join('');

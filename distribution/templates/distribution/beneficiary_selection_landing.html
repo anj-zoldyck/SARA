@@ -107,7 +107,9 @@
                   </a>
                   {% endif %}
                 {% else %}
-                  <span class="badge bg-light text-muted" style="font-size: 0.75rem;" title="No budget allocated for beneficiary generation">Not yet generated</span>
+                  <a href="{% url 'review_beneficiaries' sched.id %}" class="acct-btn acct-btn--edit">
+                    <i class="bi bi-eye"></i><span>View Beneficiaries</span>
+                  </a>
                 {% endif %}
                 {% if request.user.role == 'MSWDO' %}
                   <a href="{% url 'edit_schedule' sched.id %}" class="acct-btn acct-btn--edit" title="Edit Schedule">

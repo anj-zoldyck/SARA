@@ -426,12 +426,12 @@
 
           <!-- Household Profiling (accordion) -->
           <li class="sidebar-item sidebar-item--accordion">
-            <button class="sidebar-link sidebar-accordion-btn {% if request.resolver_match.url_name == 'barangay_residents' or request.resolver_match.url_name == 'barangay_zones_own' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' %}accordion-active{% endif %}" data-target="barangayHouseholdSubmenu" aria-expanded="{% if request.resolver_match.url_name == 'barangay_residents' or request.resolver_match.url_name == 'barangay_zones_own' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' %}true{% else %}false{% endif %}">
+            <button class="sidebar-link sidebar-accordion-btn {% if request.resolver_match.url_name == 'barangay_residents' or request.resolver_match.url_name == 'barangay_zones' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' %}accordion-active{% endif %}" data-target="barangayHouseholdSubmenu" aria-expanded="{% if request.resolver_match.url_name == 'barangay_residents' or request.resolver_match.url_name == 'barangay_zones' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' %}true{% else %}false{% endif %}">
               <i class="bi bi-house-door"></i>
               <span>Household Profiling</span>
-              <i class="bi bi-chevron-down sidebar-arrow" style="{% if request.resolver_match.url_name == 'barangay_residents' or request.resolver_match.url_name == 'barangay_zones_own' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' %}transform: rotate(180deg);{% endif %}"></i>
+              <i class="bi bi-chevron-down sidebar-arrow" style="{% if request.resolver_match.url_name == 'barangay_residents' or request.resolver_match.url_name == 'barangay_zones' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' %}transform: rotate(180deg);{% endif %}"></i>
             </button>
-            <ul class="sidebar-submenu {% if request.resolver_match.url_name == 'barangay_residents' or request.resolver_match.url_name == 'barangay_zones_own' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' %}submenu--open{% endif %}" id="barangayHouseholdSubmenu"{% if request.resolver_match.url_name == 'barangay_residents' or request.resolver_match.url_name == 'barangay_zones_own' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' %} style="max-height: 1000px;"{% endif %}>
+            <ul class="sidebar-submenu {% if request.resolver_match.url_name == 'barangay_residents' or request.resolver_match.url_name == 'barangay_zones' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' %}submenu--open{% endif %}" id="barangayHouseholdSubmenu"{% if request.resolver_match.url_name == 'barangay_residents' or request.resolver_match.url_name == 'barangay_zones' or request.resolver_match.url_name == 'household_map' or request.resolver_match.url_name == 'household_vulnerability_map' %} style="max-height: 1000px;"{% endif %}>
               <li>
                 <a href="{% url 'barangay_residents' %}" class="sidebar-sublink {% if request.resolver_match.url_name == 'barangay_residents' %}active{% endif %}">
                   <i class="bi bi-person-lines-fill"></i>
@@ -439,8 +439,8 @@
                 </a>
               </li>
               <li>
-                <a href="{% url 'barangay_zones_own' %}"
-                  class="sidebar-sublink {% if request.resolver_match.url_name == 'barangay_zones_own' %}active{% endif %}">
+                <a href="{% url 'barangay_zones' %}"
+                  class="sidebar-sublink {% if request.resolver_match.url_name == 'barangay_zones' %}active{% endif %}">
                   <i class="bi bi-map"></i>
                   <span>Zones</span>
                 </a>
@@ -528,19 +528,6 @@
       </div>
       {% endif %}
       
-      <!-- ── Django Messages (global) ──────────────────────────── 
-      {% if messages %}
-        <div style="padding: 1rem 1rem 0;">
-          {% for message in messages %}
-            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
-              <i class="bi bi-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
-              {{ message }}
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-          {% endfor %}
-        </div>
-      {% endif %} -->
-
       {% block content %}{% endblock %}
     </main>
 
@@ -723,6 +710,7 @@
       const iconEl = document.getElementById('genericConfirmIcon');
       const proceedBtn = document.getElementById('genericConfirmProceedBtn');
       const cancelBtn = document.getElementById('genericConfirmCancelBtn');
+      const closeBtn = document.getElementById('genericConfirmCloseBtn');
 
       const mode = options.mode || 'confirm';
       const type = options.type || 'danger';
@@ -777,6 +765,10 @@
       });
 
       cancelBtn.addEventListener('click', function () {
+        overlay.classList.remove('active');
+      });
+
+      closeBtn.addEventListener('click', function () {
         overlay.classList.remove('active');
       });
 

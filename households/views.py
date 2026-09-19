@@ -428,7 +428,7 @@ def add_household(request, zone_id):
             household.zone = zone
             household.barangay = request.user.barangay
             household.save()
-
+            messages.success(request, "Household added successfully.")
             return redirect('zone_detail', zone_id=zone.id)
     else:
         form = HouseholdForm()
@@ -463,6 +463,7 @@ def edit_household(request, household_id):
         form = HouseholdForm(request.POST, instance=household)
         if form.is_valid():
             form.save()
+            messages.success(request, "Household updated successfully.")
             return redirect('household_detail', household_id=household.id)
     else:
         form = HouseholdForm(instance=household)
@@ -513,6 +514,7 @@ def add_family(request, household_id):
             family = form.save(commit=False)
             family.household = household
             family.save()
+            messages.success(request, "Family added successfully.")
             return redirect('household_detail', household_id=household.id)
     else:
         form = FamilyForm()
@@ -612,7 +614,8 @@ def add_family_member(request, family_id):
                     pwd_profile.member = member
                     pwd_profile.registered_by = request.user
                     pwd_profile.save()
-                    
+                
+                messages.success(request, "Family member added successfully.")
                 return redirect('family_detail', family_id=family.id)
     else:
         form = FamilyMemberForm()
@@ -717,6 +720,7 @@ def edit_family_member(request, member_id):
                     if hasattr(updated_member, 'pwd_profile'):
                         updated_member.pwd_profile.delete()
 
+                messages.success(request, "Family member updated successfully.")
                 return redirect('family_detail', family_id=updated_member.family.id)
     else:
         form = FamilyMemberForm(instance=member)
@@ -1028,7 +1032,7 @@ def edit_family_name(request, family_id):
         if new_name:
             family.family_name = new_name
             family.save()
-            messages.success(request, "Family name updated successfully.")
+            messages.success(request, "Family updated successfully.")
         else:
             messages.error(request, "Family name cannot be empty.")
     return redirect('family_detail', family_id=family.id)
@@ -1042,7 +1046,7 @@ def delete_household(request, household_id):
     if request.method == 'POST':
         zone_id = household.zone.id
         household.delete()
-        messages.success(request, "Household removed successfully.")
+        messages.success(request, "Household deleted successfully.")
         return redirect('zone_detail', zone_id=zone_id)
     return redirect('household_detail', household_id=household_id)
 
@@ -1060,7 +1064,7 @@ def delete_family(request, family_id):
     if request.method == 'POST':
         household_id = family.household.id
         family.delete()
-        messages.success(request, "Family removed successfully.")
+        messages.success(request, "Family deleted successfully.")
         return redirect('household_detail', household_id=household_id)
     return redirect('family_detail', family_id=family_id)
 
@@ -1123,7 +1127,7 @@ def delete_family_member(request, member_id):
     if request.method == 'POST':
         family_id = member.family.id
         member.delete()
-        messages.success(request, "Family member removed successfully.")
+        messages.success(request, "Family member deleted successfully.")
         return redirect('family_detail', family_id=family_id)
     return redirect('family_detail', family_id=member.family.id)
 
@@ -1384,6 +1388,7 @@ def import_members_commit(request):
                     'needs_completion': True,  # Flag that household needs additional data
                 }
                 
+                messages.success(request, f"{members_created} member(s) imported successfully.")
                 return redirect('import_members_summary')
                 
         except Exception as e:
@@ -1612,7 +1617,7 @@ def mark_member_deceased(request, member_id):
         member.save()
         
         log_action(request.user, 'MEMBER_MARKED_DECEASED', target=member, description=f"Marked {member.first_name} {member.last_name} as deceased on {date_of_death}")
-        messages.success(request, f"{member.first_name} {member.last_name} has been marked as deceased.")
+        messages.success(request, "Member marked as deceased.")
         
         return redirect('family_detail', family_id=member.family.id)
         
@@ -1635,7 +1640,7 @@ def unmark_member_deceased(request, member_id):
         member.save()
         
         log_action(request.user, 'MEMBER_DECEASED_RESTORED', target=member, description=f"Restored {member.first_name} {member.last_name} from deceased status")
-        messages.success(request, f"{member.first_name} {member.last_name}'s deceased status has been removed.")
+        messages.success(request, "Deceased status removed.")
         
         return redirect('family_detail', family_id=member.family.id)
         

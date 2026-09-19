@@ -271,7 +271,7 @@
                   </label>
                   <div class="acct-form__control-wrap">
                     <input type="number" step="0.01" min="0.01" name="per_beneficiary_amount" id="perAmountInput"
-                      class="form-control" placeholder="e.g. 500.00" required>
+                      class="form-control" placeholder="e.g. 500.00">
                   </div>
                   <p class="acct-form__hint">Value each beneficiary receives. Required when budget is set.</p>
                 </div>
@@ -282,7 +282,7 @@
                     <i class="bi bi-sort-down"></i> Prioritization Strategy <span class="acct-form__required">*</span>
                   </label>
                   <div class="acct-form__control-wrap">
-                    <select name="prioritization_strategy" id="prioritizationStrategyInput" class="form-select" required>
+                    <select name="prioritization_strategy" id="prioritizationStrategyInput" class="form-select">
                       <option value="LOWEST_INCOME_FIRST">Lowest Income First</option>
                       <option value="TYPHOON_PRIORITY">Typhoon/Vulnerability Priority</option>
                       <option value="DAYS_SINCE_LAST_ASSISTANCE">Longest Time Since Last Assistance</option>
@@ -351,7 +351,7 @@
           </label>
           <div class="acct-form__control-wrap location-picker-container">
             <div class="location-search-wrapper">
-              <input type="text" name="location" id="locationInput" class="form-control" placeholder="Search for a venue or address..." required autocomplete="off">
+              <input type="text" name="location" id="locationInput" class="form-control" placeholder="Search for a venue or address..." autocomplete="off">
               <div id="locationSuggestions" class="location-suggestions"></div>
             </div>
             <div id="locationMap" class="location-map"></div>
@@ -422,11 +422,7 @@
     const assistanceSelect = document.querySelector('select[name="assistance_original"]');
 
     const datetimeInput = document.getElementById('scheduleDatetimeInput');
-    if (datetimeInput) {
-      const now = new Date();
-      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-      datetimeInput.min = now.toISOString().slice(0, 16);
-    }
+    // Removed min attribute to allow JavaScript validation to handle past dates with custom modal
 
     // Pre-select default strategy on initial load if assistance is already selected
     if (assistanceSelect.value) {
@@ -558,8 +554,9 @@
       this.classList.add('d-none');
     });
 
-    // Form validation - ensure assistance is selected
+    // Form validation - ensure assistance is selected and date/time is valid
     document.querySelector('.sched-form').addEventListener('submit', function(e) {
+      // Check assistance selection
       if (!assistanceSelectedId.value) {
         e.preventDefault();
         showConfirmModal('Please select an assistance type before submitting.', null, {
@@ -568,10 +565,60 @@
           title: 'Missing Assistance'
         });
         assistanceSearchInput.focus();
+        return;
       }
-    });
 
-    document.querySelector('.sched-form').addEventListener('submit', function(e) {
+      // Check location
+      const locationInput = document.getElementById('locationInput');
+      if (locationInput && !locationInput.value.trim()) {
+        e.preventDefault();
+        showConfirmModal('Please enter a location before submitting.', null, {
+          mode: 'alert',
+          type: 'warning',
+          title: 'Missing Location'
+        });
+        locationInput.focus();
+        return;
+      }
+
+      // Check amount per beneficiary when automated selection is enabled
+      if (toggle.checked) {
+        const perAmountInput = document.getElementById('perAmountInput');
+        if (perAmountInput && !perAmountInput.value.trim()) {
+          e.preventDefault();
+          showConfirmModal('Please enter the amount per beneficiary before submitting.', null, {
+            mode: 'alert',
+            type: 'warning',
+            title: 'Missing Amount'
+          });
+          perAmountInput.focus();
+          return;
+        }
+      }
+
+      // Validate date/time is not in the past
+      const datetimeInput = document.getElementById('scheduleDatetimeInput');
+      if (datetimeInput && datetimeInput.value) {
+        const selectedDate = new Date(datetimeInput.value);
+        const now = new Date();
+        const graceBuffer = 5 * 60 * 1000; // 5 minutes in milliseconds
+        if (selectedDate < (now - graceBuffer)) {
+          e.preventDefault();
+          showConfirmModal('This date and time has already passed. Please select a future date and time for the distribution.', null, {
+            mode: 'alert',
+            type: 'warning',
+            title: 'Invalid Date/Time'
+          });
+          datetimeInput.focus();
+          return;
+        }
+      }
+
+      // Validation passed - disable submit button to prevent duplicate submissions
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Creating Schedule…';
+
       if (toggle.checked) {
         showLoadingModal('Generating Beneficiary List…');
       }

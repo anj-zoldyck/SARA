@@ -13,6 +13,7 @@ urlpatterns = [
     path('mswdo/users/create/', views.create_user, name='create_user'),
     path('mswdo/users/<int:user_id>/deactivate/', views.deactivate_user, name='deactivate_user'),
     path('mswdo/users/<int:user_id>/activate/', views.activate_user_account, name='activate_user_account'),
+    path('mswdo/users/<int:user_id>/delete/', views.delete_user, name='delete_user'),
     
     path('force-password-change/', views.force_password_change, name='force_password_change'),
 

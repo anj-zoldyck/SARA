@@ -690,14 +690,6 @@ def import_distribution_claims(xlsx_file, user):
             schedule.per_beneficiary_amount = per_beneficiary_amount
         schedule.save()
     
-    # Mark schedule as finished with offline reason
-    # Only mark as finished if it's not already finished to avoid overwriting
-    if not schedule.is_finished:
-        schedule.is_finished = True
-        schedule.finished_at = timezone.now()
-        schedule.finished_by = user
-        schedule.finish_reason = finish_reason
-    
     # Calculate per_beneficiary_amount if it's 0 but budget is set
     # Only calculate if both Excel value AND schedule value are 0
     # This prevents overwriting a valid value with a calculated one
@@ -865,6 +857,10 @@ def import_distribution_claims(xlsx_file, user):
         row_idx += 1
     
     log_action(user, 'IMPORT_DISTRIBUTION_CLAIMS', target=schedule, description=f"Imported {claims_imported} claims from offline backup for schedule {schedule.id}")
+    
+    # Auto-finish check using shared helper
+    from .schedule_utils import check_and_auto_finish_schedule
+    check_and_auto_finish_schedule(schedule, user)
     
     return schedule
 
@@ -1067,6 +1063,19 @@ def import_full_offline_sync(zip_file, user):
                     claims_imported += 1
             except (Family.DoesNotExist, Assistance.DoesNotExist, AidSchedule.DoesNotExist):
                 # Skip claims with missing references
+                continue
+        
+        # Auto-finish check for all schedules that had claims imported
+        from .schedule_utils import check_and_auto_finish_schedule
+        schedules_with_claims = AidClaim.objects.filter(
+            claim_type__in=['DISTRIBUTION', 'OFFLINE_IMPORT'],
+            schedule__isnull=False
+        ).values_list('schedule_id', flat=True).distinct()
+        for schedule_id in schedules_with_claims:
+            try:
+                schedule = AidSchedule.objects.get(id=schedule_id)
+                check_and_auto_finish_schedule(schedule, user)
+            except AidSchedule.DoesNotExist:
                 continue
         
         # Create or update OfflineSyncMetadata record

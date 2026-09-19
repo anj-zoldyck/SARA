@@ -107,7 +107,7 @@
               <button type="button" class="btn-dash-outline btn-sm" onclick="openLocationModal(this)" title="View Location"><i class="bi bi-geo-alt me-1"></i> View Location</button>
               {% endif %}
               {% if actions.can_view_list %}
-              <a href="{% url 'review_beneficiaries' sched.id %}" class="btn-dash-outline btn-sm"><i class="bi bi-list-ul me-1"></i> View List</a>
+              <a href="{% url 'review_beneficiaries' sched.id %}?from=barangay_dashboard" class="btn-dash-outline btn-sm"><i class="bi bi-list-ul me-1"></i> View List</a>
               {% endif %}
               {% if actions.can_distribute %}
               <a href="{% url 'scan_rfid' sched.id %}" class="btn-dash-primary btn-sm"><i class="bi bi-upc-scan me-1"></i> Distribute</a>
@@ -165,7 +165,7 @@
               <button type="button" class="btn-dash-outline btn-sm" onclick="openLocationModal(this)" title="View Location"><i class="bi bi-geo-alt me-1"></i> View Location</button>
               {% endif %}
               {% if actions.can_view_list %}
-              <a href="{% url 'review_beneficiaries' sched.id %}" class="btn-dash-outline btn-sm"><i class="bi bi-list-ul me-1"></i> View List</a>
+              <a href="{% url 'review_beneficiaries' sched.id %}?from=barangay_dashboard" class="btn-dash-outline btn-sm"><i class="bi bi-list-ul me-1"></i> View List</a>
               {% endif %}
               {% if actions.can_distribute %}
               <a href="{% url 'scan_rfid' sched.id %}" class="btn-dash-primary btn-sm"><i class="bi bi-upc-scan me-1"></i> Distribute</a>
@@ -416,16 +416,18 @@
     const location = sched.location || '';
     const scheduleId = sched.id || '';
 
-    const viewLocationBtn = (lat && lng) 
+    const viewLocationBtn = (lat && lng)
       ? `<button type="button" class="btn-dash-outline btn-sm mt-2" onclick="openLocationModal(this)" title="View Location"><i class="bi bi-geo-alt me-1"></i> View Location</button>`
       : '';
 
+    const reviewBeneficiariesUrlTemplate = "{% url 'review_beneficiaries' 0 %}";
     const viewListBtn = sched.can_view_list
-      ? `<a href="/distribution/review-beneficiaries/${scheduleId}/" class="btn-dash-outline btn-sm mt-2"><i class="bi bi-list-ul me-1"></i> View List</a>`
+      ? `<a href="${reviewBeneficiariesUrlTemplate.replace('0', scheduleId)}?from=barangay_dashboard" class="btn-dash-outline btn-sm mt-2"><i class="bi bi-list-ul me-1"></i> View List</a>`
       : '';
 
+    const scanRfidUrlTemplate = "{% url 'scan_rfid' 0 %}";
     const distributeBtn = sched.can_distribute
-      ? `<a href="/distribution/scan-rfid/${scheduleId}/" class="btn-dash-primary btn-sm mt-2"><i class="bi bi-upc-scan me-1"></i> Distribute</a>`
+      ? `<a href="${scanRfidUrlTemplate.replace('0', scheduleId)}" class="btn-dash-primary btn-sm mt-2"><i class="bi bi-upc-scan me-1"></i> Distribute</a>`
       : '';
 
     const actionButtons = (viewLocationBtn || viewListBtn || distributeBtn)

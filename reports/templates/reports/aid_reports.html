@@ -193,9 +193,9 @@
 <!-- ── Assistances Modal ───────────────────────────────────── -->
 <div class="modal-overlay" id="assistancesModal">
   <div class="kiosk-modal">
-    <div class="kiosk-modal-header d-flex justify-content-between align-items-center">
+    <div class="kiosk-modal-header" style="position: relative;">
       <h3 class="kiosk-modal-title mb-0" id="assistancesModalLabel">Assistances</h3>
-      <button type="button" class="btn-close" onclick="closeAssistancesModal()" aria-label="Close"></button>
+      <button type="button" class="btn-close modal-close-btn" onclick="closeAssistancesModal()" aria-label="Close" style="position: absolute; right: 20px; top: 20px;"></button>
     </div>
     <div class="kiosk-modal-body">
       <div id="assistancesList">

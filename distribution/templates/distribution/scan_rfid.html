@@ -56,7 +56,7 @@
       </a>
       {% endif %}
 
-      {% if aid_schedule and not aid_schedule.is_finished and user.role != 'BARANGAY' %}
+      {% if aid_schedule and not aid_schedule.is_finished %}
       <form method="post" action="{% url 'finish_distribution' aid_schedule.id %}" id="finishDistributionForm" class="d-inline">
         {% csrf_token %}
         <button type="button" id="forceFinishBtn" class="btn-dash-outline" style="color: #dc3545; border-color: #dc3545;" title="End Distribution Early">
@@ -65,14 +65,14 @@
       </form>
       {% endif %}
 
-      <div id="statusPill" class="kiosk-status-pill idle">
+      <div id="statusPill" class="kiosk-status-pill idle" style="cursor: pointer; width: 250px; display: flex; justify-content: center; align-items: center; gap: 8px; white-space: nowrap; overflow: hidden;" title="Click to resume scanning">
         <div class="spinner-border spinner-border-sm d-none" role="status" id="statusSpinner"></div>
         <i class="bi bi-upc-scan" id="statusIcon"></i>
         <span id="statusText">Waiting for RFID</span>
       </div>
 
       <button id="fullscreenToggleBtn" class="btn btn-dash-outline fullscreen-toggle"
-        title="Toggle Fullscreen (Ctrl+Shift+F)">
+        style="margin-right: 16px;" title="Toggle Fullscreen (Ctrl+Shift+F)">
         <i class="bi bi-arrows-fullscreen"></i>
       </button>
     </div>
@@ -294,9 +294,30 @@
     }
   }
 
+  function updateFocusStatus() {
+    const isFocused = document.activeElement === rfidInput;
+    const statusText = document.getElementById('statusText');
+    const statusPill = document.getElementById('statusPill');
+    
+    if (isFocused) {
+      statusText.textContent = 'Waiting for RFID';
+      statusPill.style.backgroundColor = '';
+      statusPill.style.color = '';
+    } else {
+      statusText.textContent = 'Click to resume scanning';
+      statusPill.style.backgroundColor = '#fff3cd';
+      statusPill.style.color = '#856404';
+    }
+  }
+
   document.addEventListener('click', (e) => {
     const interactive = e.target.closest('select, button, a, input, .modal-overlay');
     if (!interactive) focusRfidInput();
+  });
+
+  // Click on status pill to resume scanning
+  document.getElementById('statusPill').addEventListener('click', () => {
+    focusRfidInput();
   });
 
   function shouldRefocus() {
@@ -320,7 +341,13 @@
       setTimeout(focusRfidInput, 100);
     }
   });
+
+  // Detect focus changes on RFID input
+  rfidInput.addEventListener('focus', updateFocusStatus);
+  rfidInput.addEventListener('blur', updateFocusStatus);
+  
   focusRfidInput();
+  updateFocusStatus();
 
   // ---------------- UI State Helpers ----------------
   function setStatusProcessing() {

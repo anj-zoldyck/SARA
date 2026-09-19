@@ -1,4 +1,4 @@
-from urllib import request
+from urllib.parse import urlencode
 from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.contrib.auth.decorators import login_required
 from django.forms import ValidationError
@@ -110,9 +110,6 @@ def distribution_claims(request):
         assistance=assistance
     ).select_related('barangay').order_by('-schedule_datetime')
     
-    # Build schedule data with filtered and paginated claims
-    schedules_data = []
-    
     # Prioritize schedules based on filters
     # Case 1: Search only (no dates) - prioritize by match count
     # Case 2: Dates only (no search) - prioritize by claim count in date range
@@ -140,8 +137,10 @@ def distribution_claims(request):
                 pass
         
         for sched in schedules:
-            # Build base queryset for counting
-            claims_count_qs = AidClaim.objects.filter(schedule=sched)
+            # Build base queryset for counting (both regular and late scheduled)
+            claims_count_qs = AidClaim.objects.filter(
+                Q(schedule=sched) | Q(original_schedule=sched)
+            )
             
             # Apply date filters if present
             if date_from_dt:
@@ -164,10 +163,51 @@ def distribution_claims(request):
         schedules_with_match_count.sort(key=lambda x: (-x[1], x[0].schedule_datetime), reverse=False)
         schedules = [sched for sched, count in schedules_with_match_count]
     
-    for sched in schedules:
-        # Get claims for this schedule
+    # Paginate schedules first (5 per page) before building per-card data
+    schedule_page = request.GET.get('schedule_page', 1)
+    schedule_paginator = Paginator(schedules, 5)
+    schedules_page = schedule_paginator.get_page(schedule_page)
+    
+    # Generate windowed page range for schedule pagination (e.g., 1 ... 4 5 6 ... 12)
+    def get_windowed_page_range(paginator, current_page, window_size=2):
+        total_pages = paginator.num_pages
+        if total_pages <= 7:  # Show all pages if 7 or fewer
+            return range(1, total_pages + 1)
+        
+        page_range = []
+        
+        # Always include first page
+        page_range.append(1)
+        
+        # Add ellipsis if needed before window
+        if current_page - window_size > 2:
+            page_range.append('...')
+        
+        # Add window around current page
+        start = max(2, current_page - window_size)
+        end = min(total_pages - 1, current_page + window_size)
+        for i in range(start, end + 1):
+            page_range.append(i)
+        
+        # Add ellipsis if needed after window
+        if current_page + window_size < total_pages - 1:
+            page_range.append('...')
+        
+        # Always include last page
+        if total_pages > 1:
+            page_range.append(total_pages)
+        
+        return page_range
+    
+    schedule_page_range = get_windowed_page_range(schedule_paginator, schedules_page.number)
+    
+    # Build schedule data with filtered and paginated claims only for current page
+    schedules_data = []
+    
+    for sched in schedules_page:
+        # Get claims for this schedule (both regular and late scheduled)
         claims_queryset = AidClaim.objects.filter(
-            schedule=sched
+            Q(schedule=sched) | Q(original_schedule=sched)
         ).select_related(
             'family',
             'family_member',
@@ -226,6 +266,11 @@ def distribution_claims(request):
             'claims': claims_page,
             'paginator': paginator,
             'page_id': f'page_{sched.id}',
+            'total_beneficiaries': (
+                sched.beneficiary_list.entries.filter(family_member__isnull=False).count() 
+                if sched.assistance.beneficiary_type == 'individual' 
+                else sched.beneficiary_list.entries.filter(family__isnull=False).count()
+            ) if hasattr(sched, 'beneficiary_list') else 0,
         })
     
     barangays = Barangay.objects.all()
@@ -234,6 +279,9 @@ def distribution_claims(request):
         'program': program,
         'assistance': assistance,
         'schedules_data': schedules_data,
+        'schedules_page': schedules_page,
+        'schedule_paginator': schedule_paginator,
+        'schedule_page_range': schedule_page_range,
         'barangays': barangays,
         'selected_barangay': selected_barangay,
         'date_from': date_from,
@@ -710,10 +758,10 @@ def distribution_report(request, schedule_id):
         ben_list = schedule.beneficiary_list
         total_beneficiaries = ben_list.entries.count()
         
-        # Get claimed beneficiaries (including OFFLINE_IMPORT type)
+        # Get claimed beneficiaries (including OFFLINE_IMPORT and late scheduled WALK_IN claims)
         claimed_family_ids = AidClaim.objects.filter(
-            schedule=schedule,
-            claim_type__in=['DISTRIBUTION', 'OFFLINE_IMPORT']
+            Q(schedule=schedule, claim_type__in=['DISTRIBUTION', 'OFFLINE_IMPORT']) |
+            Q(original_schedule=schedule, claim_type='WALK_IN', is_late_scheduled_claim=True)
         ).values_list('family_id', flat=True)
         
         # Get unclaimed beneficiaries - handle both family-based and individual-based
@@ -727,8 +775,8 @@ def distribution_report(request, schedule_id):
         else:
             # Individual-based assistance: filter by family_member
             claimed_member_ids = AidClaim.objects.filter(
-                schedule=schedule,
-                claim_type__in=['DISTRIBUTION', 'OFFLINE_IMPORT']
+                Q(schedule=schedule, claim_type__in=['DISTRIBUTION', 'OFFLINE_IMPORT']) |
+                Q(original_schedule=schedule, claim_type='WALK_IN', is_late_scheduled_claim=True)
             ).values_list('family_member_id', flat=True)
             unclaimed_beneficiaries = ben_list.entries.filter(
                 Q(family_member_id__isnull=False) & ~Q(family_member_id__in=claimed_member_ids)
@@ -741,16 +789,36 @@ def distribution_report(request, schedule_id):
         # No beneficiary list, count from claims only
         total_beneficiaries = schedule.claims.filter(claim_type__in=['DISTRIBUTION', 'OFFLINE_IMPORT']).count()
     
-    # Get claimed beneficiaries with details (including OFFLINE_IMPORT)
+    # Get claimed beneficiaries with details (including OFFLINE_IMPORT and late scheduled WALK_IN claims)
     claimed_beneficiaries = AidClaim.objects.filter(
-        schedule=schedule,
-        claim_type__in=['DISTRIBUTION', 'OFFLINE_IMPORT']
+        Q(schedule=schedule, claim_type__in=['DISTRIBUTION', 'OFFLINE_IMPORT']) |
+        Q(original_schedule=schedule, claim_type='WALK_IN', is_late_scheduled_claim=True)
     ).select_related(
         'family', 'family_member', 'created_by'
     ).order_by('claimed_at')
     
     claimed_count = claimed_beneficiaries.count()
     unclaimed_count = total_beneficiaries - claimed_count
+    
+    # Build back URL for distribution_claims flow
+    back_url = None
+    if request.GET.get('from') == 'distribution_claims' and request.user.role in ('MSWDO', 'MSWDO_STAFF'):
+        params = {}
+        if request.GET.get('program_id'):
+            params['program_id'] = request.GET.get('program_id')
+        if request.GET.get('assistance_id'):
+            params['assistance_id'] = request.GET.get('assistance_id')
+        if request.GET.get('schedule_page'):
+            params['schedule_page'] = request.GET.get('schedule_page')
+        if request.GET.get('barangay'):
+            params['barangay'] = request.GET.get('barangay')
+        if request.GET.get('date_from'):
+            params['date_from'] = request.GET.get('date_from')
+        if request.GET.get('date_to'):
+            params['date_to'] = request.GET.get('date_to')
+        if request.GET.get('search'):
+            params['search'] = request.GET.get('search')
+        back_url = f"{reverse('distribution_claims')}?{urlencode(params)}"
     
     return render(request, 'reports/distribution_report.html', {
         'schedule': schedule,
@@ -759,6 +827,7 @@ def distribution_report(request, schedule_id):
         'unclaimed_beneficiaries': unclaimed_beneficiaries,
         'claimed_count': claimed_count,
         'unclaimed_count': unclaimed_count,
+        'back_url': back_url,
     })
 
 

@@ -23,6 +23,7 @@ class AuditLog(models.Model):
         ('USER_DEACTIVATED', 'User Deactivated'),
         ('USER_ROLE_CHANGED', 'User Role Changed'),
         ('USER_BARANGAY_CHANGED', 'User Barangay Assignment Changed'),
+        ('USER_DELETED', 'User Deleted'),
         # Schedule lifecycle
         ('SCHEDULE_CREATED', 'Schedule Created'),
         ('SCHEDULE_EDITED', 'Schedule Edited'),
