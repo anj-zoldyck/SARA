@@ -59,7 +59,7 @@
       </div>
     </div>
     <div class="dash-panel__header-right">
-      <button type="button" class="btn btn-dash-primary" data-bs-toggle="modal" data-bs-target="#importModal">
+      <button type="button" class="btn-dash-primary" data-bs-toggle="modal" data-bs-target="#importModal">
         <i class="bi bi-upload me-1"></i> Import Beneficiary List
       </button>
     </div>
@@ -110,15 +110,15 @@
             <td>
               <div class="d-flex flex-wrap gap-2 align-items-start" style="min-width: 280px;">
                 {% if schedule.beneficiary_list %}
-                  <a href="{% url 'review_beneficiaries' schedule.id %}?from=staff_assigned_schedules" class="btn btn-sm btn-dash-outline text-nowrap">
+                  <a href="{% url 'review_beneficiaries' schedule.id %}?from=staff_assigned_schedules" class="btn-sm btn-dash-outline text-nowrap">
                     <i class="bi bi-list-ul me-1"></i> View List
                   </a>
-                  <a href="{% url 'download_beneficiary_backup' schedule.id %}" class="btn btn-sm btn-dash-outline text-nowrap" title="Download backup">
+                  <a href="{% url 'download_beneficiary_backup' schedule.id %}" class="btn-sm btn-dash-outline text-nowrap" title="Download backup">
                     <i class="bi bi-download me-1"></i> Download
                   </a>
                 {% endif %}
                 {% if schedule.is_finished %}
-                  <a href="{% url 'distribution_report' schedule.id %}" class="btn btn-sm btn-dash-primary text-nowrap">
+                  <a href="{% url 'distribution_report' schedule.id %}" class="btn-sm btn-dash-primary text-nowrap">
                     <i class="bi bi-file-earmark-bar-graph me-1"></i> Report
                   </a>
                 {% endif %}

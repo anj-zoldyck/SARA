@@ -1063,15 +1063,6 @@ def staff_walkin_claim(request):
                 'message': f'Eligibility check failed: {", ".join(reasons)}'
             }, status=400)
         
-        # Check for ACTIVE_TYPHOON_SIGNAL rule - block unconditionally for offline walk-in
-        # Offline weather data becomes stale during outages, so we don't evaluate against it
-        typhoon_rule = assistance.eligibility_rules.filter(rule_type='ACTIVE_TYPHOON_SIGNAL', is_active=True).first()
-        if typhoon_rule:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'This assistance is only available during active typhoon conditions. Walk-in requests are not permitted offline for typhoon-gated assistance.'
-            }, status=400)
-        
         # Validate amount for walk-in claims
         if not amount:
             return JsonResponse({

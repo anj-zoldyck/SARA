@@ -36,73 +36,6 @@
   </div>
 </div>
 
-<!-- ── Filter Panel ───────────────────────────────────────── -->
-<div class="dash-panel rfid-filter-panel">
-  <div class="dash-panel__body">
-    <div class="rfid-filter-row">
-      {% if not is_barangay %}
-      <div class="rfid-filter-group">
-        <label class="rfid-filter-label" for="filter-barangay">
-          <i class="bi bi-geo-alt"></i> Barangay
-        </label>
-        <select class="rfid-filter-select" id="filter-barangay">
-          <option value="">All Barangays</option>
-          {% for b in barangays %}
-            <option value="{{ b.id }}" {% if selected_barangay == b.id|stringformat:"s" %}selected{% endif %}>
-              {{ b.name }}
-            </option>
-          {% endfor %}
-        </select>
-      </div>
-      {% endif %}
-
-      <div class="rfid-filter-group">
-        <label class="rfid-filter-label" for="filter-zone">
-          <i class="bi bi-map"></i> Zone
-        </label>
-        <select class="rfid-filter-select" id="filter-zone" {% if not selected_barangay %}disabled{% endif %}>
-          <option value="">Select a Barangay first</option>
-          {% for z in all_zones %}
-            <option value="{{ z.id }}" data-barangay="{{ z.barangay_id }}" {% if selected_zone == z.id|stringformat:"s" %}selected{% endif %}>
-              {{ z.name }}
-            </option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="rfid-filter-group">
-        <label class="rfid-filter-label" for="filter-date-from">
-          <i class="bi bi-calendar-event"></i> Date From
-        </label>
-        <input type="date" class="rfid-filter-select" id="filter-date-from" value="{{ date_from }}">
-      </div>
-
-      <div class="rfid-filter-group">
-        <label class="rfid-filter-label" for="filter-date-to">
-          <i class="bi bi-calendar-event"></i> Date To
-        </label>
-        <input type="date" class="rfid-filter-select" id="filter-date-to" value="{{ date_to }}">
-      </div>
-
-      <div class="rfid-filter-group">
-        <label class="rfid-filter-label" for="search-input">
-          <i class="bi bi-search"></i> Search
-        </label>
-        <input type="text" class="form-control" id="search-input" placeholder="Search resident name..." value="{{ search_query }}">
-      </div>
-
-      <div class="rfid-filter-actions">
-        <button class="btn-dash-primary" id="btn-apply-filter">
-          <i class="bi bi-funnel"></i> Apply Filter
-        </button>
-        <a href="{% url 'barangay_reports' %}" class="btn-dash-outline">
-          <i class="bi bi-x-circle"></i> Clear
-        </a>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- ── Report Generation Panel ───────────────────────────── -->
 {% if request.user.role == 'MSWDO_STAFF' %}
 <div class="dash-panel rpt-gen-panel">
@@ -199,10 +132,10 @@
         <ul class="pagination justify-content-center" style="gap: 8px;">
           {% if claims.has_previous %}
           <li class="page-item">
-            <a class="page-link pagination-btn" href="?page=1{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_zone %}&zone={{ selected_zone }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&laquo;&laquo;</a>
+            <a class="page-link pagination-btn" href="?page=1{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">&laquo;&laquo;</a>
           </li>
           <li class="page-item">
-            <a class="page-link pagination-btn" href="?page={{ claims.previous_page_number }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_zone %}&zone={{ selected_zone }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&laquo;</a>
+            <a class="page-link pagination-btn" href="?page={{ claims.previous_page_number }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">&laquo;</a>
           </li>
           {% else %}
           <li class="page-item disabled"><span class="page-link">&laquo;&laquo;</span></li>
@@ -215,10 +148,10 @@
 
           {% if claims.has_next %}
           <li class="page-item">
-            <a class="page-link pagination-btn" href="?page={{ claims.next_page_number }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_zone %}&zone={{ selected_zone }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&raquo;</a>
+            <a class="page-link pagination-btn" href="?page={{ claims.next_page_number }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">&raquo;</a>
           </li>
           <li class="page-item">
-            <a class="page-link pagination-btn" href="?page={{ paginator.num_pages }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if selected_zone %}&zone={{ selected_zone }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&raquo;&raquo;</a>
+            <a class="page-link pagination-btn" href="?page={{ paginator.num_pages }}{% if selected_barangay %}&barangay={{ selected_barangay }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">&raquo;&raquo;</a>
           </li>
           {% else %}
           <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
@@ -343,12 +276,6 @@
 </div>
 {% endif %}
 
-<!-- ── Back Link ──────────────────────────────────────────── -->
-<div class="page-back-row">
-  <a href="{% if request.user.role == 'BARANGAY' %}{% url 'barangay_dashboard' %}{% else %}{% url 'aid_reports' %}{% endif %}" class="btn-dash-outline">
-    <i class="bi bi-arrow-left"></i> {% if request.user.role == 'BARANGAY' %}Back to Dashboard{% else %}Back to Reports{% endif %}
-  </a>
-</div>
 
 {% endblock %}
 
@@ -369,30 +296,6 @@
     if (e.target === this) hideReportModal();
   });
 
-  // ── Zone Cascade (client-side filtering) ─────────────────────
-  const zoneSelect = document.getElementById('filter-zone');
-  const allZoneOpts = Array.from(zoneSelect.options).slice(1); // captured ONCE, before any wiping
-
-  function cascadeZones() {
-    const barangaySelect = document.getElementById('filter-barangay');
-    const brgyId = barangaySelect.value;
-    zoneSelect.value = '';
-    while (zoneSelect.options.length > 1) zoneSelect.remove(1);
-    allZoneOpts.forEach(opt => {
-      if (!brgyId || opt.dataset.barangay === brgyId) {
-        zoneSelect.add(opt.cloneNode(true));
-      }
-    });
-    zoneSelect.disabled = !brgyId;
-  }
-
-  const barangaySelect = document.getElementById('filter-barangay');
-  barangaySelect.addEventListener('change', cascadeZones);
-  
-  // Initial load: if barangay already selected, populate zones
-  if (barangaySelect.value) cascadeZones();
-  else zoneSelect.disabled = true;
-
   // ── Apply Filter → submit as GET params ─────────────────────
   document.getElementById('btn-apply-filter').addEventListener('click', () => {
     const params = new URLSearchParams();
@@ -400,17 +303,11 @@
     const barangaySelect = document.getElementById('filter-barangay');
     if (barangaySelect.value) params.set('barangay', barangaySelect.value);
     
-    const zoneSelect = document.getElementById('filter-zone');
-    if (zoneSelect.value) params.set('zone', zoneSelect.value);
-    
     const dateFromInput = document.getElementById('filter-date-from');
     if (dateFromInput.value) params.set('date_from', dateFromInput.value);
     
     const dateToInput = document.getElementById('filter-date-to');
     if (dateToInput.value) params.set('date_to', dateToInput.value);
-    
-    const searchInput = document.getElementById('search-input');
-    if (searchInput.value.trim()) params.set('search', searchInput.value.trim());
     
     window.location.href = '{% url "barangay_reports" %}?' + params.toString();
   });

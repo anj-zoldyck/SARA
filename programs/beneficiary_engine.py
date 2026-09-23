@@ -2,9 +2,8 @@ import random
 from datetime import timedelta
 from django.utils import timezone
 from django.db.models import Sum, Q, Exists, OuterRef
-from households.models import Household, Family, FamilyMember, FloodProneArea, WeatherSnapshot
+from households.models import Household, Family, FamilyMember, FloodProneArea
 from distribution.models import AidClaim, GeneratedBeneficiary
-from households.constants import get_tcws_signal
 from programs.eligibility import check_eligibility
 
 def evaluate_household_against_rules(household, rules):
@@ -63,14 +62,13 @@ def evaluate_household_against_rules(household, rules):
             # Emergency programs bypass this rule entirely
             if rule.assistance.program.is_emergency_program:
                 continue
-            # Query AidClaim for this household's families, but only count non-emergency cash claims
-            # This is intentionally a general cooldown (not per-program), but emergency claims don't count
+            # Query AidClaim for this household's families, but only count claims for THIS specific assistance
             min_days = rule.config.get('min_days', 0)
             threshold_date = timezone.now() - timedelta(days=min_days)
-            # Find the most recent non-emergency CASH claim tied to this household
+            # Find the most recent claim for this exact assistance tied to this household
             last_claim = AidClaim.objects.filter(
                 family__household=household,
-                assistance__aid_type='CASH',
+                assistance=rule.assistance,
                 assistance__program__is_emergency_program=False
             ).order_by('-claimed_at').first()
             if last_claim and last_claim.claimed_at > threshold_date:
@@ -130,18 +128,6 @@ def evaluate_household_against_rules(household, rules):
                 # After 90 days, they're eligible for CASH again
             # If no prior cash claim or listing, they're eligible
 
-        elif rule.rule_type == 'ACTIVE_TYPHOON_SIGNAL':
-            # Check the latest WeatherSnapshot
-            min_signal = rule.config.get('min_signal', 1)
-            snapshot = WeatherSnapshot.objects.filter(fetch_successful=True).order_by('-fetched_at').first()
-            if not snapshot:
-                # Fails gracefully if no weather data is available
-                return False
-                
-            current_signal = get_tcws_signal(snapshot.current_wind_speed_kmh)
-            if not current_signal or current_signal < min_signal:
-                return False
-
     return True
 
 def evaluate_family_against_rules(family, rules):
@@ -196,12 +182,12 @@ def evaluate_family_against_rules(family, rules):
             # Emergency programs bypass this rule entirely
             if rule.assistance.program.is_emergency_program:
                 continue
-            # Query AidClaim for this specific family, but only count non-emergency cash claims
+            # Query AidClaim for this specific family, but only count claims for THIS specific assistance
             min_days = rule.config.get('min_days', 0)
             threshold_date = timezone.now() - timedelta(days=min_days)
             last_claim = AidClaim.objects.filter(
                 family=family,
-                assistance__aid_type='CASH',
+                assistance=rule.assistance,
                 assistance__program__is_emergency_program=False
             ).order_by('-claimed_at').first()
             if last_claim and last_claim.claimed_at > threshold_date:
@@ -258,17 +244,49 @@ def evaluate_family_against_rules(family, rules):
                 # After 90 days, they're eligible for CASH again
             # If no prior cash claim or listing, they're eligible
 
-        elif rule.rule_type == 'ACTIVE_TYPHOON_SIGNAL':
-            min_signal = rule.config.get('min_signal', 1)
-            snapshot = WeatherSnapshot.objects.filter(fetch_successful=True).order_by('-fetched_at').first()
-            if not snapshot:
-                return False
-                
-            current_signal = get_tcws_signal(snapshot.current_wind_speed_kmh)
-            if not current_signal or current_signal < min_signal:
-                return False
-
     return True
+
+def dedupe_family_representatives(pool, assistance):
+    """
+    For individual-based assistance with category caps (Senior, PWD, Solo Parent),
+    ensures only one qualifying member per family is selected.
+    
+    Keeps the oldest member in each family (age descending), with id ascending
+    as a tie-breaker for members of the same age.
+    
+    Args:
+        pool: List of FamilyMember objects that passed eligibility checks
+        assistance: The Assistance object being evaluated
+        
+    Returns:
+        Deduplicated list of FamilyMember objects
+    """
+    # Only apply deduplication for capped categories
+    if not (assistance.requires_senior_citizen or 
+            assistance.requires_pwd or 
+            assistance.requires_solo_parent):
+        return pool
+    
+    # Group members by family_id
+    from collections import defaultdict
+    family_groups = defaultdict(list)
+    for member in pool:
+        family_groups[member.family_id].append(member)
+    
+    # For each family, keep only the oldest member (age desc, then id asc)
+    deduped_pool = []
+    for family_id, members in family_groups.items():
+        if len(members) == 1:
+            deduped_pool.append(members[0])
+        else:
+            # Sort by age descending, then by id ascending for tie-breaking
+            members_sorted = sorted(
+                members,
+                key=lambda m: (-m.age if m.age is not None else 0, m.id)
+            )
+            deduped_pool.append(members_sorted[0])
+    
+    return deduped_pool
 
 def get_eligible_pool(assistance, barangay=None, current_schedule=None):
     """
@@ -345,6 +363,9 @@ def get_eligible_pool(assistance, barangay=None, current_schedule=None):
                 is_eligible, _ = check_eligibility(member, assistance)
                 if is_eligible:
                     eligible_pool.append(member)
+
+        # Apply family-level deduplication for capped categories (Senior, PWD, Solo Parent)
+        eligible_pool = dedupe_family_representatives(eligible_pool, assistance)
 
     return eligible_pool
 

@@ -183,11 +183,11 @@ class Assistance(models.Model):
 #                    this rule; this rule combines with AND against all other
 #                    active rules on the same Assistance)
 # DAYS_SINCE_LAST_ASSISTANCE: {"min_days": 30} — household/family must NOT have
-#   received a non-emergency CASH AidClaim within the last `min_days` days to be eligible.
-#   This checks claims across ALL assistances/programs (general cooldown), but:
+#   received a claim for THIS SPECIFIC assistance within the last `min_days` days to be eligible.
+#   This checks claims per-assistance (not cross-program), but:
 #   - Emergency program claims (is_emergency_program=True) are completely ignored
-#   - Only CASH-type claims count toward the cooldown (goods claims don't trigger it)
-#   This ensures emergency aid like AICS doesn't block regular program eligibility.
+#   - Both CASH and GOODS claims count toward the cooldown for this specific assistance
+#   This ensures beneficiaries can receive different assistances without cross-program blocking.
 # ROTATION_ELIGIBILITY: {} (no config needed) — implements a 3-month rotation system:
 #   - Checks the household/family's MOST RECENT non-emergency CASH AidClaim AND listing in beneficiary lists
 #   - Rotation is based on when they were LISTED in a cash assistance schedule (not just when they claimed)
@@ -197,10 +197,6 @@ class Assistance(models.Model):
 #     to receive cash assistance for transparency
 #   - Emergency program claims (is_emergency_program=True) are completely ignored
 #   - If they have no prior non-emergency CASH claims or listings, this rule passes automatically
-# ACTIVE_TYPHOON_SIGNAL: {"min_signal": 1} — checks the latest WeatherSnapshot
-#   and confirms get_tcws_signal(current_wind_speed) >= min_signal. If no
-#   signal is currently active (or no WeatherSnapshot exists), this rule fails
-#   (assistance is not currently active/needed).
 class EligibilityRule(models.Model):
     RULE_TYPE_CHOICES = (
         ('INCOME_THRESHOLD', 'Income Threshold'),
@@ -209,7 +205,6 @@ class EligibilityRule(models.Model):
         ('SPECIAL_CATEGORY', 'Special Category Membership'),
         ('DAYS_SINCE_LAST_ASSISTANCE', 'Days Since Last Assistance'),
         ('ROTATION_ELIGIBILITY', 'Rotation Eligibility (Cash/Goods Alternation)'),
-        ('ACTIVE_TYPHOON_SIGNAL', 'Active Typhoon Signal'),
     )
     assistance = models.ForeignKey('Assistance', on_delete=models.CASCADE, related_name='eligibility_rules')
     rule_type = models.CharField(max_length=30, choices=RULE_TYPE_CHOICES)

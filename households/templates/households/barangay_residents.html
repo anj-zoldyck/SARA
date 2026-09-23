@@ -389,7 +389,7 @@
     content.innerHTML = '<div class="p-5 text-center"><div class="spinner-border text-primary" role="status"></div></div>';
     showMemberModal();
     
-    fetch(`/mswdo/members/${memberId}/profile-view/`)
+    fetch(`/barangay/members/${memberId}/details/`)
       .then(res => {
         if (!res.ok) throw new Error('Network error');
         return res.text();

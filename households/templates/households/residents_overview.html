@@ -229,7 +229,7 @@
             </td>
             <td class="acct-td acct-td--actions">
               <div class="acct-actions">
-                <a href="{% url 'family_detail' member.family.id %}?from=residents{% if selected_barangay %}&barangay={{ selected_barangay.id }}{% endif %}{% if selected_zone %}&zone={{ selected_zone.id }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter_senior %}&senior=on{% endif %}{% if filter_pwd %}&pwd=on{% endif %}{% if filter_solo_parent %}&solo_parent=on{% endif %}{% if page_obj.number %}&page={{ page_obj.number }}{% endif %}" class="acct-btn acct-btn--edit">
+                <a href="{% url 'family_detail' member.family.id %}?from=barangay_residents{% if selected_barangay %}&barangay={{ selected_barangay.id }}{% endif %}{% if selected_zone %}&zone={{ selected_zone.id }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if filter_senior %}&senior=on{% endif %}{% if filter_pwd %}&pwd=on{% endif %}{% if filter_solo_parent %}&solo_parent=on{% endif %}{% if page_obj.number %}&page={{ page_obj.number }}{% endif %}" class="acct-btn acct-btn--edit">
                   <i class="bi bi-eye"></i><span>View</span>
                 </a>
               </div>
@@ -442,7 +442,13 @@
     content.innerHTML = '<div class="p-5 text-center"><div class="spinner-border text-primary" role="status"></div></div>';
     showMemberModal();
     
-    fetch(`/mswdo/members/${memberId}/profile-view/`)
+    // Use different endpoint based on user role
+    const userRole = '{{ user.role }}';
+    const endpoint = userRole === 'BARANGAY' 
+      ? `/barangay/members/${memberId}/details/`
+      : `/mswdo/members/${memberId}/profile-view/`;
+    
+    fetch(endpoint)
       .then(res => {
         if (!res.ok) throw new Error('Network error');
         return res.text();

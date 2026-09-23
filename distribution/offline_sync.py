@@ -307,24 +307,12 @@ def export_full_offline_sync():
         
         zipf.writestr('claims.json', json.dumps(claims_data, indent=2))
         
-        # Export typhoon signal status for offline eligibility checks
-        from households.models import WeatherSnapshot
-        latest_snapshot = WeatherSnapshot.objects.order_by('-timestamp').first()
-        typhoon_data = {
-            'has_snapshot': latest_snapshot is not None,
-            'timestamp': latest_snapshot.timestamp.isoformat() if latest_snapshot else None,
-            'wind_speed_kph': latest_snapshot.wind_speed_kph if latest_snapshot else None,
-            'signal_level': latest_snapshot.signal_level if latest_snapshot else None,
-        }
-        zipf.writestr('typhoon_status.json', json.dumps(typhoon_data, indent=2))
-        
         # Export metadata
         metadata = {
             'sync_timestamp': sync_timestamp,
             'households_count': len(households_data),
             'programs_count': len(programs_data),
             'claims_count': len(claims_data),
-            'includes_typhoon_status': True,
         }
         zipf.writestr('metadata.json', json.dumps(metadata, indent=2))
     
@@ -879,18 +867,6 @@ def import_full_offline_sync(zip_file, user):
     with zipfile.ZipFile(zip_file, 'r') as zipf:
         # Read metadata
         metadata = json.loads(zipf.read('metadata.json').decode('utf-8'))
-        
-        # Import typhoon signal status if available
-        if 'typhoon_status.json' in zipf.namelist():
-            typhoon_data = json.loads(zipf.read('typhoon_status.json').decode('utf-8'))
-            if typhoon_data.get('has_snapshot') and typhoon_data.get('timestamp'):
-                from households.models import WeatherSnapshot
-                from datetime import datetime
-                WeatherSnapshot.objects.create(
-                    timestamp=datetime.fromisoformat(typhoon_data['timestamp']),
-                    wind_speed_kph=typhoon_data.get('wind_speed_kph'),
-                    signal_level=typhoon_data.get('signal_level')
-                )
         
         # Import households
         households_data = json.loads(zipf.read('households.json').decode('utf-8'))
