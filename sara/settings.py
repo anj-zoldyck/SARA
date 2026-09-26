@@ -76,7 +76,7 @@ DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 SESSION_COOKIE_NAME = os.environ.get('SESSION_COOKIE_NAME', 'sessionid')
 CSRF_COOKIE_NAME = os.environ.get('CSRF_COOKIE_NAME', 'csrftoken')
 
-ALLOWED_HOSTS = [ '192.168.100.130', '10.230.245.161', '10.64.151.161', 'localhost', '127.0.0.1', '10.64.151.242', '192.168.1.17']
+ALLOWED_HOSTS = [ '192.168.100.130', '10.230.245.161', '10.16.133.161', '10.64.151.161', 'localhost', '127.0.0.1', '10.64.151.242', '192.168.1.17']
 
 
 # Application definition
